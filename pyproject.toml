@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-lab-pascoal"
+version = "0.1.0"
+description = "Laboratório de agentes de IA para governança de materiais PDM e BOM"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Jakson Pascoal" }
+]
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
