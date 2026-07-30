@@ -8,6 +8,7 @@ from .domain import (
     IssueType,
     MaterialRecord,
 )
+from .validator import DeterministicGovernanceValidator
 
 __all__ = [
     "GovernanceAssessment",
@@ -16,5 +17,5 @@ __all__ = [
     "IssueSeverity",
     "IssueType",
     "MaterialRecord",
+    "DeterministicGovernanceValidator",
 ]
-
