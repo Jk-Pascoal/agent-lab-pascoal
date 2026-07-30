@@ -22,9 +22,9 @@ O projeto começa com regras determinísticas e evolui gradualmente para:
 
 Antes de acrescentar um LLM, construiremos um baseline determinístico. Isso permitirá comparar precisão, custo, latência e risco.
 
-## Módulo atual: 0 — Fundação
+## Módulo atual: 1 — Baseline determinístico
 
-Nesta etapa definimos:
+O Módulo 0 definiu:
 
 1. o problema de negócio;
 2. as fronteiras de decisão;
@@ -33,7 +33,9 @@ Nesta etapa definimos:
 5. um conjunto de dados sintético;
 6. os primeiros modelos de domínio.
 
-Ainda não existe um agente autônomo neste módulo. Isso é intencional: primeiro construímos a ossatura; depois damos movimento a ela.
+O Módulo 1 acrescenta um validador executável com regras de completude,
+unidade, status, ambiguidade, atributos técnicos e duplicidade lexical.
+Ainda não utilizamos LLM: este é o adversário estatístico que a IA deverá superar.
 
 ## Estrutura inicial
 
@@ -49,8 +51,15 @@ agent-lab-pascoal/
 ├── src/
 │   └── agent_lab/
 │       ├── __init__.py
+│       ├── baseline.py
+│       ├── cli.py
+│       ├── data_io.py
 │       ├── domain.py
-│       └── metrics.py
+│       ├── duplicates.py
+│       ├── metrics.py
+│       ├── normalization.py
+│       ├── rules.py
+│       └── validator.py
 ├── tests/
 │   └── test_domain.py
 ├── pyproject.toml
@@ -72,6 +81,16 @@ $env:PYTHONPATH="src"
 python -m unittest discover -s tests -v
 ```
 
+## Executando o baseline
+
+No PowerShell:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m agent_lab.cli data/synthetic/materials.csv
+python -m agent_lab.cli data/synthetic/materials_challenge.csv
+```
+
 ## Segurança dos dados
 
 Este repositório é público. Não devem ser enviados:
@@ -85,5 +104,4 @@ Os dados iniciais são inteiramente sintéticos. Dados reais somente poderão se
 
 ## Estado do projeto
 
-🧱 **Módulo 0 em construção:** fundação do domínio e desenho experimental.
-
+⚙️ **Módulo 1 em construção:** baseline determinístico e avaliação.

@@ -19,8 +19,11 @@ class IssueSeverity(StrEnum):
 
 
 class IssueType(StrEnum):
-    MISSING_FIELD = "MISSING_FIELD"
+    MISSING_CRITICAL_FIELD = "MISSING_CRITICAL_FIELD"
+    MISSING_TECHNICAL_ATTRIBUTE = "MISSING_TECHNICAL_ATTRIBUTE"
     INVALID_UNIT = "INVALID_UNIT"
+    INVALID_STATUS = "INVALID_STATUS"
+    SUSPICIOUS_UNIT = "SUSPICIOUS_UNIT"
     POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
     AMBIGUOUS_DESCRIPTION = "AMBIGUOUS_DESCRIPTION"
     CLASSIFICATION_CONFLICT = "CLASSIFICATION_CONFLICT"
@@ -71,4 +74,3 @@ class GovernanceAssessment:
         ):
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} deve estar entre 0 e 1")
-
