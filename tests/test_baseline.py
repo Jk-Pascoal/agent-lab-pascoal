@@ -36,7 +36,15 @@ class BaselineEvaluationTests(unittest.TestCase):
 
         self.assertGreaterEqual(report.exact_match_accuracy, 0.40)
         self.assertLess(report.exact_match_accuracy, 1.0)
+    
+    def test_challenge_set_reports_business_weighted_error_cost(self) -> None:
+        materials = load_labeled_materials(CHALLENGE_DATASET)
 
+        _, report = evaluate_baseline(materials)
+
+        self.assertEqual(report.duplicate_false_negatives, 1)
+        self.assertEqual(report.unnecessary_reviews, 1)
+        self.assertEqual(report.weighted_error_cost, 6)
 
 if __name__ == "__main__":
     unittest.main()
