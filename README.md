@@ -4,50 +4,94 @@ Laboratório progressivo de engenharia de agentes de IA aplicado à governança 
 
 ## Objetivo
 
-Construir, compreender e avaliar um agente capaz de apoiar a governança de materiais sem substituir a decisão do especialista.
+Construir, compreender e avaliar agentes capazes de apoiar a governança de materiais sem substituir a decisão do especialista.
 
-O projeto começa com regras determinísticas e evolui gradualmente para:
+O laboratório começa com regras determinísticas e evoluirá gradualmente para:
 
 - saídas estruturadas com LLMs;
-- ferramentas e roteamento de decisões;
+- ferramentas, guardrails e roteamento de decisões;
 - detecção semântica de duplicidades;
 - RAG sobre normas e procedimentos;
 - memória e aprendizado a partir de feedback;
-- fluxos controlados com LangGraph;
+- orquestração controlada de agentes;
 - avaliação, observabilidade e implantação.
 
 ## Princípio de engenharia
 
 > A IA só entra onde demonstrar ganho mensurável sobre uma solução mais simples.
 
-Antes de acrescentar um LLM, construiremos um baseline determinístico. Isso permitirá comparar precisão, custo, latência e risco.
+Antes de acrescentar um LLM, construímos um baseline determinístico. Ele servirá como referência para comparar qualidade, custo, latência e risco das próximas abordagens.
 
-## Módulo atual: 1 — Baseline determinístico
+## Módulos concluídos
+
+### Módulo 0 — Fundação
 
 O Módulo 0 definiu:
 
-1. o problema de negócio;
+1. o problema de governança;
 2. as fronteiras de decisão;
-3. o contrato de entrada e saída;
-4. as métricas;
+3. os contratos de entrada e saída;
+4. as métricas iniciais;
 5. um conjunto de dados sintético;
 6. os primeiros modelos de domínio.
 
-O Módulo 1 acrescenta um validador executável com regras de completude,
-unidade, status, ambiguidade, atributos técnicos e duplicidade lexical.
-Ainda não utilizamos LLM: este é o adversário estatístico que a IA deverá superar.
+### Módulo 1 — Baseline determinístico
 
-## Estrutura inicial
+O Módulo 1 implementou:
+
+- leitura tipada dos materiais;
+- normalização de textos e abreviações;
+- validação de campos obrigatórios;
+- análise de unidades, status e atributos técnicos;
+- identificação lexical de possíveis duplicidades;
+- recomendações `APPROVE`, `REVIEW` e `REJECT`;
+- conjunto de desafio separado;
+- avaliação de precisão, recall e correspondência exata;
+- métrica ponderada de custo dos erros;
+- 17 testes automatizados.
+
+O baseline ainda não utiliza LLM. Ele representa a solução auditável que os próximos módulos deverão superar.
+
+## Resultados do baseline
+
+| Conjunto | Registros | Correspondência exata | Precisão de duplicidade | Recall de duplicidade |
+|---|---:|---:|---:|---:|
+| Desenvolvimento | 20 | 100% | 100% | 100% |
+| Desafio | 10 | 80% | 0% | 0% |
+
+O conjunto de desafio preserva duas limitações conhecidas:
+
+- uma duplicidade semanticamente equivalente não identificada;
+- uma revisão desnecessária causada por unidade considerada suspeita.
+
+## Custo ponderado dos erros
+
+A hipótese inicial do laboratório considera:
+
+- falso negativo de duplicidade: peso 5;
+- revisão desnecessária: peso 1.
+
+No conjunto de desafio:
+
+```text
+Custo = 1 × 5 + 1 × 1 = 6
+```
+
+O peso 5:1 é uma hipótese experimental e deverá ser calibrado futuramente com evidências reais.
+
+## Estrutura do projeto
 
 ```text
 agent-lab-pascoal/
 ├── data/
 │   ├── README.md
 │   └── synthetic/
-│       └── materials.csv
+│       ├── materials.csv
+│       └── materials_challenge.csv
 ├── docs/
 │   ├── 01_problem_definition.md
-│   └── 02_learning_roadmap.md
+│   ├── 02_learning_roadmap.md
+│   └── 03_module_01_baseline.md
 ├── src/
 │   └── agent_lab/
 │       ├── __init__.py
@@ -61,7 +105,10 @@ agent-lab-pascoal/
 │       ├── rules.py
 │       └── validator.py
 ├── tests/
-│   └── test_domain.py
+│   ├── test_baseline.py
+│   ├── test_domain.py
+│   ├── test_normalization.py
+│   └── test_validator.py
 ├── pyproject.toml
 └── README.md
 ```
@@ -70,20 +117,12 @@ agent-lab-pascoal/
 
 Requer Python 3.11 ou superior.
 
-```bash
-PYTHONPATH=src python -m unittest discover -s tests -v
-```
-
-No PowerShell:
-
 ```powershell
 $env:PYTHONPATH="src"
 python -m unittest discover -s tests -v
 ```
 
 ## Executando o baseline
-
-No PowerShell:
 
 ```powershell
 $env:PYTHONPATH="src"
@@ -98,10 +137,12 @@ Este repositório é público. Não devem ser enviados:
 - cadastros reais de empresas;
 - códigos internos ou informações comerciais;
 - documentos proprietários;
-- credenciais e chaves de API.
+- credenciais ou chaves de API.
 
-Os dados iniciais são inteiramente sintéticos. Dados reais somente poderão ser utilizados após anonimização e autorização apropriadas.
+Os dados atuais são inteiramente sintéticos. Dados reais somente poderão ser utilizados após anonimização e autorização apropriadas.
 
-## Estado do projeto
+## Estado do laboratório
 
-⚙️ **Módulo 1 em construção:** baseline determinístico e avaliação.
+✅ **Módulo 1 concluído:** baseline determinístico, conjunto de desafio e métrica ponderada de custo.
+
+➡️ **Próximo estudo:** Módulo 2 — LLM com saída estruturada e comparação mensurável contra o baseline.
