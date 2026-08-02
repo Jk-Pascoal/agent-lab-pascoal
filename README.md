@@ -75,9 +75,13 @@ No conjunto de desafio:
 
 ```text
 Custo = 1 × 5 + 1 × 1 = 6
+```
 
-## Estrutura do Projeto
+O peso 5:1 é uma hipótese experimental e deverá ser calibrado futuramente com evidências reais.
 
+## Estrutura do projeto
+
+```text
 agent-lab-pascoal/
 ├── data/
 │   ├── README.md
@@ -107,3 +111,38 @@ agent-lab-pascoal/
 │   └── test_validator.py
 ├── pyproject.toml
 └── README.md
+```
+
+## Executando os testes
+
+Requer Python 3.11 ou superior.
+
+```powershell
+$env:PYTHONPATH="src"
+python -m unittest discover -s tests -v
+```
+
+## Executando o baseline
+
+```powershell
+$env:PYTHONPATH="src"
+python -m agent_lab.cli data/synthetic/materials.csv
+python -m agent_lab.cli data/synthetic/materials_challenge.csv
+```
+
+## Segurança dos dados
+
+Este repositório é público. Não devem ser enviados:
+
+- cadastros reais de empresas;
+- códigos internos ou informações comerciais;
+- documentos proprietários;
+- credenciais ou chaves de API.
+
+Os dados atuais são inteiramente sintéticos. Dados reais somente poderão ser utilizados após anonimização e autorização apropriadas.
+
+## Estado do laboratório
+
+✅ **Módulo 1 concluído:** baseline determinístico, conjunto de desafio e métrica ponderada de custo.
+
+➡️ **Próximo estudo:** Módulo 2 — LLM com saída estruturada e comparação mensurável contra o baseline.
