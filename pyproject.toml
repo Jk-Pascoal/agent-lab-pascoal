@@ -12,7 +12,9 @@ license = { text = "MIT" }
 authors = [
     { name = "Jakson Pascoal" }
 ]
-dependencies = []
+dependencies = [
+    "pydantic>=2,<3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
