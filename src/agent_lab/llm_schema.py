@@ -19,3 +19,10 @@ class GovernanceAgentOutput(BaseModel):
     issues: tuple[IssueType, ...]
     summary: str = Field(min_length=1)
     evidence: tuple[str, ...]
+
+
+def parse_governance_agent_output(
+    raw_json: str,
+) -> GovernanceAgentOutput:
+    """Converte JSON bruto em uma saída validada do agente."""
+    return GovernanceAgentOutput.model_validate_json(raw_json)

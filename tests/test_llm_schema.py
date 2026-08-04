@@ -1,8 +1,12 @@
+import json
 import unittest
 
 from pydantic import ValidationError
 
-from agent_lab.llm_schema import GovernanceAgentOutput
+from agent_lab.llm_schema import (
+    GovernanceAgentOutput,
+    parse_governance_agent_output,
+)
 
 
 VALID_OUTPUT = {
@@ -25,6 +29,20 @@ class GovernanceAgentOutputTests(unittest.TestCase):
             output.issues[0].value,
             "POSSIBLE_DUPLICATE",
         )
+
+    def test_parses_valid_json_output(self) -> None:
+        raw_json = json.dumps(VALID_OUTPUT)
+
+        output = parse_governance_agent_output(raw_json)
+
+        self.assertEqual(output.material_id, "MAT-0002")
+        self.assertEqual(output.decision.value, "REVIEW")
+
+    def test_rejects_malformed_json(self) -> None:
+        malformed_json = '{"material_id": "MAT-0002",'
+
+        with self.assertRaises(ValidationError):
+            parse_governance_agent_output(malformed_json)
 
     def test_rejects_confidence_above_one(self) -> None:
         invalid_output = {
