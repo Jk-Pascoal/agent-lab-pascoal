@@ -26,3 +26,8 @@ def parse_governance_agent_output(
 ) -> GovernanceAgentOutput:
     """Converte JSON bruto em uma saída validada do agente."""
     return GovernanceAgentOutput.model_validate_json(raw_json)
+
+
+def governance_agent_output_schema() -> dict[str, object]:
+    """Exporta o contrato do agente no formato JSON Schema."""
+    return GovernanceAgentOutput.model_json_schema()
