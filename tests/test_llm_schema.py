@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from agent_lab.llm_schema import (
     GovernanceAgentOutput,
+    governance_agent_output_schema,
     parse_governance_agent_output,
 )
 
@@ -61,6 +62,37 @@ class GovernanceAgentOutputTests(unittest.TestCase):
 
         with self.assertRaises(ValidationError):
             GovernanceAgentOutput.model_validate(invalid_output)
+
+    def test_exports_schema_with_required_fields(self) -> None:
+        schema = governance_agent_output_schema()
+
+        expected_required_fields = {
+            "material_id",
+            "decision",
+            "confidence",
+            "issues",
+            "summary",
+            "evidence",
+        }
+
+        self.assertEqual(
+            set(schema["required"]),
+            expected_required_fields,
+        )
+        self.assertFalse(schema["additionalProperties"])
+
+    def test_schema_preserves_domain_constraints(self) -> None:
+        schema = governance_agent_output_schema()
+
+        confidence_schema = schema["properties"]["confidence"]
+        decision_schema = schema["$defs"]["GovernanceDecision"]
+
+        self.assertEqual(confidence_schema["minimum"], 0.0)
+        self.assertEqual(confidence_schema["maximum"], 1.0)
+        self.assertEqual(
+            decision_schema["enum"],
+            ["APPROVE", "REVIEW", "REJECT"],
+        )
 
 
 if __name__ == "__main__":
