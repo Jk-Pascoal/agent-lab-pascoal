@@ -1,0 +1,131 @@
+name: Proposta de melhoria
+description: Proponha uma funcionalidade ou evolução para o Agent Lab Pascoal.
+title: "[FEATURE] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por contribuir com o Agent Lab Pascoal.
+
+        Antes de propor uma solução, descreva o problema, as evidências e o
+        resultado esperado. Não inclua dados reais de empresas, informações
+        proprietárias, credenciais ou chaves de API.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: Qual problema precisa ser resolvido e por que ele é relevante?
+      placeholder: Descreva o problema atual de forma objetiva.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidências
+      description: Quais fatos, exemplos, testes ou métricas demonstram o problema?
+      placeholder: Inclua evidências observáveis e links públicos quando existirem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impacto
+      description: Quem ou o que é afetado? Qual é o risco de não tratar o problema?
+      placeholder: Descreva impacto técnico, operacional, educacional ou de governança.
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objetivo
+      description: Qual resultado mensurável deve ser alcançado?
+      placeholder: Ao final deste incremento, o projeto deverá...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área principal
+      description: Em qual parte do laboratório a proposta se concentra?
+      options:
+        - Governança PDM/BOM
+        - Contratos e saídas estruturadas
+        - Avaliação e métricas
+        - Testes e qualidade
+        - Workflow de engenharia
+        - Documentação e aprendizado
+        - Outra área
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Escopo proposto
+      description: O que deve ser incluído neste incremento?
+      placeholder: |
+        - item incluído;
+        - item incluído.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Fora do escopo
+      description: O que não deve ser tratado nesta Issue?
+      placeholder: |
+        - item que ficará para outra Issue;
+        - mudança que não pertence a este incremento.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Solução ou hipótese inicial
+      description: Se houver, descreva uma possível solução sem tratá-la como decisão final.
+      placeholder: A hipótese inicial é... Alternativas consideradas...
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Critérios de aceite
+      description: Quais condições verificáveis demonstrarão que a proposta foi concluída?
+      placeholder: |
+        - [ ] comportamento ou documento esperado existe;
+        - [ ] testes específicos foram aprovados;
+        - [ ] suíte completa permanece aprovada.
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks-limitations
+    attributes:
+      label: Riscos e limitações
+      description: Quais riscos, dependências ou limitações já são conhecidos?
+      placeholder: Descreva riscos técnicos, de dados, de custo ou de governança.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: governance-confirmation
+    attributes:
+      label: Confirmações de governança
+      description: Confirme os cuidados mínimos antes de enviar a proposta.
+      options:
+        - label: Pesquisei Issues existentes e não encontrei uma proposta equivalente.
+          required: true
+        - label: Não incluí credenciais, chaves de API nem dados reais ou proprietários.
+          required: true
+        - label: A decisão final de domínio continuará sob responsabilidade humana.
+          required: true
