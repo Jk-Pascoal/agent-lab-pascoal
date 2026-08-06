@@ -1,0 +1,136 @@
+name: Relato de problema
+description: Relate um defeito reproduzível no Agent Lab Pascoal.
+title: "[BUG] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por ajudar a tornar o Agent Lab Pascoal mais confiável.
+
+        Descreva o defeito com evidências suficientes para reprodução. Remova
+        dados reais, informações proprietárias, credenciais e chaves de API de
+        mensagens, capturas de tela e arquivos anexados.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema observado
+      description: O que aconteceu e por que esse comportamento representa um defeito?
+      placeholder: Descreva o comportamento observado de forma objetiva.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Comportamento esperado
+      description: O que deveria ter acontecido?
+      placeholder: Descreva o resultado correto esperado.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passos para reproduzir
+      description: Forneça a menor sequência de passos capaz de reproduzir o problema.
+      placeholder: |
+        1. Execute o comando...
+        2. Utilize a entrada sintética...
+        3. Observe o resultado...
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidências
+      description: Inclua mensagens de erro, testes reprovados, logs sanitizados ou capturas de tela.
+      placeholder: Cole a saída relevante e remova qualquer informação sensível.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impacto
+      description: Quem ou o que é afetado? Qual é a gravidade do defeito?
+      placeholder: Descreva o efeito sobre qualidade, confiabilidade, dados ou governança.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Gravidade estimada
+      description: Selecione a consequência mais próxima do problema.
+      options:
+        - Baixa — inconveniente sem perda de funcionalidade essencial
+        - Média — funcionalidade prejudicada com alternativa disponível
+        - Alta — funcionalidade essencial indisponível ou resultado incorreto
+        - Crítica — risco de segurança, dados ou decisão indevida
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Ambiente
+      description: Informe versões e sistema relevantes para reproduzir o problema.
+      value: |
+        - Sistema operacional:
+        - Versão do Python:
+        - Branch ou commit:
+        - Comando executado:
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Escopo da correção
+      description: Qual é a menor correção necessária e o que deve permanecer inalterado?
+      placeholder: |
+        Incluído:
+        - correção necessária.
+
+        Fora do escopo:
+        - evolução não relacionada ao defeito.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Critérios de aceite
+      description: Como poderemos verificar objetivamente que o defeito foi corrigido?
+      placeholder: |
+        - [ ] teste que reproduz o defeito foi criado;
+        - [ ] teste passa após a correção;
+        - [ ] suíte completa permanece aprovada.
+    validations:
+      required: true
+
+  - type: textarea
+    id: limitations
+    attributes:
+      label: Limitações ou informações adicionais
+      description: Registre hipóteses, dependências ou limitações conhecidas.
+      placeholder: Inclua apenas informações relevantes para a investigação.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: governance-confirmation
+    attributes:
+      label: Confirmações de governança
+      description: Confirme os cuidados mínimos antes de enviar o relato.
+      options:
+        - label: Pesquisei Issues existentes e não encontrei um relato equivalente.
+          required: true
+        - label: Removi credenciais, chaves de API e dados reais ou proprietários.
+          required: true
+        - label: A correção não deverá automatizar decisões finais de domínio.
+          required: true
