@@ -5,11 +5,11 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0012` |
-| Status | `Proposta` |
+| Status | `Implementada` |
 | Issue relacionada | `#12` — `[QUALITY] Proteger a branch main e exigir CI aprovada` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-07` |
-| Última atualização | `2026-08-07` |
+| Última atualização | `2026-08-08` |
 | Área | Testes, qualidade e governança do repositório |
 
 ## 1. Contexto
@@ -496,39 +496,44 @@ comportamento funcional publicado do agente.
 
 ## 13. Critérios de aceite
 
-- [ ] existe uma regra de proteção ativa aplicável à branch `main`;
-- [ ] o fluxo normal de integração da `main` exige Pull Request;
-- [ ] o workflow existente em `.github/workflows/tests.yml` continua
+- [x] existe uma regra de proteção ativa aplicável à branch `main`;
+- [x] o fluxo normal de integração da `main` exige Pull Request;
+- [x] o workflow existente em `.github/workflows/tests.yml` continua
   operacional;
-- [ ] o status check correto da CI é obrigatório;
-- [ ] um Pull Request com CI pendente ou falhando não pode ser integrado pelo
+- [x] o status check correto da CI é obrigatório;
+- [x] um Pull Request com CI pendente ou falhando não pode ser integrado pelo
   fluxo normal;
-- [ ] existe evidência observável de um cenário de CI reprovada com merge
+- [x] existe evidência observável de um cenário de CI reprovada com merge
   bloqueado;
-- [ ] a falha controlada usada na validação foi removida antes do estado final;
-- [ ] um Pull Request com CI aprovada pode prosseguir para revisão e merge;
-- [ ] a configuração não exige obrigatoriamente um segundo mantenedor nesta
+- [x] a falha controlada usada na validação foi removida antes do estado final;
+- [x] um Pull Request com CI aprovada pode prosseguir para revisão e merge;
+- [x] a configuração não exige obrigatoriamente um segundo mantenedor nesta
   fase;
-- [ ] a política de proteção está documentada no repositório;
-- [ ] os 24 testes existentes continuam aprovados no estado final;
-- [ ] `git diff --check` não apresenta erros;
-- [ ] nenhuma credencial, secret ou dado proprietário foi incluído;
-- [ ] riscos, limitações e procedimento de reversão estão documentados;
-- [ ] a decisão final de merge permanece humana;
-- [ ] o Pull Request referencia a Issue #12 e esta SPEC.
+- [x] a política de proteção está documentada no repositório;
+- [x] os 24 testes existentes continuam aprovados no estado final;
+- [x] `git diff --check` não apresenta erros;
+- [x] nenhuma credencial, secret ou dado proprietário foi incluído;
+- [x] riscos, limitações e procedimento de reversão estão documentados;
+- [x] a decisão final de merge permanece humana;
+- [x] o Pull Request referencia a Issue #12 e esta SPEC.
 
-## 14. Questões em aberto
+## 14. Questões resolvidas
 
-1. Qual mecanismo estará disponível/mais adequado na interface atual do
-   repositório: Ruleset ou proteção clássica de branch?
-2. Qual é o nome exato do status check que o GitHub apresentará para seleção:
-   `Python 3.11` ou outro contexto derivado do workflow?
-3. Qual opção de bypass/recuperação administrativa estará disponível para um
-   repositório pessoal e como ela deverá ser configurada sem enfraquecer o
-   fluxo normal?
+1. **Mecanismo de proteção adotado:** GitHub Ruleset.
 
-Essas questões deverão ser respondidas durante a configuração, a partir da
-interface real do GitHub, e registradas no histórico de decisões abaixo.
+2. **Status check obrigatório confirmado:** `Python 3.11`, apresentado no
+   Pull Request como `Testes / Python 3.11`.
+
+3. **Administração e recuperação:** o Ruleset foi mantido simples, sem exigência
+   de segundo reviewer e sem bypass configurado para o fluxo normal. O
+   proprietário do repositório mantém capacidade administrativa de alterar ou
+   desativar o Ruleset em situação excepcional.
+
+4. **Validação RED:** Pull Request experimental #13 confirmou que CI reprovada
+   bloqueia o merge.
+
+5. **Validação GREEN:** Pull Request #14 confirmou que CI aprovada satisfaz o
+   required status check e libera o fluxo normal para merge.
 
 ## 15. Histórico de decisões
 
@@ -537,6 +542,10 @@ interface real do GitHub, e registradas no histórico de decisões abaixo.
 | `2026-08-07` | Criar `SPEC-0012` para proteção da `main` | A CI já existe, mas ainda precisa tornar-se gate obrigatório de integração | Jakson Pascoal |
 | `2026-08-07` | Não exigir segundo reviewer nesta fase | O projeto possui atualmente um único mantenedor principal | Jakson Pascoal |
 | `2026-08-07` | Validar o gate com cenário controlado de falha e recuperação | O critério deve ser demonstrado por evidência observável, não apenas por configuração declarada | Jakson Pascoal |
+| `2026-08-07` | Adotar GitHub Ruleset para proteger a `main` | É o mecanismo disponível e adequado ao repositório | Jakson Pascoal |
+| `2026-08-07` | Confirmar `Python 3.11` como required status check | É o job real emitido pelo workflow `Testes` | Jakson Pascoal |
+| `2026-08-07` | Validar cenário RED no PR #13 | A CI falhou e o merge permaneceu bloqueado | Jakson Pascoal |
+| `2026-08-08` | Validar cenário GREEN no PR #14 | A CI foi aprovada e o merge foi liberado | Jakson Pascoal |
 
 ## 16. Rastreabilidade
 
