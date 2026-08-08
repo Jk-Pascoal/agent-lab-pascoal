@@ -237,12 +237,22 @@ python -m unittest discover -s tests -v
 Depois que os testes estiverem verdes, melhore nomes, estrutura ou duplicação
 sem alterar o comportamento. Execute novamente a suíte após a refatoração.
 
-### TDD em mudanças documentais
+### TDD em mudanças documentais e de governança
 
 Quando não há código funcional, os critérios de aceite funcionam como uma
-verificação inicialmente reprovada: os documentos ou templates ainda não
-existem. A regressão continua obrigatória para demonstrar que a documentação
-não alterou acidentalmente o sistema.
+verificação inicialmente reprovada: a política, configuração ou documentação
+ainda não existe.
+
+Nesses casos, o ciclo pode ser adaptado para comportamento observável:
+
+```text
+Vermelho → condição desejada ainda não satisfeita
+Verde    → condição satisfeita
+Regressão → suíte funcional existente permanece aprovada
+```
+
+A regressão continua obrigatória para demonstrar que a mudança de governança ou
+documentação não alterou acidentalmente o sistema.
 
 ## 9. Etapa 6 — Implementação
 
@@ -323,20 +333,135 @@ as validações e compreender o diff sem depender de explicações privadas.
 
 ## 12. Etapa 9 — CI
 
-CI significa integração contínua. Seu papel é executar gates automaticamente
-em um ambiente reproduzível sempre que houver push ou Pull Request.
+CI significa integração contínua. Seu papel é executar gates automatizados em
+um ambiente reproduzível sempre que houver alterações relevantes no
+repositório.
 
-Gates planejados:
+O Agent Lab Pascoal utiliza GitHub Actions para executar automaticamente a
+suíte de testes.
 
-- instalação controlada das dependências;
-- execução da suíte de testes;
-- verificação de formatação e qualidade;
-- validação de arquivos de configuração;
-- bloqueio do merge quando um gate obrigatório falhar.
+O workflow está versionado em `.github/workflows/tests.yml`.
 
-O workflow de GitHub Actions não é criado na Issue #8. Até a automação ser
-implementada em Issue própria, os comandos são executados localmente e seus
-resultados registrados no Pull Request.
+A automação utiliza atualmente:
+
+- sistema operacional: Ubuntu;
+- Python: 3.11;
+- framework de testes: `unittest`.
+
+A suíte é executada automaticamente em:
+
+- Pull Requests direcionados à branch `main`;
+- pushes destinados à branch `main`.
+
+O principal status check utilizado pelo projeto é `Python 3.11`.
+
+Na interface de Pull Request, esse check pode aparecer como
+`Testes / Python 3.11`.
+
+### 12.1 CI como quality gate
+
+Desde a Issue #12, a CI não funciona apenas como mecanismo informativo.
+
+A branch `main` possui um Ruleset ativo que estabelece o seguinte fluxo:
+
+```text
+Branch de trabalho
+        ↓
+Pull Request
+        ↓
+GitHub Actions
+        ↓
+Python 3.11
+        ↓
+status check obrigatório
+        ↓
+revisão
+        ↓
+merge
+        ↓
+main
+```
+
+Se o check obrigatório falhar, o merge normal é bloqueado.
+
+Se o check obrigatório for aprovado, o gate automatizado é satisfeito e o
+Pull Request pode prosseguir para revisão e decisão humana de merge.
+
+Portanto:
+
+**CI informativa não é o mesmo que quality gate.**
+
+Uma CI informativa registra sucesso ou falha.
+
+Um quality gate utiliza o resultado dessa verificação como condição obrigatória
+para o prosseguimento do fluxo de integração.
+
+### 12.2 Proteção da branch `main`
+
+O Ruleset `Protect main - require PR and CI` aplica-se especificamente à
+branch `main`.
+
+A política atual exige:
+
+- Pull Request antes da integração;
+- status check `Python 3.11` aprovado;
+- bloqueio do merge quando o check obrigatório falhar;
+- bloqueio de force push;
+- proteção contra exclusão da branch.
+
+Nesta fase, não é exigida aprovação obrigatória de um segundo reviewer, pois o
+projeto possui atualmente um único mantenedor principal.
+
+O code review continua sendo uma etapa metodológica obrigatória do workflow,
+mas a decisão final de integração permanece sob responsabilidade humana.
+
+### 12.3 Evidência experimental
+
+A proteção foi validada na Issue #12 por meio de um Pull Request experimental.
+
+Foi criada uma branch descartável contendo uma falha controlada.
+
+O resultado local foi:
+
+- 25 testes executados;
+- 24 testes aprovados;
+- 1 falha controlada.
+
+O GitHub Actions executou o job `Python 3.11` e a CI foi reprovada.
+
+Como esse status check estava configurado como obrigatório pelo Ruleset, o
+botão de merge do Pull Request ficou bloqueado.
+
+O Pull Request experimental #13 foi posteriormente fechado sem merge e a branch
+experimental foi descartada.
+
+O experimento demonstrou empiricamente a propriedade:
+
+**CI reprovada → merge bloqueado.**
+
+A validação complementar da Issue #12 deverá demonstrar:
+
+**CI aprovada → gate automatizado satisfeito.**
+
+### 12.4 Interpretação correta
+
+Uma CI verde não prova que o software está absolutamente correto.
+
+Ela demonstra que os comportamentos cobertos pelos gates automatizados foram
+aprovados naquele estado do código.
+
+Por isso, a qualidade do Agent Lab depende da combinação entre:
+
+- Issue;
+- SPEC;
+- testes;
+- CI;
+- inspeção do diff;
+- code review;
+- decisão humana.
+
+A automação controla condições verificáveis. Ela não substitui julgamento de
+engenharia nem decisões de domínio PDM/BOM.
 
 ## 13. Etapa 10 — Code review
 
@@ -353,7 +478,8 @@ A revisão de código não procura apenas erros sintáticos. Ela avalia se a mud
 4. verificar contratos, tipos e regras de domínio;
 5. inspecionar riscos, limitações e reversão;
 6. confirmar segurança dos dados e responsabilidade humana;
-7. validar o impacto de versionamento.
+7. validar o impacto de versionamento;
+8. confirmar o estado dos checks obrigatórios da CI.
 
 ### Possíveis resultados
 
@@ -370,12 +496,16 @@ O merge somente deve ocorrer quando:
 - Issue e SPEC estão vinculadas;
 - critérios de aceite foram atendidos;
 - testes específicos e suíte completa estão aprovados;
+- o status check obrigatório `Python 3.11` está aprovado;
 - `git diff --check` não apresenta erros;
 - riscos e limitações foram registrados;
 - não existem segredos ou dados reais no diff;
 - a responsabilidade humana foi preservada;
 - a revisão foi concluída;
 - o impacto de versionamento foi definido.
+
+Se um required status check falhar ou permanecer pendente, o merge normal na
+`main` deve permanecer bloqueado pelo Ruleset.
 
 Após o merge, atualize o ambiente local:
 
@@ -425,7 +555,28 @@ git diff --cached --check
 git status -sb
 ```
 
-### Interpretação
+### Gate remoto atual
+
+Para Pull Requests direcionados à `main`, o Ruleset exige o status check:
+
+```text
+Python 3.11
+```
+
+Esse check é produzido pelo GitHub Actions a partir do workflow
+`.github/workflows/tests.yml`.
+
+A interpretação operacional é:
+
+```text
+CI reprovada ou pendente → merge bloqueado
+CI aprovada              → gate automatizado satisfeito
+```
+
+A aprovação do gate automatizado não substitui o code review nem a decisão
+humana de merge.
+
+### Interpretação dos gates locais
 
 - testes com `OK`: comportamentos verificados permanecem válidos;
 - `git diff --check` sem saída: nenhum erro de espaços em branco foi detectado;
@@ -483,6 +634,9 @@ A Issue #8 utiliza o próprio workflow que pretende institucionalizar:
 - [ ] Issue e SPEC vinculadas ao Pull Request;
 - [ ] critérios de aceite atendidos;
 - [ ] riscos e limitações registrados;
+- [ ] suíte completa aprovada;
+- [ ] required status check `Python 3.11` aprovado;
+- [ ] CI sem falhas ou pendências obrigatórias;
 - [ ] responsabilidade humana preservada;
 - [ ] revisão concluída;
 - [ ] impacto SemVer definido;
