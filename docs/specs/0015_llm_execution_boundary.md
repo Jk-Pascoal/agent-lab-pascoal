@@ -560,10 +560,10 @@ existentes.
 - [x] os 24 testes anteriores continuam aprovados;
 - [x] os novos testes da Issue #15 estão aprovados;
 - [ ] a CI `Testes / Python 3.11` está aprovada no Pull Request;
-- [ ] nenhum segredo, credencial ou dado proprietário foi incluído;
-- [ ] nenhuma regra determinística PDM/BOM foi alterada;
-- [ ] riscos e limitações estão registrados;
-- [ ] a decisão final de governança permanece humana;
+- [x] nenhum segredo, credencial ou dado proprietário foi incluído;
+- [x] nenhuma regra determinística PDM/BOM foi alterada;
+- [x] riscos e limitações estão registrados;
+- [x] a decisão final de governança permanece humana;
 - [ ] o Pull Request referencia a Issue #15 e esta SPEC.
 
 ## 14. Questões em aberto
