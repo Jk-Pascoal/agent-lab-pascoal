@@ -5,7 +5,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0015` |
-| Status | `Proposta` |
+| Status | `Aprovada` |
 | Issue relacionada | `#15` — `[FEATURE] Criar fronteira de execução da LLM para análise de materiais` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-09` |
@@ -540,25 +540,25 @@ existentes.
 
 ## 13. Critérios de aceite
 
-- [ ] existe um contrato explícito `LLMProvider`;
-- [ ] o contrato não depende de SDK específico;
-- [ ] existe uma fronteira que recebe `MaterialRecord`;
-- [ ] o prompt é construído de forma determinística;
-- [ ] os campos relevantes do material são fornecidos ao provider;
-- [ ] o JSON Schema existente é fornecido ao provider;
-- [ ] o schema não é duplicado manualmente;
-- [ ] o provider retorna JSON bruto;
-- [ ] JSON bruto obrigatoriamente atravessa `parse_governance_agent_output()`;
-- [ ] JSON válido produz `GovernanceAgentOutput`;
-- [ ] JSON malformado é rejeitado;
-- [ ] JSON estruturalmente inválido é rejeitado;
-- [ ] existe Fake/Stub Provider nos testes;
-- [ ] os testes não utilizam internet;
-- [ ] os testes não utilizam API key;
-- [ ] nenhum SDK real de LLM é adicionado neste incremento;
-- [ ] nenhuma chamada real a LLM ocorre;
-- [ ] os 24 testes anteriores continuam aprovados;
-- [ ] os novos testes da Issue #15 estão aprovados;
+- [x] existe um contrato explícito `LLMProvider`;
+- [x] o contrato não depende de SDK específico;
+- [x] existe uma fronteira que recebe `MaterialRecord`;
+- [x] o prompt é construído de forma determinística;
+- [x] os campos relevantes do material são fornecidos ao provider;
+- [x] o JSON Schema existente é fornecido ao provider;
+- [x] o schema não é duplicado manualmente;
+- [x] o provider retorna JSON bruto;
+- [x] JSON bruto obrigatoriamente atravessa `parse_governance_agent_output()`;
+- [x] JSON válido produz `GovernanceAgentOutput`;
+- [x] JSON malformado é rejeitado;
+- [x] JSON estruturalmente inválido é rejeitado;
+- [x] existe Fake/Stub Provider nos testes;
+- [x] os testes não utilizam internet;
+- [x] os testes não utilizam API key;
+- [x] nenhum SDK real de LLM é adicionado neste incremento;
+- [x] nenhuma chamada real a LLM ocorre;
+- [x] os 24 testes anteriores continuam aprovados;
+- [x] os novos testes da Issue #15 estão aprovados;
 - [ ] a CI `Testes / Python 3.11` está aprovada no Pull Request;
 - [ ] nenhum segredo, credencial ou dado proprietário foi incluído;
 - [ ] nenhuma regra determinística PDM/BOM foi alterada;
@@ -592,6 +592,10 @@ existentes.
 | `2026-08-09` | Utilizar Fake/Stub Provider no TDD | Mantém testes determinísticos, rápidos e sem custo | Jakson Pascoal |
 | `2026-08-09` | Reutilizar `governance_agent_output_schema()` | Mantém uma única fonte de verdade para o contrato de saída | Jakson Pascoal |
 | `2026-08-09` | Reutilizar `parse_governance_agent_output()` | Garante que toda resposta externa atravesse a fronteira Pydantic | Jakson Pascoal |
+| `2026-08-09` | Validar TDD RED com ausência de `llm_service` | O novo teste falhou com `ModuleNotFoundError`, comprovando que a fronteira ainda não existia | Jakson Pascoal |
+| `2026-08-09` | Implementar `LLMProvider` como `Protocol` mínimo | Mantém desacoplamento de fornecedores e facilita Fake Provider | Jakson Pascoal |
+| `2026-08-09` | Implementar `GovernanceLLMService` mínimo | Coordena prompt, schema, provider e parsing sem ampliar o escopo | Jakson Pascoal |
+| `2026-08-09` | Validar GREEN local com 31 testes | Os 24 testes anteriores e os 7 novos foram aprovados | Jakson Pascoal |
 
 ## 16. Rastreabilidade
 
