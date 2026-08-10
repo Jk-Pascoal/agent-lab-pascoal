@@ -5,7 +5,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0017` |
-| Status | `Proposta` |
+| Status | `Aprovada` |
 | Issue relacionada | `#17` — `[QUALITY] Garantir consistência do material_id na fronteira LLM` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-10` |
@@ -33,46 +33,56 @@ revisão humana
 ```
 
 A fronteira garante validade sintática e estrutural da resposta, reutilizando
-Pydantic e JSON Schema. Ainda não existe, porém, uma validação explícita que
-garanta que o `material_id` retornado corresponde ao mesmo material recebido
-como entrada.
+Pydantic e JSON Schema. A Issue #17 adiciona uma garantia adicional: a saída
+validada precisa continuar se referindo ao mesmo material recebido como entrada.
 
-A `SPEC-0015` já registrou essa consistência como questão em aberto. A Issue #17
-transforma a pendência em um guardrail testável.
+A `SPEC-0015` já havia registrado essa consistência como questão em aberto. A
+Issue #17 transforma a pendência em um guardrail testável e auditável.
 
 ## 2. Problema, evidências e impacto
 
 ### Problema
 
-Hoje, `analyze_material()` recebe um `MaterialRecord`, chama o provider, valida
-o JSON retornado e devolve diretamente um `GovernanceAgentOutput`.
+`analyze_material()` recebe um `MaterialRecord`, chama o provider, valida o JSON
+retornado e produz um `GovernanceAgentOutput`.
 
-Assim, uma resposta como:
+Antes desta Issue, uma resposta como:
 
 ```text
 entrada.material_id = MAT-0015
 saída.material_id   = MAT-9999
 ```
 
-pode ser aceita caso o JSON esteja estruturalmente correto.
+podia ser aceita caso o JSON estivesse estruturalmente correto.
 
 Esse é um erro semântico de identidade, não um erro de schema.
 
 ### Evidências
 
-O estado atual possui:
+Estado observado antes da implementação:
 
-- `MaterialRecord.material_id` na entrada;
-- `GovernanceAgentOutput.material_id` na saída;
-- `parse_governance_agent_output()` para validação estrutural;
-- `analyze_material()` retornando diretamente o resultado validado;
-- 31 testes automatizados aprovados;
-- nenhum teste que exija igualdade entre o identificador de entrada e saída;
-- nenhuma comparação explícita entre os dois identificadores.
+- `MaterialRecord.material_id` existia na entrada;
+- `GovernanceAgentOutput.material_id` existia na saída;
+- `parse_governance_agent_output()` validava a estrutura;
+- `analyze_material()` retornava o resultado validado sem comparar os IDs;
+- baseline local em `2026-08-10`: `31/31` testes aprovados;
+- nenhum teste exigia igualdade entre o identificador de entrada e saída.
+
+Evidência do RED:
+
+```text
+Ran 8 tests in 0.008s
+FAILED (failures=1)
+
+AssertionError: ValueError not raised
+```
+
+O RED comprovou que uma resposta estruturalmente válida com `material_id`
+divergente era aceita.
 
 ### Impacto
 
-Sem esse guardrail, uma recomendação pode ser:
+Sem o guardrail, uma recomendação poderia ser:
 
 - sintaticamente válida;
 - estruturalmente válida;
@@ -81,7 +91,7 @@ Sem esse guardrail, uma recomendação pode ser:
 
 e ainda assim pertencer a outro material.
 
-Isso ameaça:
+Isso ameaçava:
 
 - rastreabilidade;
 - auditabilidade;
@@ -99,15 +109,14 @@ MaterialRecord.material_id
 GovernanceAgentOutput.material_id
 ```
 
-Comportamento esperado:
+Comportamento esperado e implementado:
 
 ```text
 MAT-0015 → MAT-0015 → aceita
 MAT-0015 → MAT-9999 → rejeita
 ```
 
-O incremento deve permanecer pequeno, determinístico e independente de
-fornecedor.
+O incremento permanece pequeno, determinístico e independente de fornecedor.
 
 ## 4. Escopo
 
@@ -119,6 +128,8 @@ fornecedor.
 - criar uma exceção explícita para mismatch;
 - criar TDD RED para demonstrar a lacuna;
 - criar teste para identidade preservada;
+- criar teste para auditabilidade de `expected` e `received`;
+- criar teste garantindo ausência de retry;
 - preservar os 31 testes existentes;
 - documentar riscos e limitações.
 
@@ -186,11 +197,11 @@ A decisão final continua sob responsabilidade humana.
 - `RQ-09` — Nenhum dado empresarial real deve ser utilizado.
 - `RQ-10` — A decisão final deve permanecer humana.
 
-## 7. Proposta técnica
+## 7. Implementação técnica
 
 ### Visão geral
 
-Fluxo proposto:
+Fluxo implementado:
 
 ```text
 MaterialRecord
@@ -213,44 +224,49 @@ IDs iguais?
 return        exceção
 ```
 
-### Exceção proposta
+### Exceção
 
-Criar em `llm_service.py`:
+Foi criada em `src/agent_lab/llm_service.py`:
 
 ```python
 class MaterialIdentityMismatchError(ValueError):
     ...
 ```
 
-Mensagem conceitual:
+A exceção preserva:
+
+- `expected`;
+- `received`.
+
+Mensagem observável:
 
 ```text
 Material identity mismatch: expected 'MAT-0015', received 'MAT-9999'.
 ```
 
-A exceção específica diferencia falha semântica de falha estrutural.
+### Regra implementada
 
-### Implementação mínima
-
-Mudança conceitual em `analyze_material()`:
+Após o parsing estrutural:
 
 ```python
 result = parse_governance_agent_output(raw_json)
-
-if result.material_id != material.material_id:
-    raise MaterialIdentityMismatchError(
-        expected=material.material_id,
-        received=result.material_id,
-    )
-
-return result
 ```
+
+a fronteira compara:
+
+```python
+result.material_id != material.material_id
+```
+
+Quando houver divergência, lança `MaterialIdentityMismatchError`.
+
+Quando houver igualdade, retorna normalmente o `GovernanceAgentOutput`.
 
 ### Comparação
 
-A comparação será estrita.
+A comparação é estrita.
 
-Não serão aplicados nesta Issue:
+Não são aplicados:
 
 - `strip()`;
 - `lower()`;
@@ -259,131 +275,111 @@ Não serão aplicados nesta Issue:
 - regex;
 - fuzzy matching.
 
-Se normalização de identificadores for necessária, deverá existir uma Issue
-própria.
-
-### Arquivos previstos
+### Arquivos alterados
 
 - `src/agent_lab/llm_service.py`
-  - adicionar exceção;
-  - adicionar comparação de identidade.
-
 - `tests/test_llm_service.py`
-  - adicionar RED para mismatch;
-  - adicionar teste de identidade preservada;
-  - preservar testes existentes.
 
-- `docs/specs/0017_llm_material_identity_guardrail.md`
-  - esta especificação.
-
-Não são previstas alterações em:
+### Arquivos não alterados
 
 - `src/agent_lab/domain.py`;
 - `src/agent_lab/llm_schema.py`;
 - `src/agent_lab/llm_provider.py`;
-- `src/agent_lab/validator.py`.
+- `src/agent_lab/validator.py`;
+- regras determinísticas PDM/BOM;
+- workflows do GitHub Actions.
 
 ## 8. Estratégia de testes e TDD
 
 ### Baseline
 
-Baseline já observado em 10/08/2026:
+Baseline observado em `2026-08-10`:
 
 ```text
 Ran 31 tests
 OK
 ```
 
-### Vermelho
+### RED
 
-Primeiro criar um teste que demonstre a ausência do guardrail.
+Foi adicionado primeiro um teste para `material_id` divergente.
 
-Exemplo conceitual:
-
-```python
-def test_rejects_output_for_different_material_id(self):
-    mismatched_output = {
-        **VALID_OUTPUT,
-        "material_id": "MAT-9999",
-    }
-    provider = FakeLLMProvider(json.dumps(mismatched_output))
-
-    with self.assertRaises(MaterialIdentityMismatchError):
-        analyze_material(self.material, provider)
-```
-
-Antes da implementação, o teste deverá falhar porque o código atual aceita uma
-resposta estruturalmente válida com ID divergente.
-
-Evidência esperada:
+Resultado observado:
 
 ```text
-MaterialIdentityMismatchError not raised
+Ran 8 tests in 0.008s
+FAILED (failures=1)
+
+AssertionError: ValueError not raised
 ```
 
-### Verde
+Isso demonstrou que o guardrail ainda não existia.
 
-Implementar apenas:
+### GREEN inicial
 
-1. parsing existente;
-2. comparação de IDs;
-3. exceção em caso de mismatch;
-4. retorno normal quando os IDs forem iguais.
+Após a implementação mínima:
 
-### Regressão
-
-Executar:
-
-```powershell
-python -m unittest discover -s tests -p "test_llm_service.py" -v
-python -m unittest discover -s tests -p "test_*.py" -v
+```text
+Ran 8 tests in 0.008s
+OK
 ```
 
-### Testes previstos
+Regressão inicial:
 
-- `T-01` — ID divergente é rejeitado.
-- `T-02` — ID preservado continua aceito.
-- `T-03` — erro informa esperado e recebido.
-- `T-04` — JSON malformado continua rejeitado.
-- `T-05` — JSON estruturalmente inválido continua rejeitado.
-- `T-06` — provider continua sendo chamado uma única vez.
-- `T-07` — regressão dos 31 testes existentes.
+```text
+Ran 32 tests in 0.029s
+OK
+```
+
+### GREEN final
+
+Foram adicionados testes adicionais para:
+
+- auditabilidade de `expected`;
+- auditabilidade de `received`;
+- ausência de retry automático.
+
+Resultado final observado:
+
+```text
+Ran 34 tests in 0.026s
+OK
+```
+
+### Testes da Issue #17
+
+- `T-01` — ID divergente é rejeitado. ✅
+- `T-02` — ID preservado continua aceito. ✅
+- `T-03` — erro informa esperado e recebido. ✅
+- `T-04` — JSON malformado continua rejeitado. ✅
+- `T-05` — JSON estruturalmente inválido continua rejeitado. ✅
+- `T-06` — provider continua sendo chamado uma única vez. ✅
+- `T-07` — regressão dos 31 testes existentes. ✅
 
 ## 9. Gates de qualidade
 
-Antes do Pull Request:
+### Gates locais concluídos
 
-```powershell
-python -m unittest discover -s tests -p "test_*.py" -v
-git diff --check
-git status -sb
-```
+- baseline `31/31`; ✅
+- RED comportamental registrado; ✅
+- GREEN específico registrado; ✅
+- regressão completa `34/34`; ✅
+- nenhum SDK novo; ✅
+- nenhuma chamada de rede; ✅
+- nenhuma credencial; ✅
+- nenhuma regra PDM/BOM alterada; ✅
+- alteração limitada aos arquivos previstos; ✅
+- revisão local antes do commit; ✅
 
-Com arquivos staged:
+### Gate remoto pendente
 
-```powershell
-git diff --cached --check
-git diff --cached --stat
-git diff --cached
-```
-
-No Pull Request:
+No Pull Request ainda será necessário:
 
 - GitHub Actions executado;
 - `Testes / Python 3.11` aprovado;
 - required check satisfeito;
-- revisão humana concluída.
-
-Critérios mínimos:
-
-- RED registrado;
-- GREEN específico registrado;
-- regressão completa aprovada;
-- nenhuma chamada de rede;
-- nenhuma credencial;
-- nenhum SDK novo;
-- nenhuma regra PDM/BOM alterada;
-- alteração limitada aos arquivos previstos.
+- revisão final;
+- merge na `main`.
 
 ## 10. Riscos e limitações
 
@@ -400,12 +396,12 @@ Critérios mínimos:
 
 Mesmo após o incremento:
 
-- não haverá provider real;
-- não haverá avaliação de qualidade semântica;
-- fabricante e part number não serão validados;
-- evidências poderão estar incorretas;
-- não haverá detecção geral de alucinação;
-- não haverá retry ou fallback.
+- não há provider real;
+- não há avaliação de qualidade semântica completa;
+- fabricante e part number não são validados;
+- evidências ainda podem estar incorretas;
+- não há detecção geral de alucinação;
+- não há retry ou fallback.
 
 ## 11. Plano de reversão
 
@@ -437,48 +433,46 @@ capacidade já existente.
 
 ## 13. Critérios de aceite
 
-- [ ] existe validação explícita entre `material_id` de entrada e saída;
-- [ ] a comparação ocorre depois da validação Pydantic;
-- [ ] identificadores iguais continuam aceitos;
-- [ ] identificadores diferentes são rejeitados;
-- [ ] existe uma exceção explícita para divergência;
-- [ ] a exceção informa esperado e recebido;
-- [ ] o identificador não é corrigido silenciosamente;
-- [ ] não existe retry automático;
-- [ ] JSON malformado continua rejeitado;
-- [ ] JSON estruturalmente inválido continua rejeitado;
-- [ ] a regra continua independente de provider;
-- [ ] nenhum SDK externo foi adicionado;
-- [ ] nenhuma chamada de rede foi necessária;
-- [ ] nenhum contrato Pydantic foi alterado;
-- [ ] existe TDD RED demonstrando a ausência do guardrail;
-- [ ] existe teste para divergência de identidade;
-- [ ] existe teste para identidade preservada;
-- [ ] os 31 testes anteriores continuam aprovados;
-- [ ] os novos testes estão aprovados;
+- [x] existe validação explícita entre `material_id` de entrada e saída;
+- [x] a comparação ocorre depois da validação Pydantic;
+- [x] identificadores iguais continuam aceitos;
+- [x] identificadores diferentes são rejeitados;
+- [x] existe uma exceção explícita para divergência;
+- [x] a exceção informa esperado e recebido;
+- [x] o identificador não é corrigido silenciosamente;
+- [x] não existe retry automático;
+- [x] JSON malformado continua rejeitado;
+- [x] JSON estruturalmente inválido continua rejeitado;
+- [x] a regra continua independente de provider;
+- [x] nenhum SDK externo foi adicionado;
+- [x] nenhuma chamada de rede foi necessária;
+- [x] nenhum contrato Pydantic foi alterado;
+- [x] existe TDD RED demonstrando a ausência do guardrail;
+- [x] existe teste para divergência de identidade;
+- [x] existe teste para identidade preservada;
+- [x] os 31 testes anteriores continuam aprovados;
+- [x] os novos testes estão aprovados;
 - [ ] GitHub Actions / Python 3.11 está aprovado;
-- [ ] nenhum segredo ou credencial foi adicionado;
-- [ ] nenhum dado empresarial real foi utilizado;
-- [ ] nenhuma regra determinística PDM/BOM foi alterada;
-- [ ] riscos e limitações estão registrados;
-- [ ] a decisão final permanece humana;
+- [x] nenhum segredo ou credencial foi adicionado;
+- [x] nenhum dado empresarial real foi utilizado;
+- [x] nenhuma regra determinística PDM/BOM foi alterada;
+- [x] riscos e limitações estão registrados;
+- [x] a decisão final permanece humana;
 - [ ] o Pull Request referencia a Issue #17 e esta SPEC.
 
 ## 14. Questões em aberto
 
-1. **Nome da exceção**
-   - proposta: `MaterialIdentityMismatchError`.
+1. **Provider real**
+   - permanece fora desta Issue;
+   - será tratado em incremento posterior.
 
-2. **Local da exceção**
-   - proposta: `src/agent_lab/llm_service.py`.
-
-3. **Atributos do erro**
-   - avaliar se `expected` e `received` devem ser atributos;
-   - no mínimo, ambos devem estar disponíveis na mensagem.
-
-4. **Comparação estrita**
-   - decisão inicial: igualdade exata;
+2. **Normalização de identificadores**
+   - comparação atual é estrita;
    - qualquer normalização futura exige Issue própria.
+
+3. **Outros guardrails semânticos**
+   - fabricante, part number, descrição e evidências permanecem candidatos
+     futuros, caso surjam evidências de risco.
 
 ## 15. Histórico de decisões
 
@@ -490,15 +484,28 @@ capacidade já existente.
 | `2026-08-10` | Rejeitar mismatch em vez de corrigir | Correção silenciosa esconderia erro do provider | Jakson Pascoal |
 | `2026-08-10` | Não implementar retry | Mantém escopo mínimo e determinístico | Jakson Pascoal |
 | `2026-08-10` | Usar comparação estrita | Identidade deve ser explícita | Jakson Pascoal |
+| `2026-08-10` | Registrar RED comportamental | `ValueError not raised` provou que a saída de outro material era aceita | Jakson Pascoal |
+| `2026-08-10` | Implementar `MaterialIdentityMismatchError` | Separar erro semântico de identidade de erro estrutural | Jakson Pascoal |
+| `2026-08-10` | Validar GREEN final com 34 testes | Os 31 testes anteriores e 3 novos testes ficaram aprovados | Jakson Pascoal |
+| `2026-08-10` | Commitar implementação funcional | Commit `7e1c992` registra o guardrail e seus testes | Jakson Pascoal |
 
 ## 16. Rastreabilidade
 
-Esta SPEC implementa:
+### Issue
 
 ```text
 Issue #17
 [QUALITY] Garantir consistência do material_id na fronteira LLM
 ```
+
+### Commits já registrados
+
+```text
+ab4487a  Documenta guardrail de identidade do material
+7e1c992  Adiciona guardrail de identidade do material
+```
+
+### Pull Request
 
 O Pull Request deverá conter:
 
@@ -513,26 +520,30 @@ SPEC-0017
 docs/specs/0017_llm_material_identity_guardrail.md
 ```
 
-Fluxo previsto:
+### Fluxo
 
 ```text
-Issue #17
+Issue #17                 ✅
    ↓
-SPEC-0017
+SPEC-0017                 ✅
    ↓
-branch
+branch                    ✅
    ↓
-TDD RED
+TDD RED                   ✅
    ↓
-guardrail mínimo
+guardrail mínimo          ✅
    ↓
-GREEN
+GREEN 34/34               ✅
    ↓
-regressão
+commit funcional          ✅
    ↓
-PR
+atualização da SPEC       ← agora
    ↓
-Actions
+push
+   ↓
+Pull Request
+   ↓
+GitHub Actions
    ↓
 review
    ↓
