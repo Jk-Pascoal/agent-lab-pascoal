@@ -9,6 +9,19 @@ from .llm_schema import (
 )
 
 
+class MaterialIdentityMismatchError(ValueError):
+    """Erro lançado quando a saída se refere a outro material."""
+
+    def __init__(self, *, expected: str, received: str) -> None:
+        self.expected = expected
+        self.received = received
+
+        super().__init__(
+            "Material identity mismatch: "
+            f"expected '{expected}', received '{received}'."
+        )
+
+
 def build_governance_prompt(material: MaterialRecord) -> str:
     """Constrói um prompt determinístico a partir de um registro de material."""
     return "\n".join(
@@ -44,4 +57,12 @@ def analyze_material(
         response_schema=response_schema,
     )
 
-    return parse_governance_agent_output(raw_json)
+    result = parse_governance_agent_output(raw_json)
+
+    if result.material_id != material.material_id:
+        raise MaterialIdentityMismatchError(
+            expected=material.material_id,
+            received=result.material_id,
+        )
+
+    return result

@@ -9,6 +9,7 @@ from agent_lab.llm_schema import (
     governance_agent_output_schema,
 )
 from agent_lab.llm_service import (
+    MaterialIdentityMismatchError,
     analyze_material,
     build_governance_prompt,
 )
@@ -148,6 +149,45 @@ class GovernanceLLMServiceTests(unittest.TestCase):
         for field_name in expected_field_names:
             with self.subTest(field_name=field_name):
                 self.assertIn(field_name, prompt)
+
+    def test_rejects_output_for_different_material_id(self) -> None:
+        mismatched_output = {
+            **VALID_OUTPUT,
+            "material_id": "MAT-9999",
+        }
+        provider = FakeLLMProvider(json.dumps(mismatched_output))
+
+        with self.assertRaises(MaterialIdentityMismatchError):
+            analyze_material(self.material, provider)
+
+    def test_identity_mismatch_error_exposes_expected_and_received(self) -> None:
+        mismatched_output = {
+            **VALID_OUTPUT,
+            "material_id": "MAT-9999",
+        }
+        provider = FakeLLMProvider(json.dumps(mismatched_output))
+
+        with self.assertRaises(MaterialIdentityMismatchError) as context:
+            analyze_material(self.material, provider)
+
+        error = context.exception
+
+        self.assertEqual(error.expected, "MAT-0015")
+        self.assertEqual(error.received, "MAT-9999")
+        self.assertIn("MAT-0015", str(error))
+        self.assertIn("MAT-9999", str(error))
+
+    def test_identity_mismatch_does_not_retry_provider(self) -> None:
+        mismatched_output = {
+            **VALID_OUTPUT,
+            "material_id": "MAT-9999",
+        }
+        provider = FakeLLMProvider(json.dumps(mismatched_output))
+
+        with self.assertRaises(MaterialIdentityMismatchError):
+            analyze_material(self.material, provider)
+
+        self.assertEqual(provider.calls, 1)
 
 
 if __name__ == "__main__":
