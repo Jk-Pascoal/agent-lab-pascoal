@@ -5,7 +5,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0015` |
-| Status | `Aprovada` |
+| Status | `Implementada` |
 | Issue relacionada | `#15` — `[FEATURE] Criar fronteira de execução da LLM para análise de materiais` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-09` |
@@ -559,12 +559,12 @@ existentes.
 - [x] nenhuma chamada real a LLM ocorre;
 - [x] os 24 testes anteriores continuam aprovados;
 - [x] os novos testes da Issue #15 estão aprovados;
-- [ ] a CI `Testes / Python 3.11` está aprovada no Pull Request;
+- [x] a CI `Testes / Python 3.11` está aprovada no Pull Request;
 - [x] nenhum segredo, credencial ou dado proprietário foi incluído;
 - [x] nenhuma regra determinística PDM/BOM foi alterada;
 - [x] riscos e limitações estão registrados;
 - [x] a decisão final de governança permanece humana;
-- [ ] o Pull Request referencia a Issue #15 e esta SPEC.
+- [x] o Pull Request referencia a Issue #15 e esta SPEC.
 
 ## 14. Questões em aberto
 
@@ -596,6 +596,8 @@ existentes.
 | `2026-08-09` | Implementar `LLMProvider` como `Protocol` mínimo | Mantém desacoplamento de fornecedores e facilita Fake Provider | Jakson Pascoal |
 | `2026-08-09` | Implementar `GovernanceLLMService` mínimo | Coordena prompt, schema, provider e parsing sem ampliar o escopo | Jakson Pascoal |
 | `2026-08-09` | Validar GREEN local com 31 testes | Os 24 testes anteriores e os 7 novos foram aprovados | Jakson Pascoal |
+| `2026-08-09` | Validar GREEN remoto no PR #16 | O required check `Testes / Python 3.11` foi aprovado com sucesso | Jakson Pascoal |
+| `2026-08-09` | Considerar a SPEC-0015 implementada | Implementação, testes locais e CI remota satisfizeram os critérios técnicos | Jakson Pascoal |
 
 ## 16. Rastreabilidade
 
