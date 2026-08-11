@@ -5,8 +5,10 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0021` |
-| Status | `Aprovada` |
+| Status | `Implementada` |
 | Issue relacionada | `#21` — `[FEATURE] Evidence Engine v1 — evidências estruturadas para decisões de governança` |
+| Pull Request | `#22` — `[FEATURE] Evidence Engine v1 — evidências estruturadas para governança` |
+| Merge commit | `0fe6f86` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-11` |
 | Última atualização | `2026-08-11` |
@@ -93,12 +95,22 @@ Ran 34 tests in 0.035s
 OK
 ```
 
-Resultado final local:
+Resultado final local antes do Pull Request:
 
 ```text
 Ran 46 tests in 0.029s
 OK
 ```
+
+Validação pós-merge na `main`:
+
+```text
+Ran 46 tests in 0.033s
+OK
+```
+
+A Issue #21 foi encerrada automaticamente como `completed` após o merge do
+Pull Request #22.
 
 ### Impacto
 
@@ -655,16 +667,26 @@ Observação:
 ainda estavam `untracked`. A estatística relevante deverá ser verificada após
 `git add`, usando `git diff --cached --stat`.
 
-### Gate remoto pendente
+### Gate remoto concluído
 
-No Pull Request ainda será necessário:
+Pull Request:
 
-- push da branch;
-- GitHub Actions executado;
-- `Testes / Python 3.11` aprovado;
-- required check satisfeito;
-- revisão final;
-- merge na `main`.
+```text
+#22 — [FEATURE] Evidence Engine v1 — evidências estruturadas para governança
+```
+
+Resultado:
+
+- branch publicada; ✅
+- GitHub Actions executado; ✅
+- `Testes / Python 3.11` aprovado; ✅
+- required check satisfeito; ✅
+- Pull Request #22 revisado; ✅
+- merge realizado na `main`; ✅
+- merge commit `0fe6f86`; ✅
+- branch `feature/issue-21-evidence-engine-v1` removida após o merge; ✅
+- Issue #21 encerrada automaticamente como `completed`; ✅
+- validação pós-merge na `main`: `46/46`; ✅
 
 ## 10. Riscos e limitações
 
@@ -754,7 +776,7 @@ as capacidades existentes, sem remover ou modificar contratos publicados.
 - [x] os 34 testes anteriores continuam aprovados;
 - [x] a suíte completa `46/46` está aprovada;
 - [x] `git diff --check` está aprovado;
-- [ ] GitHub Actions / Python 3.11 está aprovado;
+- [x] GitHub Actions / Python 3.11 está aprovado;
 - [x] nenhum SDK externo novo foi adicionado;
 - [x] nenhuma chamada de rede foi adicionada;
 - [x] nenhuma credencial foi adicionada;
@@ -762,7 +784,7 @@ as capacidades existentes, sem remover ou modificar contratos publicados.
 - [x] nenhuma regra determinística PDM/BOM existente foi alterada;
 - [x] riscos e limitações estão documentados;
 - [x] a decisão final permanece humana;
-- [ ] o Pull Request referencia a Issue #21 e esta SPEC.
+- [x] o Pull Request #22 referencia a Issue #21 e esta SPEC.
 
 ## 14. Questões em aberto
 
@@ -803,3 +825,30 @@ as capacidades existentes, sem remover ou modificar contratos publicados.
 | `2026-08-11` | Permitir coleção vazia para material válido | Ausência de evidência pode ser um estado legítimo de uma análise | Jakson Pascoal |
 | `2026-08-11` | Manter decisão final humana | Princípio de governança do Agent Lab Pascoal | Jakson Pascoal |
 | `2026-08-11` | Encerrar implementação local com `46/46` testes | Regressão completa aprovada antes do PR | Jakson Pascoal |
+| `2026-08-11` | Aprovar GitHub Actions no PR #22 | Required check `Testes / Python 3.11` aprovado | Jakson Pascoal |
+| `2026-08-11` | Fazer merge do PR #22 na `main` | Todos os gates locais e remotos aprovados | Jakson Pascoal |
+| `2026-08-11` | Encerrar Issue #21 como `completed` | `Closes #21` processado pelo merge | GitHub |
+| `2026-08-11` | Marcar `SPEC-0021` como `Implementada` | Implementação, CI, merge e validação pós-merge concluídos | Jakson Pascoal |
+
+
+## 16. Encerramento
+
+A `SPEC-0021` está concluída.
+
+Estado final:
+
+```text
+Issue #21        → completed
+SPEC-0021        → Implementada
+PR #22           → merged
+GitHub Actions   → aprovado
+main             → sincronizada
+regressão final  → 46/46
+```
+
+O Evidence Engine v1 passa a fazer parte da linha principal do Agent Lab Pascoal
+como fundação contratual para explicabilidade, auditabilidade e futuras camadas
+de interpretação e decisão.
+
+O próximo incremento não deve ampliar esta SPEC. Novas capacidades devem ser
+tratadas por Issue e SPEC próprias.
