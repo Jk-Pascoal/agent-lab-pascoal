@@ -19,42 +19,44 @@ agentes, regras determinísticas de governança, análise de duplicidades, front
 LLM independente de provider, validação estrutural por Pydantic, GitHub Actions e
 guardrail de identidade de `material_id`.
 
-O estado atual também já utiliza evidências em dois pontos do domínio:
+O estado anterior à Issue #21 também já utilizava evidências em dois pontos do
+domínio:
 
-- `GovernanceAssessment.evidence` é representado como `tuple[str, ...]`;
-- `GovernanceAgentOutput.evidence` é representado como `tuple[str, ...]`.
+- `GovernanceAssessment.evidence` representado como `tuple[str, ...]`;
+- `GovernanceAgentOutput.evidence` representado como `tuple[str, ...]`.
 
-Esses campos permitem transportar texto, mas ainda não formam um contrato
-estruturado capaz de registrar de maneira uniforme:
+Esses campos permitem transportar texto, mas não formam um contrato estruturado
+capaz de registrar de maneira uniforme:
 
 - a identidade do material;
 - a origem da evidência;
 - o tipo de problema observado;
 - a observação produzida.
 
-A Issue #21 propõe criar essa camada antes de evoluir o sistema para um Decision
-Engine mais sofisticado.
+A Issue #21 cria uma camada de domínio dedicada para evidências antes da evolução
+do sistema para um Decision Engine mais sofisticado.
 
-O princípio arquitetural é:
+O princípio arquitetural permanece:
 
 ```text
 Evidence != Decision
 ```
 
-A evidência registra o que foi observado. A decisão será responsabilidade de uma
-camada posterior.
+A evidência registra o que foi observado. A decisão pertence a uma camada
+posterior.
 
 ## 2. Problema, evidências e impacto
 
 ### Problema
 
-Os sinais produzidos durante uma análise ainda não possuem uma representação
-central, tipada e auditável.
+Os sinais produzidos durante uma análise não possuíam uma representação central,
+tipada e auditável.
 
-Hoje, evidências podem existir como strings ou ser inferidas indiretamente de
-`GovernanceIssue`, regras, duplicidades ou da saída LLM.
+Antes desta implementação, evidências podiam existir como strings ou ser
+inferidas indiretamente de `GovernanceIssue`, regras, duplicidades ou da saída
+LLM.
 
-Isso dificulta estabelecer uma fronteira clara entre:
+Isso dificultava estabelecer uma fronteira clara entre:
 
 ```text
 observação
@@ -66,42 +68,53 @@ interpretação
 decisão
 ```
 
-Sem essa separação, existe risco de acoplamento entre a detecção de um sinal e a
+Sem essa separação, existia risco de acoplamento entre a detecção de um sinal e a
 decisão final de governança.
 
 ### Evidências
 
 Estado observado antes da implementação:
 
-- `MaterialRecord` já identifica inequivocamente o material por `material_id`;
-- `IssueType` já fornece uma taxonomia inicial de problemas;
-- `GovernanceAssessment.evidence` ainda utiliza `tuple[str, ...]`;
-- `GovernanceAgentOutput.evidence` ainda utiliza `tuple[str, ...]`;
-- existe módulo dedicado à detecção de duplicidades;
-- existem regras determinísticas PDM/BOM;
-- existe fronteira LLM estruturada;
-- existe guardrail garantindo consistência de `material_id` na fronteira LLM;
-- não existe um tipo de domínio dedicado a uma evidência;
-- não existe uma coleção de evidências que imponha a invariância de identidade
-  entre a análise e cada evidência;
-- o último baseline conhecido após a Issue #17 foi de `34/34` testes aprovados,
-  devendo o baseline ser confirmado novamente antes do RED desta Issue.
+- `MaterialRecord` já identificava inequivocamente o material por `material_id`;
+- `IssueType` já fornecia uma taxonomia inicial de problemas;
+- `GovernanceAssessment.evidence` utilizava `tuple[str, ...]`;
+- `GovernanceAgentOutput.evidence` utilizava `tuple[str, ...]`;
+- existia módulo dedicado à detecção de duplicidades;
+- existiam regras determinísticas PDM/BOM;
+- existia fronteira LLM estruturada;
+- existia guardrail garantindo consistência de `material_id` na fronteira LLM;
+- não existia um tipo de domínio dedicado a uma evidência;
+- não existia coleção de evidências com invariância de identidade.
+
+Baseline confirmado antes do TDD da Issue #21:
+
+```text
+Ran 34 tests in 0.035s
+OK
+```
+
+Resultado final local:
+
+```text
+Ran 46 tests in 0.029s
+OK
+```
 
 ### Impacto
 
 Sem uma camada estruturada de evidências:
 
-- decisões futuras podem ser difíceis de explicar;
-- revisão humana perde rastreabilidade;
-- auditoria fica dependente de texto livre;
-- falsos positivos e falsos negativos ficam mais difíceis de diagnosticar;
-- torna-se difícil medir qualidade da evidência separadamente da qualidade da
+- decisões futuras seriam mais difíceis de explicar;
+- revisão humana perderia rastreabilidade;
+- auditoria dependeria de texto livre;
+- falsos positivos e falsos negativos seriam mais difíceis de diagnosticar;
+- seria difícil medir qualidade da evidência separadamente da qualidade da
   decisão;
-- regras, Duplicate Intelligence e LLM podem produzir sinais em formatos
+- regras, Duplicate Intelligence e LLM poderiam produzir sinais em formatos
   diferentes;
-- benchmarks futuros contra ground truth ficam menos informativos;
-- o sistema corre risco de transformar uma decisão correta em uma "caixa preta"
-  cuja cadeia causal não pode ser reconstruída.
+- benchmarks futuros contra ground truth seriam menos informativos;
+- o sistema correria risco de transformar uma decisão correta em uma caixa-preta
+  cuja cadeia causal não pudesse ser reconstruída.
 
 Em governança PDM/BOM, não basta registrar o resultado. É necessário preservar o
 caminho de evidências que sustentou a recomendação.
@@ -120,23 +133,29 @@ determinística e independente de provider capaz de:
 7. rejeitar inconsistências de identidade dentro de uma coleção;
 8. permanecer completamente separado de `GovernanceDecision`.
 
-O incremento não calculará `APPROVE`, `REVIEW` ou `REJECT`.
+O incremento não calcula `APPROVE`, `REVIEW` ou `REJECT`.
 
 ## 4. Escopo
 
 ### Incluído
 
-- criar um tipo controlado para origem da evidência;
-- criar representação imutável de uma evidência;
-- exigir `material_id` não vazio;
+- criar `EvidenceSource`;
+- criar `GovernanceEvidence`;
+- criar `EvidenceCollection`;
+- exigir `material_id` não vazio em evidências;
+- exigir `material_id` não vazio em coleções;
 - exigir observação não vazia;
-- associar cada evidência a um `IssueType`;
-- criar representação para coleção de múltiplas evidências;
+- exigir `EvidenceSource` válido em runtime;
+- exigir `IssueType` válido em runtime;
+- permitir múltiplas evidências;
+- preservar ordem de inserção das evidências;
+- permitir coleção vazia para material válido;
 - garantir que todas as evidências da coleção pertençam ao mesmo `material_id`;
 - rejeitar divergência de identidade;
-- preservar ordem de inserção das evidências;
-- criar testes unitários para cenários válidos e inválidos;
-- documentar invariantes, riscos e limitações;
+- manter estruturas imutáveis;
+- manter o contrato sem campo de decisão;
+- criar testes unitários para cenários válidos, inválidos e invariantes;
+- documentar resultados de TDD, regressão, riscos e limitações;
 - manter o componente independente de LLM e de chamadas de rede.
 
 ### Fora do escopo
@@ -163,9 +182,9 @@ O incremento não calculará `APPROVE`, `REVIEW` ou `REJECT`.
 - migração de dados;
 - geração textual livre de justificativas.
 
-A integração dos contratos de evidência com `GovernanceAssessment` e
-`GovernanceAgentOutput` deverá ocorrer em incremento posterior, depois que o
-contrato básico estiver estabilizado.
+A integração dos novos contratos com `GovernanceAssessment` e
+`GovernanceAgentOutput` permanece para incremento posterior, após estabilização
+do contrato básico.
 
 ## 5. Responsabilidade humana e limites do agente
 
@@ -200,48 +219,45 @@ A decisão final de domínio continua sob responsabilidade humana.
 
 ### Requisitos funcionais
 
-- `RF-01` — Deve existir uma representação estruturada de uma evidência.
-- `RF-02` — Toda evidência deve possuir `material_id`.
-- `RF-03` — `material_id` vazio deve ser rejeitado.
-- `RF-04` — Toda evidência deve possuir uma origem controlada.
-- `RF-05` — Toda evidência deve possuir um `IssueType`.
-- `RF-06` — Toda evidência deve possuir uma observação não vazia.
-- `RF-07` — Deve ser possível representar múltiplas evidências para um material.
-- `RF-08` — Uma coleção deve possuir um único `material_id` de referência.
+- `RF-01` — Deve existir uma representação estruturada de uma evidência. ✅
+- `RF-02` — Toda evidência deve possuir `material_id`. ✅
+- `RF-03` — `material_id` vazio deve ser rejeitado. ✅
+- `RF-04` — Toda evidência deve possuir uma origem controlada. ✅
+- `RF-05` — Toda evidência deve possuir um `IssueType`. ✅
+- `RF-06` — Toda evidência deve possuir uma observação não vazia. ✅
+- `RF-07` — Deve ser possível representar múltiplas evidências para um material. ✅
+- `RF-08` — Uma coleção deve possuir um único `material_id` de referência. ✅
 - `RF-09` — Evidência cujo `material_id` divergir do material da coleção deve
-  ser rejeitada.
-- `RF-10` — A ordem das evidências deve permanecer determinística.
-- `RF-11` — O contrato não deve possuir campo de decisão.
-- `RF-12` — O componente não deve corrigir silenciosamente identificadores.
+  ser rejeitada. ✅
+- `RF-10` — A ordem das evidências deve permanecer determinística. ✅
+- `RF-11` — O contrato não deve possuir campo de decisão. ✅
+- `RF-12` — O componente não deve corrigir silenciosamente identificadores. ✅
 
 ### Requisitos de qualidade
 
-- `RQ-01` — O componente deve ser independente de provider LLM.
-- `RQ-02` — Nenhuma chamada de rede deve ser necessária.
-- `RQ-03` — Nenhum SDK externo novo deve ser adicionado.
-- `RQ-04` — As estruturas devem ser imutáveis após criação.
-- `RQ-05` — Os testes devem ser determinísticos.
-- `RQ-06` — Nenhum dado empresarial real deve ser utilizado.
-- `RQ-07` — Nenhuma regra PDM/BOM existente deve ser alterada.
+- `RQ-01` — O componente deve ser independente de provider LLM. ✅
+- `RQ-02` — Nenhuma chamada de rede deve ser necessária. ✅
+- `RQ-03` — Nenhum SDK externo novo deve ser adicionado. ✅
+- `RQ-04` — As estruturas devem ser imutáveis após criação. ✅
+- `RQ-05` — Os testes devem ser determinísticos. ✅
+- `RQ-06` — Nenhum dado empresarial real deve ser utilizado. ✅
+- `RQ-07` — Nenhuma regra PDM/BOM existente deve ser alterada. ✅
 - `RQ-08` — O contrato deve reutilizar `IssueType` em vez de duplicar a
-  taxonomia existente.
-- `RQ-09` — O incremento deve manter compatibilidade com os testes existentes.
-- `RQ-10` — A decisão final deve permanecer humana.
+  taxonomia existente. ✅
+- `RQ-09` — O incremento deve manter compatibilidade com os testes existentes. ✅
+- `RQ-10` — A decisão final deve permanecer humana. ✅
 
-## 7. Proposta técnica
+## 7. Implementação técnica
 
 ### Visão geral
 
-Criar um módulo de domínio dedicado a evidências:
+Foi criado:
 
 ```text
 src/agent_lab/evidence.py
 ```
 
-A proposta inicial utiliza apenas recursos da biblioteca padrão e os tipos de
-domínio já existentes.
-
-O módulo deverá conter conceitualmente:
+com os contratos:
 
 ```text
 EvidenceSource
@@ -249,9 +265,12 @@ GovernanceEvidence
 EvidenceCollection
 ```
 
+A implementação utiliza apenas biblioteca padrão e tipos de domínio já
+existentes.
+
 ### EvidenceSource
 
-Enumeração inicial de fontes:
+Fontes implementadas:
 
 ```text
 RULE
@@ -260,13 +279,13 @@ DUPLICATE
 LLM
 ```
 
-A enumeração representa a origem lógica da evidência, não um fornecedor.
+A enumeração representa origem lógica da evidência, não fornecedor.
 
-Por isso não serão criados valores como `OPENAI`, `ANTHROPIC` ou `GEMINI`.
+Não existem valores específicos como `OPENAI`, `ANTHROPIC` ou `GEMINI`.
 
 ### GovernanceEvidence
 
-Contrato conceitual:
+Contrato implementado:
 
 ```text
 GovernanceEvidence
@@ -276,7 +295,7 @@ GovernanceEvidence
 └── observation: str
 ```
 
-Invariantes:
+Invariantes implementadas:
 
 ```text
 material_id != ""
@@ -286,9 +305,18 @@ issue_type é IssueType
 objeto é imutável
 ```
 
+Valores apenas textualmente equivalentes aos enums são rejeitados em runtime.
+
+Exemplo:
+
+```text
+source = EvidenceSource.RULE  → aceito
+source = "RULE"               → rejeitado
+```
+
 ### EvidenceCollection
 
-Contrato conceitual:
+Contrato implementado:
 
 ```text
 EvidenceCollection
@@ -296,24 +324,27 @@ EvidenceCollection
 └── evidence: tuple[GovernanceEvidence, ...]
 ```
 
-Invariante principal:
+Invariantes implementadas:
 
 ```text
-para toda evidência e:
+material_id != ""
 
+para toda evidência e:
 e.material_id == EvidenceCollection.material_id
 ```
 
-Quando houver divergência:
+A coleção:
 
-```text
-rejeitar
-```
+- aceita múltiplas evidências;
+- preserva a ordem;
+- pode estar vazia quando o `material_id` da coleção é válido;
+- é imutável;
+- rejeita evidência pertencente a outro material.
 
-Não haverá normalização automática, fuzzy matching ou correção silenciosa do
+Não existe normalização automática, fuzzy matching ou correção silenciosa de
 identificador.
 
-### Fluxo esperado
+### Fluxo resultante
 
 ```text
 MaterialRecord
@@ -331,138 +362,309 @@ futuro Decision Engine
 revisão humana
 ```
 
-### Contratos de dados
+### Contratos não alterados
 
-Nesta Issue serão adicionados contratos internos de domínio.
-
-Não serão alterados:
+Nesta Issue não foram alterados:
 
 - JSON Schema do agente;
 - `GovernanceAgentOutput`;
 - `GovernanceAssessment`;
 - `MaterialRecord`;
 - `GovernanceDecision`;
-- contratos de provider.
-
-Essa decisão reduz o blast radius da primeira versão e permite estabilizar o
-modelo antes da integração com outras fronteiras.
-
-### Arquivos previstos
-
-- `src/agent_lab/evidence.py` — tipos e invariantes do Evidence Engine v1;
-- `tests/test_evidence.py` — TDD e testes de contrato;
-- `docs/specs/0021_evidence_engine_v1.md` — esta especificação.
-
-Arquivos que inicialmente não devem ser alterados:
-
-- `src/agent_lab/llm_schema.py`;
-- `src/agent_lab/llm_service.py`;
-- `src/agent_lab/llm_provider.py`;
-- `src/agent_lab/domain.py`, salvo se surgir necessidade técnica comprovada;
-- `src/agent_lab/duplicates.py`;
-- regras determinísticas existentes;
+- contratos de provider;
+- regras determinísticas PDM/BOM;
 - workflows do GitHub Actions.
+
+### Arquivos da implementação
+
+- `src/agent_lab/evidence.py` — contratos e invariantes do Evidence Engine v1;
+- `tests/test_evidence.py` — suíte TDD e testes de contrato;
+- `docs/specs/0021_evidence_engine_v1.md` — esta especificação.
 
 ## 8. Estratégia de testes e TDD
 
 ### Baseline
 
-Antes de qualquer teste novo, executar:
+Executado antes da implementação produtiva:
 
-```powershell
-python -m unittest discover -s tests -v
+```text
+Ran 34 tests in 0.035s
+OK
 ```
 
-Registrar o número real de testes aprovados.
+### RED 1 — módulo inexistente
 
-O último baseline conhecido é `34/34`, mas esse valor deve ser tratado apenas
-como referência histórica até nova execução local.
+O primeiro teste tentou importar:
 
-### Vermelho
-
-Criar primeiro `tests/test_evidence.py` importando os contratos que ainda não
-existem.
-
-O RED deverá demonstrar a ausência da capacidade de evidência estruturada.
-
-Primeiros comportamentos a especificar:
-
-1. criar evidência válida;
-2. rejeitar `material_id` vazio;
-3. rejeitar observação vazia;
-4. aceitar múltiplas evidências do mesmo material;
-5. rejeitar uma evidência pertencente a outro material.
-
-O primeiro teste deve falhar antes da implementação produtiva.
-
-### Verde
-
-Criar a menor implementação em `src/agent_lab/evidence.py` capaz de satisfazer
-os testes definidos.
-
-Não integrar ainda o novo contrato aos modelos existentes.
-
-### Refactor
-
-Depois do GREEN:
-
-- remover duplicação estritamente local;
-- manter nomes de domínio claros;
-- não ampliar o escopo;
-- preservar imutabilidade;
-- preservar separação entre evidência e decisão.
-
-### Regressão
-
-Executar a suíte completa:
-
-```powershell
-python -m unittest discover -s tests -v
+```text
+agent_lab.evidence
 ```
 
-Todos os testes anteriores e novos devem permanecer aprovados.
+Resultado:
 
-### Testes previstos
+```text
+ModuleNotFoundError: No module named 'agent_lab.evidence'
 
-- `T-01` — evidência válida pode ser criada;
-- `T-02` — `material_id` vazio é rejeitado;
-- `T-03` — observação vazia é rejeitada;
-- `T-04` — origem válida é preservada;
-- `T-05` — `IssueType` é preservado;
-- `T-06` — objeto de evidência é imutável;
-- `T-07` — coleção aceita múltiplas evidências do mesmo material;
-- `T-08` — coleção preserva a ordem das evidências;
-- `T-09` — coleção rejeita divergência de `material_id`;
-- `T-10` — coleção vazia é permitida, desde que o `material_id` seja válido;
-- `T-11` — Evidence Engine não introduz `GovernanceDecision`;
-- `T-12` — regressão completa do projeto.
+Ran 1 test
+FAILED (errors=1)
+```
+
+A implementação mínima criou `EvidenceSource` e `GovernanceEvidence`.
+
+GREEN:
+
+```text
+Ran 1 test
+OK
+```
+
+### RED 2 — `material_id` vazio em evidência
+
+Resultado:
+
+```text
+AssertionError: ValueError not raised
+
+Ran 2 tests
+FAILED (failures=1)
+```
+
+Foi adicionada validação explícita de `material_id`.
+
+GREEN:
+
+```text
+Ran 2 tests
+OK
+```
+
+### RED 3 — observação vazia
+
+Resultado:
+
+```text
+AssertionError: ValueError not raised
+
+Ran 3 tests
+FAILED (failures=1)
+```
+
+Foi adicionada validação explícita de `observation`.
+
+GREEN:
+
+```text
+Ran 3 tests
+OK
+```
+
+### Verificação — imutabilidade de `GovernanceEvidence`
+
+A imutabilidade já existia por `dataclass(frozen=True, slots=True)` e ganhou
+teste explícito.
+
+Resultado:
+
+```text
+Ran 4 tests
+OK
+```
+
+### RED 4 — coleção inexistente
+
+O teste tentou importar `EvidenceCollection`.
+
+Resultado:
+
+```text
+ImportError: cannot import name 'EvidenceCollection'
+
+Ran 5 tests
+FAILED (errors=1)
+```
+
+Foi criada a representação mínima da coleção.
+
+GREEN:
+
+```text
+Ran 5 tests
+OK
+```
+
+### RED 5 — evidência pertencente a outro material
+
+Resultado:
+
+```text
+AssertionError: ValueError not raised
+
+Ran 6 tests
+FAILED (failures=1)
+```
+
+Foi adicionada a invariância de identidade entre coleção e evidências.
+
+GREEN:
+
+```text
+Ran 6 tests
+OK
+```
+
+### RED 6 — `material_id` vazio na coleção
+
+Resultado:
+
+```text
+AssertionError: ValueError not raised
+
+Ran 7 tests
+FAILED (failures=1)
+```
+
+Foi adicionada validação explícita da identidade da coleção.
+
+GREEN:
+
+```text
+Ran 7 tests
+OK
+```
+
+### RED 7 — origem não controlada
+
+O teste demonstrou que a anotação Python não impedia uma string comum:
+
+```text
+source = "RULE"
+```
+
+Resultado:
+
+```text
+AssertionError: ValueError not raised
+
+Ran 8 tests
+FAILED (failures=1)
+```
+
+Foi adicionada validação de runtime com `EvidenceSource`.
+
+GREEN:
+
+```text
+Ran 8 tests
+OK
+```
+
+### RED 8 — `issue_type` não controlado
+
+O teste demonstrou que uma string comum poderia ser aceita:
+
+```text
+issue_type = "SUSPICIOUS_UNIT"
+```
+
+Resultado:
+
+```text
+AssertionError: ValueError not raised
+
+Ran 9 tests
+FAILED (failures=1)
+```
+
+Foi adicionada validação de runtime com `IssueType`.
+
+GREEN:
+
+```text
+Ran 9 tests
+OK
+```
+
+### Verificações finais do contrato
+
+Foram adicionados testes para:
+
+- coleção vazia com material válido;
+- imutabilidade de `EvidenceCollection`;
+- ausência de campo `decision` nos contratos de evidência.
+
+Resultado específico final:
+
+```text
+Ran 12 tests in 0.001s
+OK
+```
+
+### Regressão completa
+
+Resultado final:
+
+```text
+Ran 46 tests in 0.029s
+OK
+```
+
+A suíte evoluiu de:
+
+```text
+34 testes
+```
+
+para:
+
+```text
+46 testes
+```
+
+sem regressões.
 
 ## 9. Gates de qualidade
 
-Antes do Pull Request:
+### Gates locais concluídos
 
-```powershell
-python -m unittest discover -s tests -v
-git diff --check
-git status -sb
+- baseline `34/34`; ✅
+- REDs comportamentais registrados; ✅
+- GREENs incrementais registrados; ✅
+- testes específicos finais `12/12`; ✅
+- regressão completa `46/46`; ✅
+- `git diff --check` sem saída/erros; ✅
+- nenhum SDK novo; ✅
+- nenhuma chamada de rede; ✅
+- nenhuma credencial; ✅
+- nenhum dado empresarial real; ✅
+- nenhum provider específico; ✅
+- nenhuma regra PDM/BOM alterada; ✅
+- nenhum Decision Engine introduzido; ✅
+- alteração funcional limitada a `evidence.py` e `test_evidence.py`; ✅
+
+Estado observado antes do commit funcional:
+
+```text
+## feature/issue-21-evidence-engine-v1
+?? src/agent_lab/evidence.py
+?? tests/test_evidence.py
 ```
 
-Critérios mínimos:
+Observação:
 
-- baseline registrado antes do RED;
-- RED observado e registrado;
-- GREEN específico registrado;
-- suíte completa aprovada;
-- `git diff --check` sem erros;
-- nenhuma credencial;
-- nenhum dado empresarial real;
-- nenhuma chamada de rede;
-- nenhum SDK externo novo;
-- nenhum provider específico;
-- nenhuma decisão automática;
-- alteração limitada aos arquivos previstos;
-- documentação atualizada;
-- GitHub Actions / Python 3.11 aprovado antes do merge.
+`git diff --stat` não apresentou os dois arquivos nesse momento porque ambos
+ainda estavam `untracked`. A estatística relevante deverá ser verificada após
+`git add`, usando `git diff --cached --stat`.
+
+### Gate remoto pendente
+
+No Pull Request ainda será necessário:
+
+- push da branch;
+- GitHub Actions executado;
+- `Testes / Python 3.11` aprovado;
+- required check satisfeito;
+- revisão final;
+- merge na `main`.
 
 ## 10. Riscos e limitações
 
@@ -481,17 +683,17 @@ Critérios mínimos:
 
 Após esta Issue:
 
-- `GovernanceAssessment.evidence` continuará baseado em strings;
-- `GovernanceAgentOutput.evidence` continuará baseado em strings;
-- não haverá geração automática de evidências a partir das regras existentes;
-- não haverá integração automática com Duplicate Intelligence;
-- não haverá integração automática com LLM;
-- não haverá scoring;
-- não haverá validação de verdade semântica;
-- não haverá Decision Engine;
-- não haverá persistência.
+- `GovernanceAssessment.evidence` continua baseado em strings;
+- `GovernanceAgentOutput.evidence` continua baseado em strings;
+- não há geração automática de evidências a partir das regras existentes;
+- não há integração automática com Duplicate Intelligence;
+- não há integração automática com LLM;
+- não há scoring;
+- não há validação de verdade semântica;
+- não há Decision Engine;
+- não há persistência.
 
-O incremento cria a fundação contratual. A integração será deliberadamente
+O incremento cria a fundação contratual. A integração permanece deliberadamente
 posterior.
 
 ## 11. Plano de reversão
@@ -508,7 +710,7 @@ Caso a implementação introduza regressão:
 8. confirmar que contratos LLM e regras PDM/BOM voltaram ao estado anterior.
 
 Como a primeira versão não altera persistência nem contratos existentes, a
-reversão deve possuir baixo risco.
+reversão possui baixo risco.
 
 ## 12. Versionamento e release
 
@@ -516,8 +718,8 @@ reversão deve possuir baixo risco.
 
 `MINOR`
 
-Justificativa: o incremento adiciona uma nova capacidade de domínio compatível
-com as capacidades existentes, sem remover ou modificar contratos publicados.
+Justificativa: o incremento adiciona nova capacidade de domínio compatível com
+as capacidades existentes, sem remover ou modificar contratos publicados.
 
 ### Publicação prevista
 
@@ -528,32 +730,38 @@ com as capacidades existentes, sem remover ou modificar contratos publicados.
 
 ## 13. Critérios de aceite
 
-- [ ] existe representação estruturada de evidência;
-- [ ] toda evidência possui `material_id`;
-- [ ] `material_id` vazio é rejeitado;
-- [ ] origem da evidência é controlada;
-- [ ] o sinal observado utiliza `IssueType`;
-- [ ] observação vazia é rejeitada;
-- [ ] múltiplas evidências podem ser agrupadas;
-- [ ] divergência de identidade dentro da coleção é rejeitada;
-- [ ] a ordem das evidências é determinística;
-- [ ] os objetos criados são imutáveis;
-- [ ] Evidence permanece separado de `GovernanceDecision`;
-- [ ] nenhum score de risco foi introduzido;
-- [ ] nenhuma decisão automática foi introduzida;
-- [ ] existe TDD RED documentado;
-- [ ] testes específicos foram criados;
-- [ ] os testes anteriores continuam aprovados;
-- [ ] a suíte completa está aprovada;
-- [ ] `git diff --check` está aprovado;
+- [x] existe representação estruturada de evidência;
+- [x] toda evidência possui `material_id`;
+- [x] `material_id` vazio é rejeitado em `GovernanceEvidence`;
+- [x] origem da evidência é controlada;
+- [x] valor textual não tipado de origem é rejeitado;
+- [x] o sinal observado utiliza `IssueType`;
+- [x] valor textual não tipado de `issue_type` é rejeitado;
+- [x] observação vazia é rejeitada;
+- [x] múltiplas evidências podem ser agrupadas;
+- [x] coleção vazia é permitida para material válido;
+- [x] `material_id` vazio é rejeitado na coleção;
+- [x] divergência de identidade dentro da coleção é rejeitada;
+- [x] a ordem das evidências é determinística;
+- [x] `GovernanceEvidence` é imutável;
+- [x] `EvidenceCollection` é imutável;
+- [x] Evidence permanece separado de `GovernanceDecision`;
+- [x] nenhum score de risco foi introduzido;
+- [x] nenhuma decisão automática foi introduzida;
+- [x] TDD RED foi documentado;
+- [x] testes específicos foram criados;
+- [x] testes específicos finais `12/12` aprovados;
+- [x] os 34 testes anteriores continuam aprovados;
+- [x] a suíte completa `46/46` está aprovada;
+- [x] `git diff --check` está aprovado;
 - [ ] GitHub Actions / Python 3.11 está aprovado;
-- [ ] nenhum SDK externo novo foi adicionado;
-- [ ] nenhuma chamada de rede foi adicionada;
-- [ ] nenhuma credencial foi adicionada;
-- [ ] nenhum dado empresarial real foi utilizado;
-- [ ] nenhuma regra determinística PDM/BOM existente foi alterada;
-- [ ] riscos e limitações estão documentados;
-- [ ] a decisão final permanece humana;
+- [x] nenhum SDK externo novo foi adicionado;
+- [x] nenhuma chamada de rede foi adicionada;
+- [x] nenhuma credencial foi adicionada;
+- [x] nenhum dado empresarial real foi utilizado;
+- [x] nenhuma regra determinística PDM/BOM existente foi alterada;
+- [x] riscos e limitações estão documentados;
+- [x] a decisão final permanece humana;
 - [ ] o Pull Request referencia a Issue #21 e esta SPEC.
 
 ## 14. Questões em aberto
@@ -564,18 +772,24 @@ com as capacidades existentes, sem remover ou modificar contratos publicados.
    - após estabilizar o contrato, deverá ser avaliada em Issue própria.
 
 2. **Taxonomia de fontes**
-   - v1 propõe `RULE`, `VALIDATION`, `DUPLICATE` e `LLM`;
+   - v1 utiliza `RULE`, `VALIDATION`, `DUPLICATE` e `LLM`;
    - novas fontes só devem ser adicionadas quando existir caso de uso concreto.
 
 3. **Evidências positivas**
    - `IssueType` representa atualmente problemas ou sinais de atenção;
    - fatos positivos poderão exigir uma taxonomia mais ampla no futuro;
-   - não ampliar o modelo nesta Issue sem evidência de necessidade.
+   - não ampliar o modelo sem evidência de necessidade.
 
 4. **Serialização**
-   - o contrato v1 será interno;
+   - o contrato v1 é interno;
    - JSON Schema ou integração Pydantic deverá ser tratada apenas quando uma
      fronteira externa realmente necessitar desse formato.
+
+5. **Integração automática**
+   - regras, Duplicate Intelligence e LLM ainda não produzem automaticamente
+     `GovernanceEvidence`;
+   - essa ligação deve ser feita em incrementos próprios para preservar
+     auditabilidade e TDD.
 
 ## 15. Histórico de decisões
 
@@ -585,4 +799,7 @@ com as capacidades existentes, sem remover ou modificar contratos publicados.
 | `2026-08-11` | Manter a v1 sem Decision Engine | Evitar acoplamento e expansão prematura de escopo | Jakson Pascoal |
 | `2026-08-11` | Reutilizar `IssueType` inicialmente | Evitar duplicar taxonomia já existente | Jakson Pascoal |
 | `2026-08-11` | Não migrar ainda os campos `evidence` existentes | Reduzir blast radius e estabilizar primeiro o contrato | Jakson Pascoal |
+| `2026-08-11` | Validar `EvidenceSource` e `IssueType` em runtime | Tipagem estática isolada não garante invariantes em execução | Jakson Pascoal |
+| `2026-08-11` | Permitir coleção vazia para material válido | Ausência de evidência pode ser um estado legítimo de uma análise | Jakson Pascoal |
 | `2026-08-11` | Manter decisão final humana | Princípio de governança do Agent Lab Pascoal | Jakson Pascoal |
+| `2026-08-11` | Encerrar implementação local com `46/46` testes | Regressão completa aprovada antes do PR | Jakson Pascoal |
