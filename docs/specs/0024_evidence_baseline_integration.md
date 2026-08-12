@@ -5,12 +5,17 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0024` |
-| Status | `Implementada localmente` |
+| Status | `Concluída` |
 | Issue relacionada | `#24` — `[FEATURE] Integrar Evidence Engine ao baseline determinístico` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-12` |
 | Última atualização | `2026-08-12` |
 | Área | Governança / Evidence Engine / Baseline determinístico |
+| Pull Request | `#25` — `Issue #24: integra Evidence Engine ao baseline determinístico` |
+| Merge commit | `3d2f2f0` |
+| CI obrigatória | `Testes / Python 3.11` — aprovada |
+| Testes finais | `53/53` — `OK` |
+| Estado final | `main` sincronizada com `origin/main`; Issue #24 fechada |
 
 ## 1. Contexto
 
@@ -1269,7 +1274,7 @@ Não é apenas uma correção interna.
 - [x] os 46 testes anteriores permanecem aprovados;
 - [x] todos os novos testes estão aprovados;
 - [x] `git diff --check` não apresenta erros;
-- [ ] GitHub Actions / Python 3.11 está aprovado.
+- [x] GitHub Actions / Python 3.11 está aprovado.
 
 ### Governança
 
@@ -1279,16 +1284,16 @@ Não é apenas uma correção interna.
 - [x] nenhum dado empresarial real foi utilizado no baseline;
 - [x] riscos e limitações finais estão registrados;
 - [x] decisão final permanece humana;
-- [ ] Pull Request referencia Issue #24;
-- [ ] Pull Request referencia `SPEC-0024`.
+- [x] Pull Request referencia Issue #24;
+- [x] Pull Request referencia `SPEC-0024`.
 
 ---
 
-## 14. Questões em aberto
+## 14. Decisões consolidadas no fechamento
 
 ### 1. Nome final do campo estruturado
 
-Proposta:
+Decisão final:
 
 ```text
 evidence_collection
@@ -1300,7 +1305,7 @@ Alternativa:
 structured_evidence
 ```
 
-Preferência inicial:
+Decisão final:
 
 ```text
 evidence_collection
@@ -1310,7 +1315,7 @@ porque o tipo transportado é explicitamente `EvidenceCollection`.
 
 ### 2. Local do adaptador
 
-Proposta:
+Decisão final:
 
 ```text
 src/agent_lab/evidence.py
@@ -1323,7 +1328,7 @@ a transformação produz tipos do Evidence Engine e não deve contaminar
 
 ### 3. Uso de EvidenceSource.VALIDATION
 
-Decisão inicial:
+Decisão final:
 
 ```text
 não utilizar nesta Issue
@@ -1336,7 +1341,7 @@ Uma futura Issue poderá modelar proveniência detalhada.
 
 ### 4. Campo legado de strings
 
-Decisão inicial:
+Decisão final:
 
 ```text
 preservar nesta Issue
@@ -1376,6 +1381,14 @@ Issue independente.
 | `2026-08-12` | Adicionar `evidence_collection` de forma aditiva | Preservar compatibilidade com `evidence: tuple[str, ...]` | Jakson Pascoal |
 | `2026-08-12` | Usar forward reference / `TYPE_CHECKING` | Evitar dependência circular entre domínio e Evidence Engine | Jakson Pascoal |
 | `2026-08-12` | Registrar `53/53` testes locais | Comprovar regressão zero antes do commit | Jakson Pascoal |
+| `2026-08-12` | Abrir Pull Request `#25` | Submeter a integração a CI, revisão e branch protection | Jakson Pascoal |
+| `2026-08-12` | Aprovar `Testes / Python 3.11` | Gate obrigatório de CI aprovado no Pull Request | GitHub Actions |
+| `2026-08-12` | Concluir code review do PR #25 | Diff, critérios, riscos e responsabilidade humana revisados | Jakson Pascoal / revisão assistida |
+| `2026-08-12` | Realizar merge do PR #25 | Integração aprovada e sem conflitos com `main` | Jakson Pascoal |
+| `2026-08-12` | Registrar merge commit `3d2f2f0` | Rastreabilidade do fechamento da Issue #24 | Jakson Pascoal |
+| `2026-08-12` | Validar `53/53` testes pós-merge | Confirmar integridade da `main` após integração | Jakson Pascoal |
+| `2026-08-12` | Fechar Issue #24 | PR #25 utilizou `Closes #24` e foi integrado | GitHub |
+| `2026-08-12` | Remover branch local da Issue #24 | Limpeza pós-merge após sincronização da `main` | Jakson Pascoal |
 
 ---
 
@@ -1386,6 +1399,22 @@ Issue independente.
 ```text
 #24
 [FEATURE] Integrar Evidence Engine ao baseline determinístico
+```
+
+### Pull Request de implementação
+
+```text
+PR #25
+Issue #24: integra Evidence Engine ao baseline determinístico
+```
+
+Estado final:
+
+```text
+Merged
+merge commit: 3d2f2f0
+CI: Testes / Python 3.11 — aprovada
+Issue #24: closed
 ```
 
 ### SPEC predecessora
@@ -1415,14 +1444,14 @@ futura camada de interpretação
 futuro Decision Engine
 ```
 
-### Fluxo de engenharia previsto
+### Fluxo de engenharia concluído
 
 ```text
 Issue #24                         ✅
    ↓
 SPEC-0024                         ✅
    ↓
-branch                            ✅
+branch de implementação           ✅
    ↓
 TDD RED — adapter                 ✅
    ↓
@@ -1444,21 +1473,158 @@ compatibilidade final 53/53       ✅
    ↓
 git diff --check                  ✅
    ↓
-atualização final da SPEC         ✅
+commit de implementação           ✅
    ↓
-commit                            ← próximo
+push                              ✅
    ↓
-push
+Pull Request #25                  ✅
    ↓
-Pull Request
+GitHub Actions / Python 3.11      ✅
    ↓
-GitHub Actions
+code review                       ✅
    ↓
-code review
+merge                             ✅
    ↓
-merge
+merge commit 3d2f2f0              ✅
    ↓
-validação pós-merge
+Issue #24 fechada                 ✅
    ↓
-RD 2026-08-12
+validação pós-merge 53/53         ✅
+   ↓
+main sincronizada                 ✅
+   ↓
+branch local removida             ✅
+   ↓
+SPEC-0024 closeout                ✅
+   ↓
+RD 2026-08-12                     ✅
 ```
+
+
+---
+
+## 17. Fechamento formal
+
+### 17.1 Resultado final
+
+A Issue #24 foi concluída com sucesso.
+
+O Evidence Engine v1 deixou de existir apenas como camada contratual lateral e
+passou a participar do fluxo real do baseline determinístico.
+
+Fluxo final implementado:
+
+```text
+MaterialRecord
+      ↓
+run_rules()
+      ↓
+GovernanceIssue[]
+      ↓
+detecção de duplicidade
+      ↓
+GovernanceIssue[] consolidado
+      ├──────────────────────────────┐
+      ↓                              ↓
+decisão determinística       build_evidence_collection()
+      ↓                              ↓
+confidence                   GovernanceEvidence[]
+      ↓                              ↓
+      └──────────────────── EvidenceCollection
+                                     ↓
+                           GovernanceAssessment
+                           ├── decision
+                           ├── issues
+                           ├── evidence legado
+                           └── evidence_collection
+                                     ↓
+                              revisão humana
+```
+
+### 17.2 Evidências finais
+
+| Evidência | Resultado |
+| --- | --- |
+| Baseline pré-Issue #24 | `46/46` testes — `OK` |
+| Testes específicos do Evidence Engine | `16/16` — `OK` |
+| Testes específicos do validator | `8/8` — `OK` |
+| Regressão final pré-merge | `53/53` — `OK` |
+| GitHub Actions | `Testes / Python 3.11` — aprovada |
+| Pull Request | `#25` — merged |
+| Merge commit | `3d2f2f0` |
+| Validação pós-merge | `53/53` — `OK` |
+| Estado da `main` | sincronizada com `origin/main` |
+| Issue | `#24` — closed |
+| Branch local | removida após merge |
+
+A validação pós-merge observada foi:
+
+```text
+Ran 53 tests in 0.052s
+
+OK
+```
+
+### 17.3 Evolução quantitativa da suíte
+
+```text
+testes antes: 46
+testes depois: 53
+novos testes: 7
+crescimento: 15,2%
+regressões observadas: 0
+```
+
+O aumento de testes não é interpretado isoladamente como aumento de qualidade.
+Seu valor está no fato de que os sete novos testes cobrem os novos contratos e
+invariantes introduzidos pela Issue #24.
+
+### 17.4 Garantias preservadas
+
+O incremento preservou:
+
+- regras determinísticas PDM/BOM;
+- decisões `APPROVE / REVIEW / REJECT`;
+- cálculo de confiança;
+- Duplicate Intelligence;
+- campo legado `GovernanceAssessment.evidence`;
+- independência de provider LLM;
+- ausência de SDK externo;
+- ausência de chamadas de rede;
+- ausência de credenciais;
+- ausência de dados empresariais reais;
+- responsabilidade humana pela decisão final.
+
+### 17.5 Limites que permanecem
+
+O fechamento desta SPEC não implica conclusão do Evidence Engine como sistema
+completo.
+
+Continuam deliberadamente fora do escopo:
+
+- integração de `GovernanceEvidence` com `GovernanceAgentOutput`;
+- evidências produzidas por LLM;
+- `EvidenceSource.VALIDATION` com proveniência detalhada;
+- scoring ou ponderação de evidências;
+- ground truth;
+- resolução de conflitos;
+- persistência;
+- Decision Engine;
+- workflow human-in-the-loop completo;
+- decisão autônoma de cadastro.
+
+### 17.6 Estado arquitetural alcançado
+
+A fronteira entre detecção, evidência e decisão ficou explicitamente modelada:
+
+```text
+Issue != Evidence
+Evidence != Decision
+Decision recomendada != decisão humana final
+```
+
+Esse resultado encerra a `SPEC-0024`.
+
+Próximas evoluções deverão partir desse contrato estabilizado, evitando voltar
+a representar evidência apenas como texto livre quando houver necessidade de
+proveniência, auditoria ou composição entre fontes.
