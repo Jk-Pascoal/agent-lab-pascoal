@@ -94,7 +94,64 @@ class ValidatorTests(unittest.TestCase):
         self.assertEqual(assessment.decision, GovernanceDecision.APPROVE)
         self.assertEqual(assessment.issues, ())
 
+    def test_validator_exposes_structured_evidence_collection(self) -> None:
+        record = MaterialRecord(
+            material_id="MAT-0008",
+            description_short="OLEO LUBRIFICANTE ISO VG 68",
+            unit="PC",
+            status="ACTIVE",
+        )
+
+        assessment = self.validator.analyze(record)
+
+        self.assertIsNotNone(assessment.evidence_collection)
+        self.assertEqual(
+            assessment.evidence_collection.material_id,
+            record.material_id,
+        )
+        self.assertGreater(
+            len(assessment.evidence_collection.evidence),
+            0,
+        )
+
+    def test_valid_material_has_empty_structured_evidence_collection(self) -> None:
+        record = MaterialRecord(
+            material_id="MAT-0012",
+            description_short="PORCA SEXTAVADA M10",
+            long_description="PORCA SEXTAVADA ROSCA METRICA M10 CLASSE 8",
+            unit="PC",
+            material_group="FIXADORES",
+            status="ACTIVE",
+        )
+
+        assessment = self.validator.analyze(record)
+
+        self.assertIsNotNone(assessment.evidence_collection)
+        self.assertEqual(
+            assessment.evidence_collection.material_id,
+            record.material_id,
+        )
+        self.assertEqual(
+            assessment.evidence_collection.evidence,
+            (),
+        )
+
+    def test_legacy_evidence_strings_are_preserved(self) -> None:
+        record = MaterialRecord(
+            material_id="MAT-0008",
+            description_short="OLEO LUBRIFICANTE ISO VG 68",
+            unit="PC",
+            status="ACTIVE",
+        )
+
+        assessment = self.validator.analyze(record)
+
+        self.assertEqual(
+            assessment.evidence,
+            tuple(issue.message for issue in assessment.issues),
+        )
+        self.assertGreater(len(assessment.evidence), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
-

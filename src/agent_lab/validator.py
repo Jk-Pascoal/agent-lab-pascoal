@@ -9,6 +9,7 @@ from .domain import (
     MaterialRecord,
 )
 from .duplicates import find_duplicate_candidates
+from .evidence import build_evidence_collection
 from .metrics import completeness_score
 from .normalization import normalize_text
 from .rules import run_rules
@@ -36,6 +37,11 @@ class DeterministicGovernanceValidator:
             )
 
         decision = self._decision(issues)
+        evidence_collection = build_evidence_collection(
+            material_id=record.material_id,
+            issues=issues,
+        )
+
         return GovernanceAssessment(
             material_id=record.material_id,
             completeness=completeness_score(record),
@@ -46,6 +52,7 @@ class DeterministicGovernanceValidator:
             issues=tuple(issues),
             duplicate_candidates=duplicates,
             evidence=tuple(issue.message for issue in issues),
+            evidence_collection=evidence_collection,
         )
 
     def analyze_all(
@@ -77,4 +84,3 @@ class DeterministicGovernanceValidator:
         if decision == GovernanceDecision.REJECT:
             return 0.98
         return max(0.55, 0.85 - (0.08 * len(issues)))
-

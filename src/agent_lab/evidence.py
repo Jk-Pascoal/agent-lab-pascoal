@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .domain import IssueType
+from .domain import GovernanceIssue, IssueType
 
 
 class EvidenceSource(StrEnum):
@@ -54,3 +54,34 @@ class EvidenceCollection:
                 raise ValueError(
                     "evidence material_id deve corresponder ao material_id da coleção"
                 )
+
+
+def _source_for_issue(issue: GovernanceIssue) -> EvidenceSource:
+    """Resolve a proveniência controlada de uma GovernanceIssue."""
+
+    if issue.issue_type is IssueType.POSSIBLE_DUPLICATE:
+        return EvidenceSource.DUPLICATE
+
+    return EvidenceSource.RULE
+
+
+def build_evidence_collection(
+    material_id: str,
+    issues: tuple[GovernanceIssue, ...] | list[GovernanceIssue],
+) -> EvidenceCollection:
+    """Transforma Issues determinísticas em evidências estruturadas."""
+
+    evidence = tuple(
+        GovernanceEvidence(
+            material_id=material_id,
+            source=_source_for_issue(issue),
+            issue_type=issue.issue_type,
+            observation=issue.message,
+        )
+        for issue in issues
+    )
+
+    return EvidenceCollection(
+        material_id=material_id,
+        evidence=evidence,
+    )

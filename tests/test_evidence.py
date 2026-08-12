@@ -1,7 +1,8 @@
 import unittest
 from dataclasses import FrozenInstanceError
 
-from agent_lab.domain import IssueType
+import agent_lab.evidence as evidence_module
+from agent_lab.domain import GovernanceIssue, IssueType
 from agent_lab.evidence import (
     EvidenceCollection,
     EvidenceSource,
@@ -147,6 +148,84 @@ class GovernanceEvidenceTests(unittest.TestCase):
     def test_evidence_contract_has_no_governance_decision(self):
         self.assertNotIn("decision", GovernanceEvidence.__dataclass_fields__)
         self.assertNotIn("decision", EvidenceCollection.__dataclass_fields__)
+
+    def test_builds_evidence_collection_from_single_rule_issue(self):
+        issue = GovernanceIssue(
+            issue_type=IssueType.SUSPICIOUS_UNIT,
+            field_name="unit",
+            message="Material líquido cadastrado em unidade de peça",
+        )
+
+        collection = evidence_module.build_evidence_collection(
+            material_id="MAT-00125",
+            issues=[issue],
+        )
+
+        self.assertEqual(collection.material_id, "MAT-00125")
+        self.assertEqual(len(collection.evidence), 1)
+
+        item = collection.evidence[0]
+        self.assertEqual(item.material_id, "MAT-00125")
+        self.assertEqual(item.source, EvidenceSource.RULE)
+        self.assertEqual(item.issue_type, IssueType.SUSPICIOUS_UNIT)
+        self.assertEqual(
+            item.observation,
+            "Material líquido cadastrado em unidade de peça",
+        )
+
+    def test_possible_duplicate_issue_uses_duplicate_source(self):
+        issue = GovernanceIssue(
+            issue_type=IssueType.POSSIBLE_DUPLICATE,
+            field_name="material_id",
+            message="Possível material duplicado identificado",
+        )
+
+        collection = evidence_module.build_evidence_collection(
+            material_id="MAT-00125",
+            issues=[issue],
+        )
+
+        self.assertEqual(len(collection.evidence), 1)
+        self.assertEqual(
+            collection.evidence[0].source,
+            EvidenceSource.DUPLICATE,
+        )
+
+    def test_multiple_issues_preserve_order(self):
+        first_issue = GovernanceIssue(
+            issue_type=IssueType.SUSPICIOUS_UNIT,
+            field_name="unit",
+            message="Primeira evidência",
+        )
+        second_issue = GovernanceIssue(
+            issue_type=IssueType.POSSIBLE_DUPLICATE,
+            field_name="material_id",
+            message="Segunda evidência",
+        )
+
+        collection = evidence_module.build_evidence_collection(
+            material_id="MAT-00125",
+            issues=[first_issue, second_issue],
+        )
+
+        self.assertEqual(len(collection.evidence), 2)
+        self.assertEqual(
+            tuple(item.observation for item in collection.evidence),
+            ("Primeira evidência", "Segunda evidência"),
+        )
+        self.assertEqual(
+            tuple(item.source for item in collection.evidence),
+            (EvidenceSource.RULE, EvidenceSource.DUPLICATE),
+        )
+
+    def test_no_issues_builds_empty_collection(self):
+        collection = evidence_module.build_evidence_collection(
+            material_id="MAT-00125",
+            issues=[],
+        )
+
+        self.assertEqual(collection.material_id, "MAT-00125")
+        self.assertEqual(collection.evidence, ())
 
 
 if __name__ == "__main__":
