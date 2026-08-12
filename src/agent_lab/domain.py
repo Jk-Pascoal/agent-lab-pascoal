@@ -2,6 +2,10 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .evidence import EvidenceCollection
 
 
 class GovernanceDecision(StrEnum):
@@ -66,6 +70,7 @@ class GovernanceAssessment:
     issues: tuple[GovernanceIssue, ...] = field(default_factory=tuple)
     duplicate_candidates: tuple[str, ...] = field(default_factory=tuple)
     evidence: tuple[str, ...] = field(default_factory=tuple)
+    evidence_collection: "EvidenceCollection | None" = None
 
     def __post_init__(self) -> None:
         for name, value in (

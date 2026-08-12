@@ -5,7 +5,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0024` |
-| Status | `Proposta` |
+| Status | `Implementada localmente` |
 | Issue relacionada | `#24` — `[FEATURE] Integrar Evidence Engine ao baseline determinístico` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-12` |
@@ -810,11 +810,11 @@ Ran 46 tests
 OK
 ```
 
-Esse é o piso de regressão da Issue #24.
+Esse baseline foi preservado integralmente durante a Issue #24.
 
 ### 8.2 RED 1 — adaptador inexistente
 
-Primeiro teste proposto:
+Foi adicionado um teste exigindo:
 
 ```text
 GovernanceIssue
@@ -824,142 +824,188 @@ build_evidence_collection()
 GovernanceEvidence
 ```
 
-Antes da implementação, o teste deve falhar porque a função ainda não existe.
-
-RED aceitável:
+Resultado observado antes da implementação:
 
 ```text
-ImportError
+AttributeError:
+module 'agent_lab.evidence' has no attribute 'build_evidence_collection'
+
+Ran 13 tests
+FAILED (errors=1)
 ```
 
-ou:
-
-```text
-cannot import name 'build_evidence_collection'
-```
-
-Esse RED demonstra ausência real da capacidade.
+Esse RED demonstrou que o Evidence Engine ainda não possuía um adaptador entre
+`GovernanceIssue` e `GovernanceEvidence`.
 
 ### 8.3 GREEN 1 — uma Issue de regra
 
-Implementar somente o necessário para transformar uma Issue comum.
+Foi implementada a transformação mínima em `src/agent_lab/evidence.py`.
 
-Verificar:
+Resultado:
 
 ```text
-material_id preservado
-source == RULE
-issue_type preservado
-observation == issue.message
+Ran 13 tests
+OK
 ```
 
-### 8.4 RED/GREEN 2 — duplicidade
+A implementação passou a preservar:
 
-Adicionar cenário:
+```text
+material_id
+issue_type
+message → observation
+source = RULE
+```
+
+### 8.4 RED 2 — proveniência de duplicidade
+
+Foi adicionado um teste para:
 
 ```text
 IssueType.POSSIBLE_DUPLICATE
 ```
 
-Esperado:
+Resultado observado antes da correção:
 
 ```text
-source == EvidenceSource.DUPLICATE
+AssertionError:
+EvidenceSource.RULE != EvidenceSource.DUPLICATE
+
+Ran 14 tests
+FAILED (failures=1)
 ```
 
-O teste impede que Duplicate Intelligence perca sua proveniência lógica.
+Esse RED comprovou que a primeira implementação ainda tratava todas as Issues
+como `RULE`.
 
-### 8.5 RED/GREEN 3 — múltiplas Issues
+### 8.5 GREEN 2 — proveniência explícita
 
-Criar duas ou mais Issues.
-
-Verificar:
-
-- quantidade;
-- ordem;
-- identidade;
-- tipos;
-- observações.
-
-A ordem deve permanecer estável.
-
-### 8.6 RED/GREEN 4 — ausência de Issues
-
-Criar:
+Foi introduzida uma política mínima e determinística:
 
 ```text
-issues = []
+POSSIBLE_DUPLICATE → EvidenceSource.DUPLICATE
+demais Issues       → EvidenceSource.RULE
 ```
 
-Esperado:
+Resultado:
 
 ```text
-EvidenceCollection(
-    material_id=<material>,
-    evidence=(),
-)
+Ran 14 tests
+OK
 ```
 
-A ausência de evidência não deve ser representada por `None` dentro do
-Evidence Engine.
+A fonte `VALIDATION` continuou deliberadamente fora deste incremento, evitando
+inferir proveniência que o contrato atual não registra.
 
-### 8.7 RED/GREEN 5 — integração no validator
+### 8.6 Caracterização — múltiplas Issues e coleção vazia
 
-Executar `DeterministicGovernanceValidator.analyze()` para um material que
-produza Issue.
+A implementação existente já preservava naturalmente a ordem das Issues e
+produzia coleção vazia quando nenhuma Issue era fornecida.
 
-Verificar:
+Foram adicionados testes de caracterização para congelar esses comportamentos,
+sem fabricar um RED artificial.
+
+Resultado:
 
 ```text
-assessment.evidence_collection is not None
-assessment.evidence_collection.material_id == assessment.material_id
-len(assessment.evidence_collection.evidence) > 0
+Ran 16 tests
+OK
 ```
 
-### 8.8 GREEN — compatibilidade legada
+Comportamentos comprovados:
 
-No mesmo cenário, confirmar:
+- múltiplas Issues produzem múltiplas evidências;
+- a ordem é preservada;
+- origem `RULE` e `DUPLICATE` é preservada por item;
+- ausência de Issues produz `EvidenceCollection(..., evidence=())`.
+
+### 8.7 RED 3 — integração no validator
+
+Foi adicionado um teste exigindo que o resultado do
+`DeterministicGovernanceValidator` transporte evidência estruturada.
+
+Resultado observado antes da implementação:
 
 ```text
-assessment.evidence
+AttributeError:
+'GovernanceAssessment' object has no attribute 'evidence_collection'
+
+Ran 6 tests
+FAILED (errors=1)
 ```
 
-continua contendo as mensagens textuais como antes.
+Esse RED comprovou que o Evidence Engine ainda não participava do fluxo real do
+baseline.
 
-Isso prova que a mudança é aditiva.
+### 8.8 GREEN 3 — integração no baseline
 
-### 8.9 GREEN — material válido
-
-Para material sem Issues:
+A integração foi implementada de forma aditiva:
 
 ```text
-decision == APPROVE
-issues == ()
-evidence == ()
-evidence_collection.evidence == ()
+GovernanceIssue[]
+      ↓
+build_evidence_collection()
+      ↓
+EvidenceCollection
+      ↓
+GovernanceAssessment.evidence_collection
 ```
 
-### 8.10 Regressão
-
-Executar:
-
-```powershell
-python -m unittest discover -s tests -p "test_evidence.py" -v
-python -m unittest discover -s tests -p "test_validator.py" -v
-python -m unittest discover -s tests -p "test_*.py" -v
-```
-
-O primeiro critério é:
+Resultado específico do validator:
 
 ```text
-46 testes anteriores continuam aprovados
+Ran 6 tests
+OK
 ```
 
-O número final de testes será registrado após a implementação.
+O campo legado foi preservado:
 
-Não antecipar artificialmente a contagem final.
+```python
+evidence=tuple(issue.message for issue in issues)
+```
 
-### 8.11 Testes previstos
+e o novo campo foi adicionado com compatibilidade:
+
+```python
+evidence_collection: "EvidenceCollection | None" = None
+```
+
+### 8.9 Regressão intermediária
+
+Após a integração estrutural:
+
+```text
+Ran 51 tests
+OK
+```
+
+Isso demonstrou que os 46 testes anteriores continuavam aprovados junto aos
+novos testes da Issue #24.
+
+### 8.10 Caracterização final de compatibilidade
+
+Foram adicionados dois testes finais:
+
+1. material válido recebe `EvidenceCollection` vazia;
+2. o campo legado `evidence: tuple[str, ...]` continua preservado.
+
+Resultado final:
+
+```text
+Ran 53 tests in 0.031s
+OK
+```
+
+Portanto:
+
+```text
+baseline anterior: 46 testes
+novos testes:       7
+total final local:  53 testes
+regressões:         0
+```
+
+### 8.11 Testes implementados
 
 - `T-01` — uma Issue produz uma evidência estruturada;
 - `T-02` — `material_id` é preservado;
@@ -1010,6 +1056,38 @@ git diff --check
 git status -sb
 git diff --stat
 ```
+
+### Evidência local antes do commit
+
+Resultado final da suíte:
+
+```text
+Ran 53 tests in 0.031s
+OK
+```
+
+`git diff --check` não apresentou erros de whitespace.
+
+Foram observados apenas avisos de normalização de fim de linha:
+
+```text
+LF will be replaced by CRLF the next time Git touches it
+```
+
+Esses avisos não representam falha funcional nem erro de `git diff --check`.
+
+O `git diff --stat` confirmou alteração apenas nos cinco arquivos funcionais e
+de teste previstos:
+
+```text
+src/agent_lab/domain.py
+src/agent_lab/evidence.py
+src/agent_lab/validator.py
+tests/test_evidence.py
+tests/test_validator.py
+```
+
+A atualização desta SPEC será o sexto arquivo do commit de implementação.
 
 ### Antes do commit staged
 
@@ -1141,56 +1219,56 @@ Não é apenas uma correção interna.
 
 ### Arquitetura
 
-- [ ] existe adaptador explícito `GovernanceIssue → GovernanceEvidence`;
-- [ ] `Issue` permanece conceitualmente separado de `Evidence`;
-- [ ] `Evidence` permanece separado de `GovernanceDecision`;
-- [ ] o Evidence Engine participa do fluxo determinístico real;
-- [ ] `EvidenceCollection` é produzida pelo fluxo do validator;
-- [ ] a integração é aditiva.
+- [x] existe adaptador explícito `GovernanceIssue → GovernanceEvidence`;
+- [x] `Issue` permanece conceitualmente separado de `Evidence`;
+- [x] `Evidence` permanece separado de `GovernanceDecision`;
+- [x] o Evidence Engine participa do fluxo determinístico real;
+- [x] `EvidenceCollection` é produzida pelo fluxo do validator;
+- [x] a integração é aditiva.
 
 ### Identidade e contrato
 
-- [ ] `material_id` é preservado em cada evidência;
-- [ ] `material_id` da coleção corresponde ao material analisado;
-- [ ] `IssueType` é preservado;
-- [ ] `message` origina `observation`;
-- [ ] nenhuma correção silenciosa de identidade é criada.
+- [x] `material_id` é preservado em cada evidência;
+- [x] `material_id` da coleção corresponde ao material analisado;
+- [x] `IssueType` é preservado;
+- [x] `message` origina `observation`;
+- [x] nenhuma correção silenciosa de identidade é criada.
 
 ### Proveniência
 
-- [ ] Issues de regra usam `EvidenceSource.RULE`;
-- [ ] `POSSIBLE_DUPLICATE` usa `EvidenceSource.DUPLICATE`;
-- [ ] `VALIDATION` não é inventado sem proveniência explícita;
-- [ ] `LLM` permanece fora deste incremento.
+- [x] Issues de regra usam `EvidenceSource.RULE`;
+- [x] `POSSIBLE_DUPLICATE` usa `EvidenceSource.DUPLICATE`;
+- [x] `VALIDATION` não é inventado sem proveniência explícita;
+- [x] `LLM` permanece fora deste incremento.
 
 ### Comportamento
 
-- [ ] uma Issue produz uma evidência;
-- [ ] múltiplas Issues produzem múltiplas evidências;
-- [ ] a ordem é preservada;
-- [ ] ausência de Issues produz coleção vazia;
-- [ ] material válido continua `APPROVE`;
-- [ ] material com Issue continua recebendo a mesma decisão anterior;
-- [ ] confiança não é recalibrada;
-- [ ] regras PDM/BOM não são alteradas;
-- [ ] Duplicate Intelligence não é alterada.
+- [x] uma Issue produz uma evidência;
+- [x] múltiplas Issues produzem múltiplas evidências;
+- [x] a ordem é preservada;
+- [x] ausência de Issues produz coleção vazia;
+- [x] material válido continua `APPROVE`;
+- [x] material com Issue continua recebendo a mesma decisão anterior;
+- [x] confiança não é recalibrada;
+- [x] regras PDM/BOM não são alteradas;
+- [x] Duplicate Intelligence não é alterada.
 
 ### Compatibilidade
 
-- [ ] `GovernanceAssessment.evidence` continua funcionando;
-- [ ] existe teste explícito de compatibilidade do campo legado;
-- [ ] o novo campo possui default compatível;
-- [ ] consumidores existentes não precisam migrar nesta Issue.
+- [x] `GovernanceAssessment.evidence` continua funcionando;
+- [x] existe teste explícito de compatibilidade do campo legado;
+- [x] o novo campo possui default compatível;
+- [x] consumidores existentes não precisam migrar nesta Issue.
 
 ### TDD e qualidade
 
 - [x] baseline `46/46` foi registrado;
-- [ ] existe RED comprovando ausência do adaptador;
-- [ ] existem testes específicos do adaptador;
-- [ ] existem testes de integração no validator;
-- [ ] os 46 testes anteriores permanecem aprovados;
-- [ ] todos os novos testes estão aprovados;
-- [ ] `git diff --check` não apresenta erros;
+- [x] existe RED comprovando ausência do adaptador;
+- [x] existem testes específicos do adaptador;
+- [x] existem testes de integração no validator;
+- [x] os 46 testes anteriores permanecem aprovados;
+- [x] todos os novos testes estão aprovados;
+- [x] `git diff --check` não apresenta erros;
 - [ ] GitHub Actions / Python 3.11 está aprovado.
 
 ### Governança
@@ -1199,7 +1277,7 @@ Não é apenas uma correção interna.
 - [x] nenhuma chamada de rede foi adicionada até o baseline;
 - [x] nenhuma credencial foi adicionada até o baseline;
 - [x] nenhum dado empresarial real foi utilizado no baseline;
-- [ ] riscos e limitações finais estão registrados;
+- [x] riscos e limitações finais estão registrados;
 - [x] decisão final permanece humana;
 - [ ] Pull Request referencia Issue #24;
 - [ ] Pull Request referencia `SPEC-0024`.
@@ -1293,6 +1371,11 @@ Issue independente.
 | `2026-08-12` | Manter LLM fora do incremento | Fronteira LLM requer evolução contratual separada | Jakson Pascoal |
 | `2026-08-12` | Não alterar decisão ou confiança | Evidence Engine deve transportar observações, não decidir | Jakson Pascoal |
 | `2026-08-12` | Baseline inicial `46/46` | Evidência de estabilidade pré-implementação | Jakson Pascoal |
+| `2026-08-12` | Implementar `build_evidence_collection()` | Criar ponte explícita Issue → Evidence | Jakson Pascoal |
+| `2026-08-12` | Mapear `POSSIBLE_DUPLICATE` para `DUPLICATE` | Preservar proveniência de Duplicate Intelligence | Jakson Pascoal |
+| `2026-08-12` | Adicionar `evidence_collection` de forma aditiva | Preservar compatibilidade com `evidence: tuple[str, ...]` | Jakson Pascoal |
+| `2026-08-12` | Usar forward reference / `TYPE_CHECKING` | Evitar dependência circular entre domínio e Evidence Engine | Jakson Pascoal |
+| `2026-08-12` | Registrar `53/53` testes locais | Comprovar regressão zero antes do commit | Jakson Pascoal |
 
 ---
 
@@ -1335,29 +1418,35 @@ futuro Decision Engine
 ### Fluxo de engenharia previsto
 
 ```text
-Issue #24
+Issue #24                         ✅
    ↓
-SPEC-0024
+SPEC-0024                         ✅
    ↓
-branch
+branch                            ✅
    ↓
-TDD RED
+TDD RED — adapter                 ✅
    ↓
-adapter mínimo
+GREEN — RULE                      ✅
    ↓
-GREEN específico
+TDD RED — DUPLICATE               ✅
    ↓
-integração no validator
+GREEN — proveniência              ✅
    ↓
-GREEN
+caracterização ordem/vazio        ✅
    ↓
-regressão completa
+TDD RED — validator               ✅
    ↓
-review
+GREEN — evidence_collection       ✅
    ↓
-atualização da SPEC
+regressão 51/51                   ✅
    ↓
-commit
+compatibilidade final 53/53       ✅
+   ↓
+git diff --check                  ✅
+   ↓
+atualização final da SPEC         ✅
+   ↓
+commit                            ← próximo
    ↓
 push
    ↓
