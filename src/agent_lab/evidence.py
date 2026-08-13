@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from .domain import GovernanceIssue, IssueType
+from .llm_schema import GovernanceAgentOutput
 
 
 class EvidenceSource(StrEnum):
@@ -83,5 +84,40 @@ def build_evidence_collection(
 
     return EvidenceCollection(
         material_id=material_id,
+        evidence=evidence,
+    )
+
+
+def build_llm_evidence_collection(
+    output: GovernanceAgentOutput,
+) -> EvidenceCollection:
+    """Transforma uma saída LLM validada em evidências estruturadas.
+
+    A transformação preserva identidade, ordem e tipo das Issues, mas não
+    promove ``decision`` ou ``confidence`` da LLM a decisão ou score de
+    governança. Cada Issue deve possuir exatamente uma observação correspondente.
+    """
+
+    if len(output.issues) != len(output.evidence):
+        raise ValueError(
+            "issues e evidence da saída LLM devem possuir a mesma cardinalidade"
+        )
+
+    evidence = tuple(
+        GovernanceEvidence(
+            material_id=output.material_id,
+            source=EvidenceSource.LLM,
+            issue_type=issue_type,
+            observation=observation,
+        )
+        for issue_type, observation in zip(
+            output.issues,
+            output.evidence,
+            strict=True,
+        )
+    )
+
+    return EvidenceCollection(
+        material_id=output.material_id,
         evidence=evidence,
     )
