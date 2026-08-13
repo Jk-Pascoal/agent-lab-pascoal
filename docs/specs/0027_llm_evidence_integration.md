@@ -5,13 +5,17 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0027` |
-| Status | `Em implementação` |
+| Status | `Concluída` |
 | Issue relacionada | `#27` — `[FEATURE] Integrar evidências estruturadas à fronteira LLM` |
 | Responsável | Jakson Pascoal (`Jk-Pascoal`) |
 | Data de criação | `2026-08-13` |
 | Última atualização | `2026-08-13` |
 | Área | Governança / Evidence Engine / Fronteira LLM |
-| Baseline de testes | `53 testes — OK` |
+| Baseline inicial | `53 testes — OK` |
+| Baseline final | `59 testes — OK` |
+| Pull Request | `#28` — `feat: integra evidencias LLM ao Evidence Engine` |
+| CI | `GitHub Actions / Python 3.11 — aprovado` |
+| Fechamento | `2026-08-13` |
 
 ---
 
@@ -314,9 +318,17 @@ OK
 Após o incremento:
 
 ```text
-Ran 53 + N tests
+Ran 59 tests
 OK
 ```
+
+Resultado efetivo do incremento:
+
+- baseline anterior preservado: `53/53`;
+- novos testes da integração LLM → Evidence: `6/6`;
+- suíte completa final: `59/59`;
+- regressões detectadas: `0`;
+- GitHub Actions / Python 3.11: aprovado.
 
 ### 8.3 REFACTOR
 
@@ -379,28 +391,28 @@ Não serão implementados nesta SPEC:
 
 ## 11. Critérios de aceite
 
-- [ ] existe transformação explícita de `GovernanceAgentOutput` em evidências;
-- [ ] a origem LLM é identificável;
-- [ ] `material_id` é preservado;
-- [ ] `IssueType` é preservado quando aplicável;
-- [ ] observações são derivadas explicitamente das Issues;
-- [ ] uma Issue produz uma evidência;
-- [ ] múltiplas Issues produzem múltiplas evidências;
-- [ ] ausência de Issues produz coleção vazia válida;
-- [ ] ordem determinística é preservada;
-- [ ] Evidence permanece separado de `GovernanceDecision`;
-- [ ] recomendação LLM não se torna decisão final;
-- [ ] `confidence` não é tratada como probabilidade calibrada;
-- [ ] implementação permanece independente de provider;
-- [ ] TDD RED é demonstrável;
-- [ ] todos os novos testes passam;
-- [ ] os 53 testes anteriores continuam aprovados;
-- [ ] GitHub Actions / Python 3.11 permanece aprovado;
-- [ ] nenhuma chamada real de rede é adicionada;
-- [ ] nenhuma credencial ou dado proprietário é incluído;
-- [ ] nenhuma regra PDM/BOM existente é alterada;
-- [ ] Pull Request referencia Issue #27 e SPEC 0027;
-- [ ] decisão final de governança permanece humana.
+- [x] existe transformação explícita de `GovernanceAgentOutput` em evidências;
+- [x] a origem LLM é identificável;
+- [x] `material_id` é preservado;
+- [x] `IssueType` é preservado quando aplicável;
+- [x] observações são derivadas explicitamente das Issues;
+- [x] uma Issue produz uma evidência;
+- [x] múltiplas Issues produzem múltiplas evidências;
+- [x] ausência de Issues produz coleção vazia válida;
+- [x] ordem determinística é preservada;
+- [x] Evidence permanece separado de `GovernanceDecision`;
+- [x] recomendação LLM não se torna decisão final;
+- [x] `confidence` não é tratada como probabilidade calibrada;
+- [x] implementação permanece independente de provider;
+- [x] TDD RED é demonstrável;
+- [x] todos os novos testes passam;
+- [x] os 53 testes anteriores continuam aprovados;
+- [x] GitHub Actions / Python 3.11 permanece aprovado;
+- [x] nenhuma chamada real de rede é adicionada;
+- [x] nenhuma credencial ou dado proprietário é incluído;
+- [x] nenhuma regra PDM/BOM existente é alterada;
+- [x] Pull Request referencia Issue #27 e SPEC 0027;
+- [x] decisão final de governança permanece humana.
 
 ---
 
@@ -449,19 +461,19 @@ evidências.
 
 ## 13. Segurança e governança
 
-- nenhum dado empresarial real será necessário;
-- nenhuma credencial será armazenada;
-- nenhuma chamada de rede será necessária;
-- testes deverão permanecer determinísticos;
-- provider real permanece fora do escopo;
+- nenhum dado empresarial real foi necessário;
+- nenhuma credencial foi armazenada;
+- nenhuma chamada de rede foi adicionada;
+- testes permaneceram determinísticos;
+- provider real permaneceu fora do escopo;
 - a LLM produz recomendação, não decisão final;
 - autoridade final de governança permanece humana.
 
 ---
 
-## 14. Evidência de conclusão esperada
+## 14. Evidência de conclusão
 
-A SPEC poderá ser marcada como concluída quando houver evidência de:
+A SPEC foi concluída com a seguinte cadeia de evidências:
 
 ```text
 Issue #27
@@ -472,19 +484,47 @@ TDD RED
 ↓
 implementação
 ↓
-suíte completa GREEN
+6/6 testes específicos GREEN
 ↓
-Pull Request
+59/59 testes da suíte completa GREEN
 ↓
-GitHub Actions aprovado
+Pull Request #28
 ↓
-revisão
+GitHub Actions / Python 3.11 aprovado
 ↓
-merge
+revisão do diff — 3 arquivos no escopo
+↓
+merge em main
+↓
+Issue #27 encerrada
 ```
 
-O fechamento documental deverá registrar a quantidade final de testes e o Pull
-Request responsável pela integração.
+### 14.1 Resultado final
+
+- Issue: `#27` — concluída;
+- Pull Request: `#28` — mergeado em `main`;
+- arquivos alterados no PR: `3`;
+- baseline antes do incremento: `53 testes — OK`;
+- novos testes: `6`;
+- baseline final: `59 testes — OK`;
+- CI obrigatória: aprovada;
+- branch de feature remota: removida após o merge;
+- branch de feature local: removida após sincronização;
+- `main`: sincronizada com `origin/main`;
+- regressões detectadas: `0`.
+
+### 14.2 Invariante de governança preservado
+
+A conclusão desta SPEC não introduziu autoridade decisória autônoma para a LLM.
+
+Permanece válido:
+
+```text
+LLM recommendation != final governance decision
+Evidence != Decision
+```
+
+A decisão final de governança permanece humana.
 
 ---
 
