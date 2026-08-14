@@ -1,6 +1,6 @@
 # SPEC 0030 — Evidence-to-Decision Pipeline v1
 
-**Status:** Proposta
+**Status:** Concluída
 **Issue:** #30 — Evidence-to-Decision Pipeline v1
 **Tipo:** Evolução arquitetural
 **Método:** TDD
@@ -170,20 +170,20 @@ Os nomes definitivos dos tipos e campos serão alinhados aos contratos já exist
 
 ## 10. Critérios de aceitação
 
-- [ ] O pipeline recebe `material_id` e evidências estruturadas.
-- [ ] O pipeline retorna uma recomendação tipada.
-- [ ] Evidências críticas produzem `REJECT`.
-- [ ] Evidências revisáveis produzem `REVIEW`.
-- [ ] A ausência de impedimentos produz `APPROVE`.
-- [ ] A recomendação mais restritiva prevalece em coleções mistas.
-- [ ] A ordem das evidências não altera a recomendação.
-- [ ] O resultado preserva o `material_id`.
-- [ ] O resultado informa as evidências utilizadas.
-- [ ] O resultado contém justificativa determinística.
-- [ ] O contrato distingue recomendação automatizada de decisão humana final.
-- [ ] Os novos comportamentos são cobertos por testes unitários.
-- [ ] Os testes anteriores permanecem aprovados.
-- [ ] A CI permanece verde.
+- [x] O pipeline recebe `material_id` e evidências estruturadas.
+- [x] O pipeline retorna uma recomendação tipada.
+- [x] Evidências críticas produzem `REJECT`.
+- [x] Evidências revisáveis produzem `REVIEW`.
+- [x] A ausência de impedimentos produz `APPROVE`.
+- [x] A recomendação mais restritiva prevalece em coleções mistas.
+- [x] A ordem das evidências não altera a recomendação.
+- [x] O resultado preserva o `material_id`.
+- [x] O resultado informa as evidências utilizadas.
+- [x] O resultado contém justificativa determinística.
+- [x] O contrato distingue recomendação automatizada de decisão humana final.
+- [x] Os novos comportamentos são cobertos por testes unitários.
+- [x] Os testes anteriores permanecem aprovados.
+- [x] A CI permanece verde.
 
 ## 11. Riscos e mitigação
 
@@ -245,8 +245,22 @@ Alterações em outros arquivos exigirão justificativa no Pull Request.
 - Pull Request incorporado à `main`.
 - Issue #30 encerrada.
 
+## 15. Encerramento
+
+Implementação concluída e incorporada à `main` em 14 de agosto de 2026.
+
+- **Issue:** #30 — Evidence-to-Decision Pipeline v1
+- **Pull Request:** #31 — `feat: add evidence-to-decision pipeline (#30)`
+- **Commit da implementação:** `3b8d774`
+- **Commit de merge:** `dbf3abf`
+- **CI obrigatória:** `Tests / Python 3.11` aprovada
+- **Baseline anterior:** 59 testes aprovados
+- **Baseline final:** 70 testes aprovados
+- **Evolução:** 11 novos testes, zero regressões
+- **Estado final:** pipeline determinístico, explicável e subordinado à decisão humana
+
 ---
 
 **Referência:** Issue #30 — Evidence-to-Decision Pipeline v1
-**Baseline anterior:** 59 testes aprovados
+**Baseline final:** 70 testes aprovados
 **Próximo incremento arquitetural:** human-in-the-loop e trilha de auditoria, em Issue própria.
