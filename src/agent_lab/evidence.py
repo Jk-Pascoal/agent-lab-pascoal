@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .domain import GovernanceIssue, IssueType
+from .domain import GovernanceIssue, IssueSeverity, IssueType
 from .llm_schema import GovernanceAgentOutput
 
 
@@ -24,6 +24,7 @@ class GovernanceEvidence:
     source: EvidenceSource
     issue_type: IssueType
     observation: str
+    severity: IssueSeverity = IssueSeverity.WARNING
 
     def __post_init__(self) -> None:
         if self.material_id == "":
@@ -37,6 +38,9 @@ class GovernanceEvidence:
 
         if self.observation == "":
             raise ValueError("observation não pode ser vazia")
+
+        if not isinstance(self.severity, IssueSeverity):
+            raise ValueError("severity deve ser um IssueSeverity válido")
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +82,7 @@ def build_evidence_collection(
             source=_source_for_issue(issue),
             issue_type=issue.issue_type,
             observation=issue.message,
+            severity=issue.severity,
         )
         for issue in issues
     )
@@ -95,7 +100,9 @@ def build_llm_evidence_collection(
 
     A transformação preserva identidade, ordem e tipo das Issues, mas não
     promove ``decision`` ou ``confidence`` da LLM a decisão ou score de
-    governança. Cada Issue deve possuir exatamente uma observação correspondente.
+    governança. Na v1, toda evidência proveniente da LLM recebe severidade
+    ``WARNING``: ela pode recomendar revisão humana, mas nunca causar rejeição
+    automática. Cada Issue deve possuir exatamente uma observação correspondente.
     """
 
     if len(output.issues) != len(output.evidence):
@@ -109,6 +116,7 @@ def build_llm_evidence_collection(
             source=EvidenceSource.LLM,
             issue_type=issue_type,
             observation=observation,
+            severity=IssueSeverity.WARNING,
         )
         for issue_type, observation in zip(
             output.issues,
