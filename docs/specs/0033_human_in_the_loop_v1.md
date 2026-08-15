@@ -1,6 +1,6 @@
 # SPEC 0033 — Human-in-the-Loop v1 e trilha de auditoria
 
-- **Status:** Proposta
+- **Status:** Implementada
 - **Issue:** #33
 - **Branch:** `feat/33-human-in-the-loop-v1`
 - **Data:** 2026-08-15
@@ -319,7 +319,39 @@ A separação em dois módulos é sugerida, não obrigatória. A implementação
 
 A implementação estará pronta quando os contratos, invariantes, serviço e evento de auditoria descritos nesta SPEC estiverem implementados; os novos testes estiverem aprovados; os 70 testes anteriores permanecerem verdes; e a documentação refletir eventuais decisões técnicas tomadas durante o desenvolvimento.
 
-## 16. Validação
+## 16. Resultado da implementação
+
+Implementação concluída em 2026-08-15 com os seguintes componentes:
+
+- `src/agent_lab/human_review.py`:
+  - `HumanDecision`;
+  - `CorrectionRequest`;
+  - `HumanReview`;
+  - validações de identidade, timestamp, justificativa e correções;
+  - cálculo de concordância humano–sistema;
+  - contratos e coleções imutáveis.
+- `src/agent_lab/audit.py`:
+  - `AuditEventType`;
+  - `AuditEvent`;
+  - congelamento defensivo e recursivo dos metadados;
+  - `HumanReviewResult`;
+  - `record_human_review`;
+  - validação da correlação entre revisão humana e evento.
+- `tests/test_human_review.py`:
+  - 20 testes de contrato, invariantes, concordância e divergência.
+- `tests/test_human_review_integration.py`:
+  - 10 testes de auditoria e integração.
+
+Baseline final:
+
+```text
+Ran 100 tests in 0.047s
+OK
+```
+
+Os 70 testes anteriores permaneceram aprovados e 30 novos testes foram acrescentados sem regressões.
+
+## 17. Validação
 
 Executar:
 
@@ -328,4 +360,3 @@ python -m unittest discover -s tests -v
 ```
 
 Resultado esperado: todos os testes anteriores e novos aprovados, sem regressões.
-
