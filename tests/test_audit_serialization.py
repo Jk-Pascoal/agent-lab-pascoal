@@ -108,6 +108,36 @@ class AuditSerializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit_event_from_record(record)
 
+    def test_rejects_non_string_identifiers(self):
+        cases = [
+            ("event_id", 123),
+            ("material_id", None),
+            ("actor_id", True),
+            ("review_id", 456),
+        ]
+        for field_name, invalid_value in cases:
+            with self.subTest(
+                field_name=field_name, invalid_value=invalid_value
+            ):
+                record = audit_event_to_record(self.event)
+                record[field_name] = invalid_value
+                with self.assertRaises(ValueError):
+                    audit_event_from_record(record)
+
+    def test_preserves_valid_string_identifiers_without_coercion(self):
+        record = audit_event_to_record(self.event)
+        record["event_id"] = "event-exact-001"
+        record["material_id"] = "MAT-EXACT-001"
+        record["actor_id"] = "specialist-exact-001"
+        record["review_id"] = "review-exact-001"
+
+        restored = audit_event_from_record(record)
+
+        self.assertEqual(restored.event_id, "event-exact-001")
+        self.assertEqual(restored.material_id, "MAT-EXACT-001")
+        self.assertEqual(restored.actor_id, "specialist-exact-001")
+        self.assertEqual(restored.review_id, "review-exact-001")
+
 
 if __name__ == "__main__":
     unittest.main()
