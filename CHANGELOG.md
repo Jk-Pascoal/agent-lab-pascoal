@@ -97,6 +97,16 @@ As mudanças são classificadas em:
         → CI → revisão → merge → release
   ```
 
+#### Persistência auditável v1 — Issue #37
+
+- Serialização e desserialização versionadas de `AuditEvent` (`schema_version = 1`) com preservação estrita de timezone e integridade de tipos.
+- Protocolo `AuditRepository` e implementação `JsonlAuditRepository` com persistência local append-only pela API.
+- Escrita síncrona durável com `flush` e `os.fsync`.
+- Leitura e recuperação *fail-closed* diante de corrupção ou registros inválidos, expondo `line_number`.
+- Detecção e rejeição explícita de `event_id` duplicado (`DuplicateAuditEventError`).
+- Teste de integração ponta a ponta correlacionando revisão humana divergente e persistência durável.
+- Expansão da suíte para **128 testes automatizados** executados com `unittest`.
+
 ### Changed
 
 - Evolução do projeto de um conjunto inicial de regras para um laboratório com

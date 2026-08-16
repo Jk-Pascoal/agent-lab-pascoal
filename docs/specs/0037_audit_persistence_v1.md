@@ -8,7 +8,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0037` |
-| Status | `Aprovada` |
+| Status | `Implementada` |
 | Issue relacionada | `#37` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-16` |
@@ -519,35 +519,35 @@ alterar intencionalmente contratos públicos existentes.
 
 ## 13. Critérios de aceite
 
-- [ ] existe contrato explícito `AuditRepository`;
-- [ ] existe implementação `JsonlAuditRepository`;
-- [ ] cada evento ocupa uma nova linha JSON;
-- [ ] cada registro contém `schema_version = 1`;
-- [ ] eventos sobrevivem à criação de uma nova instância do repositório;
-- [ ] o round-trip preserva integralmente o contrato vigente de `AuditEvent`;
-- [ ] enums, metadados e timezone são preservados;
-- [ ] timestamp sem timezone é rejeitado;
-- [ ] consulta por `event_id` funciona;
-- [ ] identificador inexistente retorna `None`;
-- [ ] listagem por `material_id` funciona;
-- [ ] listagem completa funciona;
-- [ ] listagens retornam tuplas e preservam ordem de gravação;
-- [ ] duplicidade de `event_id` falha explicitamente;
-- [ ] arquivo inexistente ou vazio retorna tupla vazia;
-- [ ] corrupção produz erro explícito com número da linha;
-- [ ] histórico parcial não é retornado silenciosamente;
-- [ ] escrita utiliza `flush` e `fsync`;
-- [ ] domínio não importa infraestrutura de persistência;
-- [ ] API não oferece update ou delete;
-- [ ] testes de arquivo não deixam resíduos;
-- [ ] existe teste de integração ponta a ponta;
-- [ ] os 100 testes anteriores permanecem aprovados;
-- [ ] todos os novos testes usam `unittest`;
+- [x] existe contrato explícito `AuditRepository`;
+- [x] existe implementação `JsonlAuditRepository`;
+- [x] cada evento ocupa uma nova linha JSON;
+- [x] cada registro contém `schema_version = 1`;
+- [x] eventos sobrevivem à criação de uma nova instância do repositório;
+- [x] o round-trip preserva integralmente o contrato vigente de `AuditEvent`;
+- [x] enums, metadados e timezone são preservados;
+- [x] timestamp sem timezone é rejeitado;
+- [x] consulta por `event_id` funciona;
+- [x] identificador inexistente retorna `None`;
+- [x] listagem por `material_id` funciona;
+- [x] listagem completa funciona;
+- [x] listagens retornam tuplas e preservam ordem de gravação;
+- [x] duplicidade de `event_id` falha explicitamente;
+- [x] arquivo inexistente ou vazio retorna tupla vazia;
+- [x] corrupção produz erro explícito com número da linha;
+- [x] histórico parcial não é retornado silenciosamente;
+- [x] escrita utiliza `flush` e `fsync`;
+- [x] domínio não importa infraestrutura de persistência;
+- [x] API não oferece update ou delete;
+- [x] testes de arquivo não deixam resíduos;
+- [x] existe teste de integração ponta a ponta;
+- [x] os 100 testes anteriores permanecem aprovados;
+- [x] todos os novos testes usam `unittest`;
 - [ ] a CI permanece verde em Python 3.11;
-- [ ] nenhuma dependência externa foi adicionada;
-- [ ] Project Compass, README e CHANGELOG são atualizados quando aplicável;
-- [ ] riscos e limitações são registrados;
-- [ ] a responsabilidade humana permanece preservada;
+- [x] nenhuma dependência externa foi adicionada;
+- [x] Project Compass, README e CHANGELOG são atualizados quando aplicável;
+- [x] riscos e limitações são registrados;
+- [x] a responsabilidade humana permanece preservada;
 - [ ] o Pull Request referencia a Issue #37 e esta SPEC.
 
 ## 14. Questões em aberto
@@ -568,3 +568,44 @@ desta SPEC. Elas exigirão Issues próprias quando houver evidência de necessid
 | `2026-08-16` | Falhar por inteiro diante de corrupção | Evitar apresentar histórico parcial como íntegro | `Jk-Pascoal` e Pasquara |
 | `2026-08-16` | Preservar ordem física de gravação | Distinguir ordem de registro de instante declarado do evento | `Jk-Pascoal` e Pasquara |
 | `2026-08-16` | Limitar a v1 a operação síncrona e monoprocesso | Evitar concorrência e locking prematuros | `Jk-Pascoal`, Pasquara e Agy |
+
+## 16. Resultado da implementação
+
+Implementação concluída em 2026-08-16 com os seguintes componentes:
+
+- `src/agent_lab/audit_serialization.py`:
+  - `audit_event_to_record`: serialização versionada com `schema_version = 1` e timezone ISO 8601;
+  - `audit_event_from_record`: validação estrita de tipos e restauração de `AuditEvent` imutável;
+  - ausência de coerções silenciosas nos identificadores.
+- `src/agent_lab/audit_repository.py`:
+  - `AuditPersistenceError`, `DuplicateAuditEventError`, `AuditCorruptionError`;
+  - protocolo `AuditRepository`;
+  - implementação concreta `JsonlAuditRepository`;
+  - escrita síncrona durável com `flush` e `os.fsync`;
+  - semântica *fail-closed* diante de corrupção com identificação de `line_number`;
+  - preservação da ordem física de gravação e coleções imutáveis (`tuple`).
+- `tests/test_audit_serialization.py`:
+  - 10 testes cobrindo round-trip, tipos reais, `schema_version`, timezone aware e rejeição de tipos inválidos.
+- `tests/test_audit_repository.py`:
+  - 17 testes cobrindo operações públicas, append-only, fsync, integridade e corrupção.
+- `tests/test_audit_persistence_integration.py`:
+  - 1 teste de integração ponta a ponta correlacionando revisão humana divergente e persistência.
+
+Baseline final:
+
+```text
+Ran 128 tests
+OK
+```
+
+Os 100 testes anteriores permaneceram aprovados e 28 novos testes foram acrescentados sem regressões.
+
+## 17. Validação
+
+Executar:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Resultado esperado: todos os testes anteriores e novos aprovados, sem regressões.

@@ -12,12 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-15
-- **Baseline atual:** 100 testes aprovados
-- **Última entrega:** Human-in-the-Loop v1 e trilha de auditoria
+- **Estado registrado em:** 2026-08-16
+- **Baseline atual:** 128 testes aprovados
+- **Última entrega:** Persistência auditável v1 e repositório JSONL
 - **Última Issue concluída:** #33
+- **Incremento atual:** Persistência auditável v1 — Issue #37 (aguardando Pull Request)
 - **Último PR integrado:** #34
-- **Última SPEC:** `docs/specs/0033_human_in_the_loop_v1.md`
+- **Última SPEC:** `docs/specs/0037_audit_persistence_v1.md`
 
 ## 2. Propósito
 
@@ -51,7 +52,11 @@ Human-in-the-Loop
         ↓
 Audit Event
         ↓
-Persistência e workflow futuros
+Serialização versionada
+        ↓
+Audit Repository (JSONL)
+        ↓
+Identidade e workflow futuros
         ↓
 Integração ERP futura
 ```
@@ -80,23 +85,26 @@ O sistema já representa e valida:
 - revisão humana;
 - aprovação, reprovação e solicitação de correção;
 - concordância e divergência humano–sistema;
-- eventos de auditoria imutáveis.
+- eventos de auditoria imutáveis;
+- serialização versionada de auditoria (`schema_version = 1`);
+- persistência local append-only pela API com JSONL;
+- escrita durável com `flush` e `fsync`;
+- recuperação e consultas de histórico com leitura *fail-closed*.
 
 ### 4.2 Limite atual
 
 A versão atual possui:
 
-- auditoria estrutural em memória;
+- persistência local JSONL e execução síncrona/monoprocesso;
 - identidade declarativa do especialista;
 - validação em cenários controlados;
-- ausência de persistência durável;
 - ausência de autenticação e autorização;
 - ausência de filas e estados completos de workflow;
 - ausência de integração com ERP.
 
 ### 4.3 Próxima âncora
 
-A próxima frente arquitetural é **persistência auditável**.
+A próxima frente arquitetural é **identidade verificável**.
 
 Sequência evolutiva recomendada:
 
@@ -213,6 +221,32 @@ Responsabilidades:
 - preservar material, especialista, instante e decisão;
 - produzir resultado auditável sem persistência ou efeitos externos.
 
+### 6.5 Persistência e repositório de auditoria
+
+```text
+src/agent_lab/audit_serialization.py
+src/agent_lab/audit_repository.py
+```
+
+Contratos principais:
+
+- `audit_event_to_record`;
+- `audit_event_from_record`;
+- `AuditRepository`;
+- `JsonlAuditRepository`;
+- `AuditPersistenceError`;
+- `DuplicateAuditEventError`;
+- `AuditCorruptionError`.
+
+Responsabilidades:
+
+- serializar e desserializar `AuditEvent` com versão de schema explícita (`schema_version = 1`);
+- persistir eventos de forma append-only em arquivo JSONL local;
+- garantir sincronização em disco com `flush` e `os.fsync`;
+- recuperar histórico por `event_id`, `material_id` e listagem completa;
+- falhar de forma *fail-closed* diante de corrupção ou duplicidade;
+- manter o domínio desacoplado de infraestrutura de armazenamento.
+
 ## 7. Comando canônico de testes
 
 Use sempre:
@@ -221,10 +255,10 @@ Use sempre:
 python -m unittest discover -s tests -v
 ```
 
-Baseline esperado em 2026-08-15:
+Baseline esperado em 2026-08-16:
 
 ```text
-Ran 100 tests
+Ran 128 tests
 OK
 ```
 
@@ -477,22 +511,23 @@ Governança assistida de materiais PDM/BOM.
 
 Arquitetura atual:
 Regras + LLM estruturada + evidências + recomendação
-+ decisão humana + evento de auditoria.
++ decisão humana + evento de auditoria + serialização versionada
++ repositório JSONL append-only.
 
 Autoridade:
 A IA recomenda; o humano decide.
 
 Baseline:
-100 testes | unittest | Python 3.11.
+128 testes | unittest | Python 3.11.
 
 Última entrega:
-Issue #33 | SPEC 0033 | PR #34.
+Issue #37 | SPEC 0037 | Aguardando PR (último integrado: PR #34).
 
 Limite atual:
-Auditoria em memória e identidade declarativa.
+Persistência local JSONL e identidade declarativa.
 
 Próxima âncora:
-Persistência auditável.
+Identidade verificável.
 
 Comando oficial:
 python -m unittest discover -s tests -v
