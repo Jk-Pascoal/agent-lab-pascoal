@@ -21,7 +21,7 @@ MaterialRecord
      │
      ├──────────────► Baseline determinístico
      │                  │
-     │                  └──► APPROVE / REVIEW / REJECT
+     │                  └──► Evidence Engine
      │
      └──────────────► Fronteira LLM
                         │
@@ -33,10 +33,20 @@ MaterialRecord
                         ├──► guardrail de identidade
                         └──► GovernanceAgentOutput
                                   │
-                                  └──► revisão humana
+                                  └──► Evidence Engine
+                                            │
+                                            └──► DecisionRecommendation
+                                                      │
+                                                      └──► Human-in-the-Loop (HumanReview)
+                                                                 │
+                                                                 └──► AuditEvent
+                                                                           │
+                                                                           └──► Serialização versionada (schema_version = 1)
+                                                                                     │
+                                                                                     └──► JsonlAuditRepository (append-only)
 ```
 
-A fronteira LLM está implementada de forma independente de fornecedor. O repositório ainda não realiza chamadas reais para OpenAI, Anthropic, Gemini ou outro provider externo.
+A fronteira LLM está implementada de forma independente de fornecedor. O projeto ainda não realiza chamadas reais para OpenAI, Anthropic, Gemini ou outro provider externo.
 
 ## Módulos concluídos
 
@@ -93,6 +103,28 @@ Capacidades implementadas:
 
 O contrato estruturado garante conformidade sintática e estrutural. Ele não comprova veracidade semântica, ausência de alucinação ou qualidade da recomendação.
 
+### Módulo 3 — Evidence Engine e recomendação de decisão
+
+- estruturação de evidências determinísticas e geradas por LLM;
+- agregação em `EvidenceCollection` imutável;
+- geração de `DecisionRecommendation` com confiança e rastreabilidade.
+
+### Módulo 4 — Human-in-the-Loop e trilha de auditoria
+
+- separação estrita entre recomendação automática e decisão humana;
+- contratos imutáveis `HumanDecision`, `CorrectionRequest`, `HumanReview` e `AuditEvent`;
+- registro de concordância, divergência, justificativa e correções estruturadas;
+- serviço `record_human_review`.
+
+### Módulo 5 — Persistência auditável v1
+
+- protocolo `AuditRepository` e implementação `JsonlAuditRepository`;
+- serialização versionada com `schema_version = 1` e timestamps com timezone;
+- persistência local append-only pela API da aplicação;
+- durabilidade com escrita síncrona, `flush` e `os.fsync`;
+- leitura *fail-closed* diante de qualquer corrupção ou incompatibilidade com identificação de `line_number`;
+- detecção explícita de duplicidade (`DuplicateAuditEventError`).
+
 ## Resultados do baseline
 
 | Conjunto | Registros | Correspondência exata | Precisão de duplicidade | Recall de duplicidade |
@@ -135,9 +167,9 @@ O projeto atualmente possui:
 
 - templates de Issue e Pull Request;
 - SPECs versionadas;
-- desenvolvimento orientado por testes;
+- desenvolvimento orientado por testes (TDD);
 - GitHub Actions em Python 3.11;
-- suíte automatizada com **34 testes**;
+- suíte automatizada com **128 testes**;
 - proteção da branch `main`;
 - status check de CI obrigatório antes do merge;
 - política de Versionamento Semântico;
@@ -167,11 +199,17 @@ agent-lab-pascoal/
 │   └── 04_engineering_workflow.md
 ├── src/
 │   └── agent_lab/
+│       ├── audit.py
+│       ├── audit_repository.py
+│       ├── audit_serialization.py
 │       ├── baseline.py
 │       ├── cli.py
 │       ├── data_io.py
+│       ├── decision.py
 │       ├── domain.py
 │       ├── duplicates.py
+│       ├── evidence.py
+│       ├── human_review.py
 │       ├── llm_provider.py
 │       ├── llm_schema.py
 │       ├── llm_service.py
@@ -212,13 +250,13 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 - benchmark de qualidade entre modelos reais;
 - detecção semântica de duplicidades por embeddings ou similaridade vetorial;
 - RAG sobre normas, catálogos ou procedimentos;
-- Evidence Engine completo;
-- tool calling;
-- memória persistente;
-- orquestração multiagente;
-- retry, fallback ou roteamento entre providers;
+- autenticação, autorização e identidade verificável;
+- banco de dados relacional remoto ou cliente/servidor;
+- concorrência multiprocesso ou múltiplos escritores;
+- workflow completo com filas, SLAs e escalonamento;
+- integração ou injeção em ERP;
+- tool calling e orquestração multiagente;
 - observabilidade de produção;
-- implantação para clientes;
 - aprendizado automático a partir de feedback humano.
 
 Essas capacidades pertencem à esteira evolutiva e devem ser introduzidas em incrementos pequenos, testáveis e mensuráveis.
@@ -227,12 +265,12 @@ Essas capacidades pertencem à esteira evolutiva e devem ser introduzidas em inc
 
 A evolução planejada inclui:
 
-1. integrar um provider real sem quebrar a abstração `LLMProvider`;
-2. medir a LLM contra o baseline determinístico;
-3. introduzir detecção semântica de duplicidades;
-4. expandir evidências e justificativas auditáveis;
-5. testar arquitetura híbrida de regras + similaridade + RAG + LLM;
-6. fortalecer decisões `APPROVE`, `REVIEW` e `REJECT` com human-in-the-loop;
+1. implementar identidade verificável do especialista;
+2. integrar um provider real sem quebrar a abstração `LLMProvider`;
+3. medir a LLM contra o baseline determinístico;
+4. introduzir detecção semântica de duplicidades;
+5. expandir evidências e justificativas auditáveis;
+6. testar arquitetura híbrida de regras + similaridade + RAG + LLM;
 7. construir benchmark com ground truth;
 8. acompanhar precision, recall, falsos negativos, revisões desnecessárias, custo, latência e risco;
 9. evoluir para uma PoC de diagnóstico de qualidade cadastral antes de qualquer promessa de produto industrial.
@@ -261,8 +299,14 @@ A decisão final permanece humana.
 
 ✅ **Módulo 1 concluído:** baseline determinístico, conjunto de desafio e custo ponderado de erros.
 
-✅ **Módulo 2 em estágio funcional inicial:** saída estruturada, JSON Schema, fronteira LLM independente de fornecedor e guardrail de identidade implementados e testados.
+✅ **Módulo 2 concluído:** saída estruturada, JSON Schema, fronteira LLM independente de fornecedor e guardrail de identidade.
 
-🧪 **34 testes automatizados** protegem o comportamento atual.
+✅ **Módulo 3 concluído:** Evidence Engine e recomendação de decisão com confiança.
 
-➡️ **Próxima etapa:** conectar uma LLM real de forma controlada e iniciar comparação mensurável contra o baseline, sem remover a revisão humana.
+✅ **Módulo 4 concluído:** Human-in-the-Loop v1 e eventos de auditoria imutáveis.
+
+✅ **Módulo 5 concluído:** persistência auditável durável com repositório JSONL append-only pela API.
+
+🧪 **128 testes automatizados** protegem o comportamento atual com `unittest`.
+
+➡️ **Próxima etapa:** implementar identidade verificável do especialista e evoluir para workflow temporal.
