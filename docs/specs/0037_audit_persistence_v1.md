@@ -543,12 +543,12 @@ alterar intencionalmente contratos públicos existentes.
 - [x] existe teste de integração ponta a ponta;
 - [x] os 100 testes anteriores permanecem aprovados;
 - [x] todos os novos testes usam `unittest`;
-- [ ] a CI permanece verde em Python 3.11;
+- [x] a CI permanece verde em Python 3.11;
 - [x] nenhuma dependência externa foi adicionada;
 - [x] Project Compass, README e CHANGELOG são atualizados quando aplicável;
 - [x] riscos e limitações são registrados;
 - [x] a responsabilidade humana permanece preservada;
-- [ ] o Pull Request referencia a Issue #37 e esta SPEC.
+- [x] o Pull Request referencia a Issue #37 e esta SPEC.
 
 ## 14. Questões em aberto
 

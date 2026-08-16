@@ -16,7 +16,7 @@
 - **Baseline atual:** 128 testes aprovados
 - **Última entrega:** Persistência auditável v1 e repositório JSONL
 - **Última Issue concluída:** #33
-- **Incremento atual:** Persistência auditável v1 — Issue #37 (aguardando Pull Request)
+- **Incremento atual:** Persistência auditável v1 — Issue #37 — PR #38 (aguardando integração)
 - **Último PR integrado:** #34
 - **Última SPEC:** `docs/specs/0037_audit_persistence_v1.md`
 
@@ -521,7 +521,7 @@ Baseline:
 128 testes | unittest | Python 3.11.
 
 Última entrega:
-Issue #37 | SPEC 0037 | Aguardando PR (último integrado: PR #34).
+Issue #37 | SPEC 0037 | PR #38 (aguardando integração; último integrado: PR #34).
 
 Limite atual:
 Persistência local JSONL e identidade declarativa.
