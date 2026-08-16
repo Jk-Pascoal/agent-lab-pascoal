@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_lab.audit import AuditEvent, AuditEventType
 from agent_lab.audit_repository import (
@@ -209,6 +210,34 @@ class JsonlAuditRepositoryTests(unittest.TestCase):
         )
         self.assertTrue(issubclass(AuditCorruptionError, AuditPersistenceError))
         self.assertTrue(issubclass(AuditPersistenceError, Exception))
+
+    @patch("agent_lab.audit_repository.os.fsync")
+    def test_append_calls_fsync(self, mock_fsync) -> None:
+        event = self.build_event()
+        self.repository.append(event)
+
+        mock_fsync.assert_called_once()
+        file_descriptor = mock_fsync.call_args[0][0]
+        self.assertIsInstance(file_descriptor, int)
+
+    @patch(
+        "agent_lab.audit_repository.os.fsync",
+        side_effect=OSError("simulated fsync failure"),
+    )
+    def test_fsync_failure_is_reported_as_persistence_error(
+        self, _mock_fsync
+    ) -> None:
+        event = self.build_event()
+
+        with self.assertRaises(AuditPersistenceError) as context:
+            self.repository.append(event)
+
+        self.assertIsNotNone(context.exception.__cause__)
+        self.assertIsInstance(context.exception.__cause__, OSError)
+        self.assertEqual(
+            str(context.exception.__cause__),
+            "simulated fsync failure",
+        )
 
 
 if __name__ == "__main__":
