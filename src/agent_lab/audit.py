@@ -12,6 +12,7 @@ from agent_lab.human_review import (
     CorrectionRequest,
     HumanDecision,
     HumanReview,
+    VerifiedSpecialistIdentity,
 )
 
 
@@ -108,7 +109,10 @@ class HumanReviewResult:
             raise ValueError("audit event must reference the same review")
         if self.audit_event.material_id != self.review.material_id:
             raise ValueError("audit event must reference the same material")
-        if self.audit_event.actor_id != self.review.reviewer_id:
+        if (
+            self.audit_event.actor_id
+            != self.review.reviewer_identity.specialist_id
+        ):
             raise ValueError("audit event must reference the same reviewer")
         if self.audit_event.occurred_at != self.review.reviewed_at:
             raise ValueError("audit event must use the review timestamp")
@@ -121,7 +125,7 @@ def record_human_review(
     material_id: str,
     system_recommendation: GovernanceDecision,
     human_decision: HumanDecision,
-    reviewer_id: str,
+    reviewer_identity: VerifiedSpecialistIdentity,
     reviewed_at: datetime,
     justification: str | None = None,
     corrections: Iterable[CorrectionRequest] = (),
@@ -137,7 +141,7 @@ def record_human_review(
         material_id=material_id,
         system_recommendation=system_recommendation,
         human_decision=human_decision,
-        reviewer_id=reviewer_id,
+        reviewer_identity=reviewer_identity,
         reviewed_at=reviewed_at,
         justification=justification,
         corrections=tuple(corrections),
@@ -147,7 +151,7 @@ def record_human_review(
         event_id=event_id,
         event_type=AuditEventType.HUMAN_REVIEW_RECORDED,
         material_id=review.material_id,
-        actor_id=review.reviewer_id,
+        actor_id=review.reviewer_identity.specialist_id,
         occurred_at=review.reviewed_at,
         review_id=review.review_id,
         metadata={
@@ -157,6 +161,16 @@ def record_human_review(
             "human_decision": review.human_decision.value,
             "agrees_with_system": review.agrees_with_system,
             "correction_count": len(review.corrections),
+            "identity_provider": (
+                review.reviewer_identity.identity_provider
+            ),
+            "identity_subject": review.reviewer_identity.identity_subject,
+            "identity_verification_id": (
+                review.reviewer_identity.verification_id
+            ),
+            "identity_verified_at": (
+                review.reviewer_identity.verified_at.isoformat()
+            ),
         },
     )
 
