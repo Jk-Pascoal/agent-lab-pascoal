@@ -12,7 +12,7 @@ from agent_lab.audit import (
 )
 from agent_lab.audit_repository import JsonlAuditRepository
 from agent_lab.domain import GovernanceDecision
-from agent_lab.human_review import HumanDecision
+from agent_lab.human_review import HumanDecision, VerifiedSpecialistIdentity
 
 
 class AuditPersistenceIntegrationTests(unittest.TestCase):
@@ -28,6 +28,21 @@ class AuditPersistenceIntegrationTests(unittest.TestCase):
             30,
             tzinfo=timezone.utc,
         )
+        self.verified_at = datetime(
+            2026,
+            8,
+            16,
+            15,
+            0,
+            tzinfo=timezone.utc,
+        )
+        self.reviewer_identity = VerifiedSpecialistIdentity(
+            specialist_id="specialist-001",
+            identity_provider="corporate-idp",
+            identity_subject="user@corp.local",
+            verification_id="assert-98765",
+            verified_at=self.verified_at,
+        )
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -39,7 +54,7 @@ class AuditPersistenceIntegrationTests(unittest.TestCase):
             material_id="MAT-PASCOAL-001",
             system_recommendation=GovernanceDecision.APPROVE,
             human_decision=HumanDecision.REJECT,
-            reviewer_id="specialist-001",
+            reviewer_identity=self.reviewer_identity,
             reviewed_at=self.reviewed_at,
             justification=(
                 "Classificação técnica ambígua identificada pelo especialista."
@@ -67,7 +82,10 @@ class AuditPersistenceIntegrationTests(unittest.TestCase):
             AuditEventType.HUMAN_REVIEW_RECORDED,
         )
         self.assertEqual(retrieved_event.material_id, "MAT-PASCOAL-001")
-        self.assertEqual(retrieved_event.actor_id, "specialist-001")
+        self.assertEqual(
+            retrieved_event.actor_id,
+            self.reviewer_identity.specialist_id,
+        )
         self.assertEqual(retrieved_event.review_id, "review-001")
         self.assertEqual(retrieved_event.occurred_at, self.reviewed_at)
         self.assertIsNotNone(retrieved_event.occurred_at.tzinfo)
@@ -86,6 +104,23 @@ class AuditPersistenceIntegrationTests(unittest.TestCase):
         )
         self.assertFalse(retrieved_event.metadata["agrees_with_system"])
         self.assertEqual(retrieved_event.metadata["correction_count"], 0)
+
+        self.assertEqual(
+            retrieved_event.metadata["identity_provider"],
+            self.reviewer_identity.identity_provider,
+        )
+        self.assertEqual(
+            retrieved_event.metadata["identity_subject"],
+            self.reviewer_identity.identity_subject,
+        )
+        self.assertEqual(
+            retrieved_event.metadata["identity_verification_id"],
+            self.reviewer_identity.verification_id,
+        )
+        self.assertEqual(
+            retrieved_event.metadata["identity_verified_at"],
+            self.reviewer_identity.verified_at.isoformat(),
+        )
 
         self.assertNotEqual(
             retrieved_event.metadata["system_recommendation"],
