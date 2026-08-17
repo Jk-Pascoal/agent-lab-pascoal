@@ -216,6 +216,9 @@ identidade verificável ≠ autorização operacional
 10. Esta Issue não introduz autenticação.
 11. Persistência continua fail-closed.
 12. Casos inválidos devem falhar antes da produção do evento correlacionado.
+13. `reviewer_identity` é a única fonte de estado da identidade em `HumanReview`; `reviewer_id` existe exclusivamente como propriedade derivada de `reviewer_identity.specialist_id`.
+14. Invariante temporal: `reviewer_identity.verified_at <= reviewed_at`. Uma identidade cuja verificação tenha timestamp posterior à decisão humana deve ser rejeitada.
+15. Semântica opaca: `verification_id` é uma referência opaca da verificação/asserção emitida pela fronteira externa; a v1 não garante nem verifica unicidade global desse identificador.
 
 ## 7. Requisitos
 
@@ -225,17 +228,23 @@ identidade verificável ≠ autorização operacional
 - `RF-02` — O contrato deve possuir `specialist_id`.
 - `RF-03` — O contrato deve possuir `identity_provider`.
 - `RF-04` — O contrato deve possuir `identity_subject`.
-- `RF-05` — O contrato deve possuir `verification_id`.
+- `RF-05` — O contrato deve possuir `verification_id` como referência opaca da verificação ou asserção fornecida pela fronteira externa (sem garantia nem verificação de unicidade global na v1).
 - `RF-06` — O contrato deve possuir `verified_at`.
 - `RF-07` — Campos string obrigatórios devem rejeitar valores vazios ou compostos apenas por espaços.
 - `RF-08` — `verified_at` deve exigir datetime timezone-aware.
-- `RF-09` — `HumanReview` deve carregar uma identidade verificável explícita.
-- `RF-10` — O identificador estável do especialista deve permanecer disponível para correlação.
-- `RF-11` — `record_human_review` deve receber e propagar a identidade verificável.
-- `RF-12` — `AuditEvent.actor_id` deve corresponder a `specialist_id`.
-- `RF-13` — A proveniência mínima deve ser registrada em `AuditEvent.metadata`.
-- `RF-14` — Identidade inválida deve impedir a criação de `HumanReviewResult`.
-- `RF-15` — A decisão humana e as regras de correção existentes devem permanecer inalteradas.
+- `RF-09` — `HumanReview` deve carregar `reviewer_identity: VerifiedSpecialistIdentity` como única fonte de estado de identidade do revisor.
+- `RF-10` — `HumanReview` deve expor `reviewer_id` exclusivamente como propriedade derivada de `reviewer_identity.specialist_id`, sem ser argumento independente de construtor.
+- `RF-11` — `HumanReview` deve validar a invariante temporal `reviewer_identity.verified_at <= reviewed_at`, rejeitando revisões onde a verificação for posterior à revisão humana.
+- `RF-12` — `record_human_review` deve receber `reviewer_identity: VerifiedSpecialistIdentity` e propagar `reviewer_identity.specialist_id` para `AuditEvent.actor_id`.
+- `RF-13` — `AuditEvent.actor_id` deve corresponder a `specialist_id`.
+- `RF-14` — `AuditEvent.metadata` deve preservar os metadados existentes (`system_recommendation`, `human_decision`, `agrees_with_system`, `correction_count`) e adicionar as quatro chaves contratuais de proveniência de identidade:
+  - `identity_provider`
+  - `identity_subject`
+  - `identity_verification_id`
+  - `identity_verified_at`
+- `RF-15` — `identity_verified_at` em `AuditEvent.metadata` deve ser gravado obrigatoriamente como string ISO 8601 através de `reviewer_identity.verified_at.isoformat()`.
+- `RF-16` — Identidade inválida ou violação da invariante temporal deve impedir a criação de `HumanReviewResult`.
+- `RF-17` — A decisão humana e as regras de correção existentes devem permanecer inalteradas.
 
 ### Requisitos de qualidade
 
@@ -245,9 +254,9 @@ identidade verificável ≠ autorização operacional
 - `RQ-04` — Nenhuma credencial, token ou segredo deve ser armazenado.
 - `RQ-05` — Nenhum campo deve sugerir autorização ou papel operacional.
 - `RQ-06` — A mudança deve ser pequena e removível sem corromper o restante do domínio.
-- `RQ-07` — O schema persistido v1 deve ser preservado se a proveniência puder ser carregada por `metadata`.
-- `RQ-08` — Qualquer necessidade real de alterar `schema_version` deve ser explicitamente justificada antes da implementação.
-- `RQ-09` — Os 128 testes anteriores devem continuar aprovados.
+- `RQ-07` — O schema persistido v1 deve ser preservado utilizando `metadata` com `identity_verified_at` serializado em ISO 8601.
+- `RQ-08` — Nenhuma alteração em `schema_version` ou em `audit_serialization.py` deve ser introduzida.
+- `RQ-09` — Os 128 testes anteriores devem continuar aprovados após as adaptações contratuais.
 - `RQ-10` — O runner oficial permanece `unittest`.
 
 ## 8. Proposta técnica
@@ -271,7 +280,7 @@ Semântica dos campos:
 - `specialist_id` — identificador estável utilizado pelo domínio;
 - `identity_provider` — origem que produziu ou sustentou a verificação;
 - `identity_subject` — sujeito da identidade dentro do provedor;
-- `verification_id` — referência única da verificação ou asserção;
+- `verification_id` — referência opaca da verificação ou asserção fornecida pela fronteira externa (sem garantia nem verificação de unicidade global na v1);
 - `verified_at` — instante da verificação, obrigatório com timezone.
 
 ### Integração com `HumanReview`
@@ -288,46 +297,61 @@ Estado alvo:
 reviewer_identity: VerifiedSpecialistIdentity
 ```
 
-O domínio não deve manter duas fontes independentes de verdade para o mesmo ator.
+`reviewer_identity` torna-se a única fonte de verdade da identidade do revisor em `HumanReview`.
 
-Se compatibilidade transitória for necessária durante o incremento, ela deve ser
-deliberada, testada e removida ou documentada antes do fechamento da Issue.
-
-O identificador estável poderá ser acessado como:
+Para conveniência e compatibilidade de leitura, `reviewer_id` existirá exclusivamente como propriedade derivada:
 
 ```python
-review.reviewer_identity.specialist_id
+@property
+def reviewer_id(self) -> str:
+    return self.reviewer_identity.specialist_id
 ```
 
-ou por propriedade derivada equivalente, caso a implementação demonstre ganho de
-compatibilidade sem duplicação de estado.
+Não será permitido passar `reviewer_id` como argumento independente no construtor de `HumanReview`.
+
+Em `HumanReview.__post_init__`, a invariante temporal será validada:
+
+```python
+if not isinstance(self.reviewer_identity, VerifiedSpecialistIdentity):
+    raise ValueError("reviewer_identity must be a VerifiedSpecialistIdentity")
+
+if self.reviewer_identity.verified_at > self.reviewed_at:
+    raise ValueError(
+        "reviewer_identity.verified_at cannot be later than reviewed_at"
+    )
+```
 
 ### Integração com auditoria
 
-`AuditEvent.actor_id` permanece string:
+`AuditEvent.actor_id` permanece string, alimentado pelo identificador estável do especialista:
 
 ```python
 actor_id = review.reviewer_identity.specialist_id
 ```
 
-A proveniência mínima deve ser adicionada ao `metadata`.
+`HumanReviewResult.__post_init__` valida a correlação:
 
-Forma conceitual:
+```python
+if self.audit_event.actor_id != self.review.reviewer_identity.specialist_id:
+    raise ValueError("audit event must reference the same reviewer")
+```
+
+A proveniência da identidade é fixada contratualmente em `AuditEvent.metadata`, preservando os metadados existentes e adicionando as quatro chaves de identidade:
 
 ```python
 metadata={
-    "system_recommendation": "...",
-    "human_decision": "...",
-    "agrees_with_system": True,
-    "correction_count": 0,
-    "identity_provider": "...",
-    "identity_subject": "...",
-    "identity_verification_id": "...",
-    "identity_verified_at": "...",
+    "system_recommendation": review.system_recommendation.value,
+    "human_decision": review.human_decision.value,
+    "agrees_with_system": review.agrees_with_system,
+    "correction_count": len(review.corrections),
+    "identity_provider": review.reviewer_identity.identity_provider,
+    "identity_subject": review.reviewer_identity.identity_subject,
+    "identity_verification_id": review.reviewer_identity.verification_id,
+    "identity_verified_at": review.reviewer_identity.verified_at.isoformat(),
 }
 ```
 
-Os nomes finais devem ser estabilizados pelos testes antes do fechamento da SPEC.
+O campo `identity_verified_at` é gravado obrigatoriamente como string ISO 8601 através de `reviewer_identity.verified_at.isoformat()`, garantindo serialização JSON nativa sem alterações na camada de persistência.
 
 ### Compatibilidade com persistência
 
@@ -339,19 +363,13 @@ O schema atual já serializa:
 
 e a desserialização aceita um `Mapping`.
 
-Por isso, a hipótese inicial é:
+Como todas as quatro chaves contratuais de identidade são tipos primitivos serializáveis (`str`), conclui-se que:
 
 ```text
-schema_version = 1 permanece suficiente
+schema_version = 1 permanece suficiente e inalterado
 ```
 
-desde que os novos valores de metadata sejam JSON-serializáveis.
-
-`verified_at` deve, portanto, ser registrado em metadata como representação ISO 8601,
-e não como objeto `datetime` bruto.
-
-Se testes demonstrarem incompatibilidade estrutural, a Issue deve ser reavaliada
-antes de introduzir `schema_version = 2`.
+Não há modificações estruturais em `audit_serialization.py` nem em `audit_repository.py`.
 
 ## 9. Arquivos previstos
 
@@ -361,23 +379,22 @@ Alterações prováveis:
 src/agent_lab/human_review.py
 src/agent_lab/audit.py
 tests/test_human_review.py
-tests/test_audit.py
+tests/test_human_review_integration.py
+tests/test_audit_persistence_integration.py
 docs/specs/0041_verifiable_specialist_identity_v1.md
 docs/PROJECT_COMPASS.md
 ```
 
-Alterações condicionais, somente se necessárias:
+Arquivos que **NÃO** devem ser alterados:
 
 ```text
+src/agent_lab/audit_serialization.py
+src/agent_lab/audit_repository.py
 tests/test_audit_serialization.py
-tests/test_audit_persistence_integration.py
-README.md
-CHANGELOG.md
+tests/test_audit_repository.py
 ```
 
-Não criar novo módulo apenas por preferência estética. Se o contrato de identidade
-ficar pequeno e coeso com o Human-in-the-Loop, ele pode permanecer em
-`human_review.py` nesta versão.
+O contrato `VerifiedSpecialistIdentity` residirá coeso com o Human-in-the-Loop em `src/agent_lab/human_review.py`.
 
 ## 10. Estratégia TDD
 
@@ -385,58 +402,70 @@ ficar pequeno e coeso com o Human-in-the-Loop, ele pode permanecer em
 
 #### RED
 
-Criar testes para:
+Criar testes em `tests/test_human_review.py` para:
 
-- caminho feliz;
-- `specialist_id` vazio;
-- `identity_provider` vazio;
-- `identity_subject` vazio;
-- `verification_id` vazio;
-- `verified_at` sem timezone;
-- imutabilidade.
+- criação de `VerifiedSpecialistIdentity` válida com os 5 campos;
+- rejeição de `specialist_id` vazio ou composto apenas por espaços;
+- rejeição de `identity_provider` vazio ou composto apenas por espaços;
+- rejeição de `identity_subject` vazio ou composto apenas por espaços;
+- rejeição de `verification_id` vazio ou composto apenas por espaços;
+- rejeição de `verified_at` sem timezone (naive datetime);
+- imutabilidade (`FrozenInstanceError` ao tentar alterar atributos).
 
 #### GREEN
 
-Implementar apenas o contrato e suas validações.
+Implementar `VerifiedSpecialistIdentity` e suas validações em `src/agent_lab/human_review.py`.
 
 ### Etapa B — integração com `HumanReview`
 
 #### RED
 
-Criar testes para:
+Criar testes em `tests/test_human_review.py` para:
 
-- revisão aceita `VerifiedSpecialistIdentity`;
-- identidade inválida não chega a produzir revisão;
-- especialista permanece correlacionável;
-- regras existentes de decisão permanecem válidas.
+- `HumanReview` aceita `reviewer_identity: VerifiedSpecialistIdentity` como único campo de identidade;
+- `review.reviewer_id` expõe `review.reviewer_identity.specialist_id` como propriedade derivada;
+- tentativa de instanciar com tipo inválido em `reviewer_identity` lança `ValueError`;
+- rejeição de revisão quando `reviewer_identity.verified_at > reviewed_at` (invariante temporal);
+- preservação das regras de decisão existentes (`APPROVE`, `REJECT`, `REQUEST_CORRECTION`) com a nova identidade.
 
 #### GREEN
 
-Substituir a identidade puramente declarativa no contrato de revisão.
+Atualizar `HumanReview` para usar `reviewer_identity` como única fonte de estado e implementar `@property reviewer_id` e a validação temporal.
 
 ### Etapa C — integração com auditoria
 
 #### RED
 
-Criar testes para:
+Criar testes em `tests/test_human_review_integration.py` para:
 
-- `actor_id == specialist_id`;
-- provider preservado em metadata;
-- subject preservado em metadata;
-- verification id preservado em metadata;
-- `verified_at` preservado em ISO 8601;
-- evento continua imutável.
+- `record_human_review` recebe `reviewer_identity: VerifiedSpecialistIdentity`;
+- `result.audit_event.actor_id == identity.specialist_id`;
+- `result.audit_event.metadata` preserva os metadados existentes (`system_recommendation`, `human_decision`, `agrees_with_system`, `correction_count`);
+- `result.audit_event.metadata` adiciona as quatro chaves contratuais de identidade:
+  - `identity_provider`
+  - `identity_subject`
+  - `identity_verification_id`
+  - `identity_verified_at`
+- `result.audit_event.metadata["identity_verified_at"] == identity.verified_at.isoformat()`;
+- `HumanReviewResult` valida a coerência entre `audit_event.actor_id` e `review.reviewer_identity.specialist_id`.
 
 #### GREEN
 
-Propagar a identidade verificada por `record_human_review`.
+Atualizar `record_human_review` e `HumanReviewResult` em `src/agent_lab/audit.py`.
 
 ### Etapa D — persistência
 
-Executar os testes existentes de serialização e repositório.
+Sem alterar `src/agent_lab/audit_serialization.py` nem `src/agent_lab/audit_repository.py`:
 
-Adicionar novo teste apenas se necessário para provar que a nova metadata faz
-round-trip mantendo `schema_version = 1`.
+- adaptar `tests/test_audit_persistence_integration.py` para usar `VerifiedSpecialistIdentity`;
+- persistir o `AuditEvent` produzido por `record_human_review`;
+- reabrir uma nova instância de `JsonlAuditRepository`;
+- recuperar o evento persistido por `get_by_id`;
+- provar que `retrieved_event.actor_id` continua correspondendo a `specialist_id`;
+- provar que os quatro metadados de identidade (`identity_provider`, `identity_subject`, `identity_verification_id`, `identity_verified_at`) sobrevivem ao round-trip;
+- provar que `identity_verified_at` permanece a string ISO 8601 original;
+- executar também a suíte existente de `tests/test_audit_serialization.py` e `tests/test_audit_repository.py` como regressão completa;
+- manter `schema_version = 1`.
 
 ## 11. Critérios de aceite
 
@@ -444,22 +473,23 @@ round-trip mantendo `schema_version = 1`.
 - [ ] `specialist_id` rejeita branco;
 - [ ] `identity_provider` rejeita branco;
 - [ ] `identity_subject` rejeita branco;
-- [ ] `verification_id` rejeita branco;
+- [ ] `verification_id` rejeita branco e é aceito como referência opaca da verificação sem validação de unicidade global;
 - [ ] `verified_at` rejeita datetime sem timezone;
-- [ ] `HumanReview` carrega identidade verificável;
-- [ ] não existem duas fontes conflitantes de identidade do revisor;
-- [ ] identificador estável do especialista permanece acessível;
-- [ ] `record_human_review` recebe a identidade verificável;
+- [ ] `HumanReview` carrega `reviewer_identity: VerifiedSpecialistIdentity` como única fonte de estado de identidade;
+- [ ] `HumanReview.reviewer_id` existe exclusivamente como propriedade derivada de `reviewer_identity.specialist_id`, sem ser argumento independente de construtor;
+- [ ] `HumanReview` rejeita identidades verificadas após a decisão humana (`verified_at > reviewed_at`);
+- [ ] `record_human_review` recebe `reviewer_identity: VerifiedSpecialistIdentity`;
 - [ ] `AuditEvent.actor_id` corresponde a `specialist_id`;
-- [ ] proveniência mínima fica registrada em metadata;
-- [ ] `verified_at` auditado é serializável;
-- [ ] identidade inválida impede resultado correlacionado;
+- [ ] metadados existentes de auditoria permanecem preservados;
+- [ ] proveniência mínima fica registrada em metadata com as chaves contratuais `identity_provider`, `identity_subject`, `identity_verification_id` e `identity_verified_at`;
+- [ ] `identity_verified_at` é gravado obrigatoriamente como `reviewer_identity.verified_at.isoformat()`;
+- [ ] identidade inválida ou temporariamente inconsistente impede a criação de `HumanReviewResult`;
 - [ ] contratos de decisão humana permanecem válidos;
-- [ ] schema de persistência v1 permanece compatível ou mudança é explicitamente justificada;
-- [ ] testes anteriores permanecem verdes;
-- [ ] novos testes cobrem identidade, integração e auditoria;
-- [ ] CI permanece verde em Python 3.11;
-- [ ] autenticação e autorização continuam fora do escopo;
+- [ ] schema de persistência v1 permanece compatível sem alteração de serialização ou repositório;
+- [ ] `test_audit_persistence_integration.py` valida round-trip completo dos metadados de identidade;
+- [ ] testes anteriores adaptados e novos testes permanecem verdes no baseline (128+ testes);
+- [ ] CI permanece verde em Python 3.11 com `unittest`;
+- [ ] autenticação, autorização, RBAC e workflow continuam fora do escopo;
 - [ ] `PROJECT_COMPASS.md` é atualizado no fechamento.
 
 ## 12. Estratégia de regressão
@@ -491,6 +521,16 @@ Não verificou.
 A v1 apenas preserva um contrato representando uma identidade cuja verificação
 ocorreu em fronteira externa ou futura.
 
+### Semântica e opacidade de `verification_id`
+
+`verification_id` é uma referência opaca emitida pela fronteira externa (ex.: ID de asserção, protocolo, ticket de sessão ou hash).
+
+A v1 não valida nem garante unicidade global deste identificador, nem rastreia revogações externas.
+
+### Consistência temporal
+
+A regra `verified_at <= reviewed_at` garante que a decisão humana não seja atribuída a uma identidade "do futuro". Não há validação de expiração ou janela máxima de validade da verificação nesta versão.
+
 ### Acoplamento prematuro
 
 Não adicionar campos específicos de Active Directory, Google, Microsoft, Okta ou
@@ -498,19 +538,11 @@ outro provedor.
 
 O contrato deve permanecer agnóstico.
 
-### Duplicação de identidade
+### Duplicação de identidade eliminada
 
-Evitar manter simultaneamente:
+A fonte única de verdade é `reviewer_identity`.
 
-```text
-reviewer_id
-reviewer_identity.specialist_id
-```
-
-como valores independentes.
-
-Se ambos existirem temporariamente, deve existir uma única fonte de verdade e teste
-explícito de coerência.
+`reviewer_id` não é um campo independente nem argumento de inicialização, eliminando qualquer risco de inconsistência de estado.
 
 ### Schema de persistência
 
@@ -540,10 +572,12 @@ Depois:
 HumanReview
   reviewer_identity
     specialist_id      = "specialist-001"
-    identity_provider  = "provider"
-    identity_subject   = "subject"
-    verification_id    = "verification-001"
-    verified_at        = timezone-aware datetime
+    identity_provider  = "corporate-idp"
+    identity_subject   = "user@corp.local"
+    verification_id    = "assert-98765"
+    verified_at        = 2026-08-17T12:00:00+00:00
+
+  reviewer_id (propriedade derivada) -> "specialist-001"
 ```
 
 Auditoria:
@@ -553,10 +587,14 @@ AuditEvent
   actor_id = "specialist-001"
 
   metadata
-    identity_provider
-    identity_subject
-    identity_verification_id
-    identity_verified_at
+    system_recommendation     = "REVIEW"
+    human_decision            = "REQUEST_CORRECTION"
+    agrees_with_system        = True
+    correction_count          = 1
+    identity_provider         = "corporate-idp"
+    identity_subject          = "user@corp.local"
+    identity_verification_id  = "assert-98765"
+    identity_verified_at      = "2026-08-17T12:00:00+00:00"
 ```
 
 O ganho desta versão não é autenticar o especialista.
