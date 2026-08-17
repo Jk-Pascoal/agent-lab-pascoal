@@ -496,9 +496,9 @@ Sem alterar `src/agent_lab/audit_serialization.py` nem `src/agent_lab/audit_repo
 - [x] schema de persistência v1 permanece compatível sem alteração de serialização ou repositório;
 - [x] `test_audit_persistence_integration.py` valida round-trip completo dos metadados de identidade;
 - [x] testes anteriores adaptados e novos testes permanecem verdes no baseline (136 testes);
-- [ ] CI permanece verde em Python 3.11 com `unittest`;
+- [x] CI permanece verde em Python 3.11 com `unittest`;
 - [x] autenticação, autorização, RBAC e workflow continuam fora do escopo;
-- [ ] `PROJECT_COMPASS.md` é atualizado no fechamento.
+- [x] `PROJECT_COMPASS.md` é atualizado no fechamento.
 
 ## 12. Estratégia de regressão
 

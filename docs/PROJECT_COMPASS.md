@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-16
-- **Baseline atual:** 128 testes aprovados
-- **Última entrega:** Persistência auditável v1 e repositório JSONL
-- **Última Issue concluída:** #37
-- **Incremento atual:** Nenhum incremento aberto — próxima âncora: identidade verificável
-- **Último PR integrado:** #39
-- **Última SPEC:** `docs/specs/0037_audit_persistence_v1.md`
+- **Estado registrado em:** 2026-08-17
+- **Baseline atual:** 136 testes aprovados
+- **Última entrega:** Identidade verificável do especialista v1
+- **Última Issue concluída:** #41
+- **Incremento atual:** Nenhum incremento aberto — próxima âncora: workflow temporal
+- **Último PR integrado:** #42
+- **Última SPEC:** `docs/specs/0041_verifiable_specialist_identity_v1.md`
 
 ## 2. Propósito
 
@@ -48,6 +48,8 @@ Evidence Engine
         ↓
 Decision Recommendation
         ↓
+Identidade verificável
+        ↓
 Human-in-the-Loop
         ↓
 Audit Event
@@ -56,7 +58,7 @@ Serialização versionada
         ↓
 Audit Repository (JSONL)
         ↓
-Identidade e workflow futuros
+Workflow temporal futuro
         ↓
 Integração ERP futura
 ```
@@ -85,8 +87,12 @@ O sistema já representa e valida:
 - revisão humana;
 - aprovação, reprovação e solicitação de correção;
 - concordância e divergência humano–sistema;
+- `VerifiedSpecialistIdentity`;
+- proveniência da identidade humana;
+- correlação entre `specialist_id`, `HumanReview` e `AuditEvent`;
 - eventos de auditoria imutáveis;
 - serialização versionada de auditoria (`schema_version = 1`);
+- persistência dos metadados de identidade no `schema_version = 1`;
 - persistência local append-only pela API com JSONL;
 - escrita durável com `flush` e `fsync`;
 - recuperação e consultas de histórico com leitura *fail-closed*.
@@ -96,15 +102,16 @@ O sistema já representa e valida:
 A versão atual possui:
 
 - persistência local JSONL e execução síncrona/monoprocesso;
-- identidade declarativa do especialista;
+- contrato de identidade verificável;
 - validação em cenários controlados;
-- ausência de autenticação e autorização;
-- ausência de filas e estados completos de workflow;
+- ausência de autenticação real e autorização;
+- ausência de workflow temporal;
+- ausência de filas;
 - ausência de integração com ERP.
 
 ### 4.3 Próxima âncora
 
-A próxima frente arquitetural é **identidade verificável**.
+A próxima frente arquitetural é **workflow temporal**.
 
 Sequência evolutiva recomendada:
 
@@ -189,6 +196,7 @@ src/agent_lab/human_review.py
 
 Contratos principais:
 
+- `VerifiedSpecialistIdentity`;
 - `HumanDecision`;
 - `CorrectionRequest`;
 - `HumanReview`.
@@ -255,10 +263,10 @@ Use sempre:
 python -m unittest discover -s tests -v
 ```
 
-Baseline esperado em 2026-08-16:
+Baseline esperado em 2026-08-17:
 
 ```text
-Ran 128 tests
+Ran 136 tests
 OK
 ```
 
@@ -511,23 +519,23 @@ Governança assistida de materiais PDM/BOM.
 
 Arquitetura atual:
 Regras + LLM estruturada + evidências + recomendação
-+ decisão humana + evento de auditoria + serialização versionada
-+ repositório JSONL append-only.
++ identidade verificável + decisão humana + evento de auditoria
++ serialização versionada + repositório JSONL append-only.
 
 Autoridade:
 A IA recomenda; o humano decide.
 
 Baseline:
-128 testes | unittest | Python 3.11.
+136 testes | unittest | Python 3.11.
 
 Última entrega:
-Issue #37 | SPEC 0037 | PR #38.
+Issue #41 | SPEC 0041 | PR #42.
 
 Limite atual:
-Persistência local JSONL e identidade declarativa.
+Identidade verificável sem autenticação/autorização real e sem workflow temporal.
 
 Próxima âncora:
-Identidade verificável.
+Workflow temporal.
 
 Comando oficial:
 python -m unittest discover -s tests -v
