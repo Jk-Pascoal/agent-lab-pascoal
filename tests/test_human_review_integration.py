@@ -9,7 +9,11 @@ from agent_lab.audit import (
     record_human_review,
 )
 from agent_lab.domain import GovernanceDecision
-from agent_lab.human_review import CorrectionRequest, HumanDecision
+from agent_lab.human_review import (
+    CorrectionRequest,
+    HumanDecision,
+    VerifiedSpecialistIdentity,
+)
 
 
 class AuditEventTests(unittest.TestCase):
@@ -97,6 +101,21 @@ class RecordHumanReviewTests(unittest.TestCase):
             30,
             tzinfo=timezone.utc,
         )
+        self.verified_at = datetime(
+            2026,
+            8,
+            15,
+            14,
+            0,
+            tzinfo=timezone.utc,
+        )
+        self.reviewer_identity = VerifiedSpecialistIdentity(
+            specialist_id="specialist-001",
+            identity_provider="corporate-idp",
+            identity_subject="user@corp.local",
+            verification_id="assert-98765",
+            verified_at=self.verified_at,
+        )
         self.correction = CorrectionRequest(
             field_name="unit_of_measure",
             reason="Padronizar unidade de medida.",
@@ -110,7 +129,7 @@ class RecordHumanReviewTests(unittest.TestCase):
             "material_id": "MAT-001",
             "system_recommendation": GovernanceDecision.REVIEW,
             "human_decision": HumanDecision.REQUEST_CORRECTION,
-            "reviewer_id": "specialist-001",
+            "reviewer_identity": self.reviewer_identity,
             "reviewed_at": self.reviewed_at,
             "justification": "Corrigir unidade antes da aprovação.",
             "corrections": (self.correction,),
@@ -129,8 +148,16 @@ class RecordHumanReviewTests(unittest.TestCase):
             result.review.material_id,
         )
         self.assertEqual(
-            result.audit_event.actor_id,
+            result.review.reviewer_identity,
+            self.reviewer_identity,
+        )
+        self.assertEqual(
             result.review.reviewer_id,
+            self.reviewer_identity.specialist_id,
+        )
+        self.assertEqual(
+            result.audit_event.actor_id,
+            self.reviewer_identity.specialist_id,
         )
         self.assertEqual(
             result.audit_event.occurred_at,
@@ -155,15 +182,39 @@ class RecordHumanReviewTests(unittest.TestCase):
             "APPROVE",
         )
 
-    def test_audit_metadata_records_human_decision_and_agreement(self):
+    def test_audit_metadata_records_human_decision_and_identity_provenance(self):
         result = self.record()
 
+        self.assertEqual(
+            result.audit_event.metadata["system_recommendation"],
+            "REVIEW",
+        )
         self.assertEqual(
             result.audit_event.metadata["human_decision"],
             "REQUEST_CORRECTION",
         )
         self.assertTrue(
             result.audit_event.metadata["agrees_with_system"]
+        )
+        self.assertEqual(
+            result.audit_event.metadata["correction_count"],
+            1,
+        )
+        self.assertEqual(
+            result.audit_event.metadata["identity_provider"],
+            self.reviewer_identity.identity_provider,
+        )
+        self.assertEqual(
+            result.audit_event.metadata["identity_subject"],
+            self.reviewer_identity.identity_subject,
+        )
+        self.assertEqual(
+            result.audit_event.metadata["identity_verification_id"],
+            self.reviewer_identity.verification_id,
+        )
+        self.assertEqual(
+            result.audit_event.metadata["identity_verified_at"],
+            self.reviewer_identity.verified_at.isoformat(),
         )
 
     def test_invalid_review_does_not_produce_a_result(self):
