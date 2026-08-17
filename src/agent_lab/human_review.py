@@ -61,6 +61,40 @@ class CorrectionRequest:
 
 
 @dataclass(frozen=True)
+class VerifiedSpecialistIdentity:
+    """Immutable verifiable identity contract for a human specialist."""
+
+    specialist_id: str
+    identity_provider: str
+    identity_subject: str
+    verification_id: str
+    verified_at: datetime
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "specialist_id",
+            _require_non_blank(self.specialist_id, "specialist_id"),
+        )
+        object.__setattr__(
+            self,
+            "identity_provider",
+            _require_non_blank(self.identity_provider, "identity_provider"),
+        )
+        object.__setattr__(
+            self,
+            "identity_subject",
+            _require_non_blank(self.identity_subject, "identity_subject"),
+        )
+        object.__setattr__(
+            self,
+            "verification_id",
+            _require_non_blank(self.verification_id, "verification_id"),
+        )
+        _require_aware_datetime(self.verified_at, "verified_at")
+
+
+@dataclass(frozen=True)
 class HumanReview:
     """Immutable link between a system recommendation and a human decision."""
 
