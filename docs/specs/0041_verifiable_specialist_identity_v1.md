@@ -8,7 +8,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0041` |
-| Status | `Proposta` |
+| Status | `Implementada` |
 | Issue relacionada | `#41` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-17` |
@@ -416,6 +416,8 @@ Criar testes em `tests/test_human_review.py` para:
 
 Implementar `VerifiedSpecialistIdentity` e suas validações em `src/agent_lab/human_review.py`.
 
+- Resultado: GREEN; contrato `VerifiedSpecialistIdentity` implementado.
+
 ### Etapa B — integração com `HumanReview`
 
 #### RED
@@ -431,6 +433,8 @@ Criar testes em `tests/test_human_review.py` para:
 #### GREEN
 
 Atualizar `HumanReview` para usar `reviewer_identity` como única fonte de estado e implementar `@property reviewer_id` e a validação temporal.
+
+- Resultado: GREEN; 28/28 em `test_human_review.py`.
 
 ### Etapa C — integração com auditoria
 
@@ -453,6 +457,8 @@ Criar testes em `tests/test_human_review_integration.py` para:
 
 Atualizar `record_human_review` e `HumanReviewResult` em `src/agent_lab/audit.py`.
 
+- Resultado: GREEN; 10/10 em `test_human_review_integration.py`.
+
 ### Etapa D — persistência
 
 Sem alterar `src/agent_lab/audit_serialization.py` nem `src/agent_lab/audit_repository.py`:
@@ -467,29 +473,31 @@ Sem alterar `src/agent_lab/audit_serialization.py` nem `src/agent_lab/audit_repo
 - executar também a suíte existente de `tests/test_audit_serialization.py` e `tests/test_audit_repository.py` como regressão completa;
 - manter `schema_version = 1`.
 
+- Resultado: GREEN; round-trip JSONL comprovado; suíte completa 136/136; `audit_serialization.py` e `audit_repository.py` inalterados; `schema_version = 1` preservado.
+
 ## 11. Critérios de aceite
 
-- [ ] existe `VerifiedSpecialistIdentity` imutável;
-- [ ] `specialist_id` rejeita branco;
-- [ ] `identity_provider` rejeita branco;
-- [ ] `identity_subject` rejeita branco;
-- [ ] `verification_id` rejeita branco e é aceito como referência opaca da verificação sem validação de unicidade global;
-- [ ] `verified_at` rejeita datetime sem timezone;
-- [ ] `HumanReview` carrega `reviewer_identity: VerifiedSpecialistIdentity` como única fonte de estado de identidade;
-- [ ] `HumanReview.reviewer_id` existe exclusivamente como propriedade derivada de `reviewer_identity.specialist_id`, sem ser argumento independente de construtor;
-- [ ] `HumanReview` rejeita identidades verificadas após a decisão humana (`verified_at > reviewed_at`);
-- [ ] `record_human_review` recebe `reviewer_identity: VerifiedSpecialistIdentity`;
-- [ ] `AuditEvent.actor_id` corresponde a `specialist_id`;
-- [ ] metadados existentes de auditoria permanecem preservados;
-- [ ] proveniência mínima fica registrada em metadata com as chaves contratuais `identity_provider`, `identity_subject`, `identity_verification_id` e `identity_verified_at`;
-- [ ] `identity_verified_at` é gravado obrigatoriamente como `reviewer_identity.verified_at.isoformat()`;
-- [ ] identidade inválida ou temporariamente inconsistente impede a criação de `HumanReviewResult`;
-- [ ] contratos de decisão humana permanecem válidos;
-- [ ] schema de persistência v1 permanece compatível sem alteração de serialização ou repositório;
-- [ ] `test_audit_persistence_integration.py` valida round-trip completo dos metadados de identidade;
-- [ ] testes anteriores adaptados e novos testes permanecem verdes no baseline (128+ testes);
+- [x] existe `VerifiedSpecialistIdentity` imutável;
+- [x] `specialist_id` rejeita branco;
+- [x] `identity_provider` rejeita branco;
+- [x] `identity_subject` rejeita branco;
+- [x] `verification_id` rejeita branco e é aceito como referência opaca da verificação sem validação de unicidade global;
+- [x] `verified_at` rejeita datetime sem timezone;
+- [x] `HumanReview` carrega `reviewer_identity: VerifiedSpecialistIdentity` como única fonte de estado de identidade;
+- [x] `HumanReview.reviewer_id` existe exclusivamente como propriedade derivada de `reviewer_identity.specialist_id`, sem ser argumento independente de construtor;
+- [x] `HumanReview` rejeita identidades verificadas após a decisão humana (`verified_at > reviewed_at`);
+- [x] `record_human_review` recebe `reviewer_identity: VerifiedSpecialistIdentity`;
+- [x] `AuditEvent.actor_id` corresponde a `specialist_id`;
+- [x] metadados existentes de auditoria permanecem preservados;
+- [x] proveniência mínima fica registrada em metadata com as chaves contratuais `identity_provider`, `identity_subject`, `identity_verification_id` e `identity_verified_at`;
+- [x] `identity_verified_at` é gravado obrigatoriamente como `reviewer_identity.verified_at.isoformat()`;
+- [x] identidade inválida ou temporariamente inconsistente impede a criação de `HumanReviewResult`;
+- [x] contratos de decisão humana permanecem válidos;
+- [x] schema de persistência v1 permanece compatível sem alteração de serialização ou repositório;
+- [x] `test_audit_persistence_integration.py` valida round-trip completo dos metadados de identidade;
+- [x] testes anteriores adaptados e novos testes permanecem verdes no baseline (136 testes);
 - [ ] CI permanece verde em Python 3.11 com `unittest`;
-- [ ] autenticação, autorização, RBAC e workflow continuam fora do escopo;
+- [x] autenticação, autorização, RBAC e workflow continuam fora do escopo;
 - [ ] `PROJECT_COMPASS.md` é atualizado no fechamento.
 
 ## 12. Estratégia de regressão
@@ -504,6 +512,13 @@ Baseline de entrada:
 
 ```text
 Ran 128 tests
+OK
+```
+
+Baseline final comprovado:
+
+```text
+Ran 136 tests
 OK
 ```
 
