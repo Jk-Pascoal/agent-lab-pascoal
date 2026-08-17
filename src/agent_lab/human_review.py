@@ -102,7 +102,7 @@ class HumanReview:
     material_id: str
     system_recommendation: GovernanceDecision
     human_decision: HumanDecision
-    reviewer_id: str
+    reviewer_identity: VerifiedSpecialistIdentity
     reviewed_at: datetime
     justification: str | None = None
     corrections: tuple[CorrectionRequest, ...] = field(default_factory=tuple)
@@ -118,12 +118,16 @@ class HumanReview:
             "material_id",
             _require_non_blank(self.material_id, "material_id"),
         )
-        object.__setattr__(
-            self,
-            "reviewer_id",
-            _require_non_blank(self.reviewer_id, "reviewer_id"),
-        )
+        if not isinstance(self.reviewer_identity, VerifiedSpecialistIdentity):
+            raise ValueError(
+                "reviewer_identity must be a VerifiedSpecialistIdentity"
+            )
         _require_aware_datetime(self.reviewed_at, "reviewed_at")
+
+        if self.reviewer_identity.verified_at > self.reviewed_at:
+            raise ValueError(
+                "reviewer_identity.verified_at cannot be later than reviewed_at"
+            )
 
         if not isinstance(self.system_recommendation, GovernanceDecision):
             raise ValueError(
@@ -145,6 +149,10 @@ class HumanReview:
         )
 
         self._validate_decision_rules()
+
+    @property
+    def reviewer_id(self) -> str:
+        return self.reviewer_identity.specialist_id
 
     @staticmethod
     def _normalize_corrections(
