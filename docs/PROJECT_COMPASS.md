@@ -16,7 +16,8 @@
 - **Baseline atual:** 128 testes aprovados
 - **Última entrega:** Persistência auditável v1 e repositório JSONL
 - **Última Issue concluída:** #37
-- **Último PR integrado:** #38
+- **Incremento atual:** Nenhum incremento aberto — próxima âncora: identidade verificável
+- **Último PR integrado:** #39
 - **Última SPEC:** `docs/specs/0037_audit_persistence_v1.md`
 
 ## 2. Propósito
@@ -433,7 +434,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 ## 13. Decisões deliberadamente adiadas
 
 - persistência em banco de dados;
-- repositório append-only;
+- proteção física ou criptográfica contra adulteração do histórico;
 - event sourcing completo;
 - autenticação e autorização;
 - papéis e segregação de funções;
