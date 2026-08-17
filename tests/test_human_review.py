@@ -7,7 +7,69 @@ from agent_lab.human_review import (
     CorrectionRequest,
     HumanDecision,
     HumanReview,
+    VerifiedSpecialistIdentity,
 )
+
+
+class VerifiedSpecialistIdentityTests(unittest.TestCase):
+    def setUp(self):
+        self.verified_at = datetime(
+            2026,
+            8,
+            17,
+            12,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+    def build_identity(self, **overrides):
+        values = {
+            "specialist_id": "specialist-001",
+            "identity_provider": "corporate-idp",
+            "identity_subject": "user@corp.local",
+            "verification_id": "assert-98765",
+            "verified_at": self.verified_at,
+        }
+        values.update(overrides)
+        return VerifiedSpecialistIdentity(**values)
+
+    def test_creates_valid_verified_specialist_identity(self):
+        identity = self.build_identity()
+
+        self.assertEqual(identity.specialist_id, "specialist-001")
+        self.assertEqual(identity.identity_provider, "corporate-idp")
+        self.assertEqual(identity.identity_subject, "user@corp.local")
+        self.assertEqual(identity.verification_id, "assert-98765")
+        self.assertEqual(identity.verified_at, self.verified_at)
+
+    def test_rejects_blank_specialist_id(self):
+        with self.assertRaises(ValueError):
+            self.build_identity(specialist_id="   ")
+
+    def test_rejects_blank_identity_provider(self):
+        with self.assertRaises(ValueError):
+            self.build_identity(identity_provider="   ")
+
+    def test_rejects_blank_identity_subject(self):
+        with self.assertRaises(ValueError):
+            self.build_identity(identity_subject="   ")
+
+    def test_rejects_blank_verification_id(self):
+        with self.assertRaises(ValueError):
+            self.build_identity(verification_id="   ")
+
+    def test_rejects_naive_verified_at(self):
+        with self.assertRaises(ValueError):
+            self.build_identity(
+                verified_at=datetime(2026, 8, 17, 12, 0),
+            )
+
+    def test_is_immutable(self):
+        identity = self.build_identity()
+
+        with self.assertRaises(FrozenInstanceError):
+            identity.specialist_id = "specialist-002"
+
 
 
 class CorrectionRequestTests(unittest.TestCase):
