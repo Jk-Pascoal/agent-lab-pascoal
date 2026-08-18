@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-17
-- **Baseline atual:** 136 testes aprovados
-- **Última entrega:** Identidade verificável do especialista v1
-- **Última Issue concluída:** #41
-- **Incremento atual:** Nenhum incremento aberto — próxima âncora: workflow temporal
-- **Último PR integrado:** #42
-- **Última SPEC:** `docs/specs/0041_verifiable_specialist_identity_v1.md`
+- **Estado registrado em:** 2026-08-18
+- **Baseline atual:** 152 testes aprovados
+- **Última entrega:** Workflow Temporal v1
+- **Última Issue concluída:** #44
+- **Incremento atual:** Nenhum incremento aberto — próxima âncora: persistência/reconstrução temporal do workflow (candidata)
+- **Último PR funcional integrado:** #45
+- **Última SPEC:** `docs/specs/0044_temporal_workflow_v1.md`
 
 ## 2. Propósito
 
@@ -31,9 +31,10 @@ O Agent Lab Pascoal é um sistema experimental de engenharia para governança de
 - evidências auditáveis;
 - recomendações de decisão;
 - revisão humana obrigatória;
-- trilha de auditoria.
+- ciclo de vida temporal de governança em memória;
+- trilha de auditoria append-only.
 
-O sistema não substitui o especialista de governança. Ele organiza evidências, detecta riscos e produz recomendações para apoiar uma decisão humana rastreável.
+O sistema não substitui o especialista de governança. Ele organiza evidências, detecta riscos, gerencia o ciclo temporal de revisão e produz recomendações para apoiar uma decisão humana rastreável.
 
 ## 3. Tese arquitetural
 
@@ -52,16 +53,21 @@ Identidade verificável
         ↓
 Human-in-the-Loop
         ↓
+Workflow Temporal
+        ↓
 Audit Event
         ↓
 Serialização versionada
         ↓
 Audit Repository (JSONL)
         ↓
-Workflow temporal futuro
-        ↓
 Integração ERP futura
 ```
+
+Separação conceitual importante:
+- **Workflow Temporal** representa o ciclo de vida e cálculo de lead time em memória no domínio;
+- **AuditEvent** continua sendo a única unidade de persistência auditável em disco;
+- **GovernanceWorkflow** NÃO é persistido em disco nesta v1.
 
 Princípio central:
 
@@ -90,6 +96,15 @@ O sistema já representa e valida:
 - `VerifiedSpecialistIdentity`;
 - proveniência da identidade humana;
 - correlação entre `specialist_id`, `HumanReview` e `AuditEvent`;
+- `WorkflowStatus.PENDING_HUMAN_REVIEW` e `WorkflowStatus.REVIEWED`;
+- `GovernanceWorkflow` imutável e temporal em memória;
+- transição pura canônica via `conclude_governance_workflow`;
+- `opened_at` explícito e timezone-aware;
+- propriedades derivadas `material_id`, `status`, `closed_at` e `review_lead_time`;
+- validação temporal cronológica `opened_at <= reviewed_at`;
+- validação de coerência de material e do parecer (`review.system_recommendation == recommendation.decision`);
+- bloqueio estrito de dupla conclusão;
+- integração ponta a ponta entre `GovernanceWorkflow`, `HumanReview`, `AuditEvent` e `JsonlAuditRepository`;
 - eventos de auditoria imutáveis;
 - serialização versionada de auditoria (`schema_version = 1`);
 - persistência dos metadados de identidade no `schema_version = 1`;
@@ -101,17 +116,18 @@ O sistema já representa e valida:
 
 A versão atual possui:
 
-- persistência local JSONL e execução síncrona/monoprocesso;
-- contrato de identidade verificável;
-- validação em cenários controlados;
-- ausência de autenticação real e autorização;
-- ausência de workflow temporal;
-- ausência de filas;
+- workflow temporal mantido exclusivamente em memória no domínio;
+- `opened_at` e `review_lead_time` não sobrevivem a restart do processo;
+- ausência de persistência ou reconstrução temporal do estado do workflow a partir do disco;
+- persistência local append-only em JSONL exclusiva para `AuditEvent`;
+- execução síncrona/monoprocesso;
+- ausência de autenticação e autorização real (RBAC);
+- ausência de filas e SLAs operacionais;
 - ausência de integração com ERP.
 
 ### 4.3 Próxima âncora
 
-A próxima frente arquitetural é **workflow temporal**.
+A próxima frente arquitetural candidata é **persistência/reconstrução temporal do workflow** (sujeita a nova Issue e análise explícita).
 
 Sequência evolutiva recomendada:
 
@@ -120,6 +136,7 @@ Contrato
   → Memória persistente
   → Identidade verificável
   → Workflow temporal
+  → Persistência/reconstrução temporal do workflow
   → Integração ERP
 ```
 
@@ -138,12 +155,14 @@ Estas regras não devem ser alteradas incidentalmente:
 7. Reprovação exige justificativa.
 8. Solicitação de correção exige justificativa e correção estruturada.
 9. Aprovação não pode conter correções pendentes.
-10. Timestamps de revisão e auditoria devem conter timezone.
+10. Timestamps de abertura de workflow, revisão e auditoria devem conter timezone.
 11. A integração com ERP não deve executar apenas com base em recomendação automática.
 12. O histórico não deve ser reconstruído somente a partir do estado final.
 13. Concordância humano–IA não equivale automaticamente à verdade.
 14. Casos objetivos devem ser resolvidos por regras antes de recorrer à LLM.
 15. A LLM deve operar com contratos de saída estruturados e validados.
+16. A recomendação do sistema permanece imutável e atemporal; o tempo pertence ao ciclo de vida (`GovernanceWorkflow`).
+17. Um workflow não pode ser concluído mais de uma vez e a transição deve ser pura e determinística.
 
 Qualquer mudança nessas regras exige:
 
@@ -170,7 +189,7 @@ Responsabilidades:
 - tipos centrais;
 - normalização;
 - validação determinística;
-- recomendação de decisão.
+- recomendação de decisão atemporal.
 
 ### 6.2 LLM e evidências
 
@@ -205,11 +224,32 @@ Responsabilidades:
 
 - representar a decisão final humana;
 - preservar a recomendação automática;
-- registrar especialista e timestamp;
+- registrar especialista e timestamp timezone-aware;
 - estruturar correções;
 - indicar concordância ou divergência.
 
-### 6.4 Auditoria
+### 6.4 Workflow Temporal
+
+```text
+src/agent_lab/workflow.py
+```
+
+Contratos principais:
+
+- `WorkflowStatus`;
+- `GovernanceWorkflow`;
+- `conclude_governance_workflow`.
+
+Responsabilidades:
+
+- representar o ciclo de vida temporal da governança em memória;
+- abrir ciclos em estado `PENDING_HUMAN_REVIEW` com timestamp `opened_at` timezone-aware;
+- derivar `material_id`, `status`, `closed_at` e `review_lead_time` sem duplicação de estado;
+- executar a transição canônica pura para `REVIEWED` ao receber deliberação de `HumanReview`;
+- validar consistência de material, coerência do parecer e invariantes cronológicas (`opened_at <= reviewed_at`);
+- manter o objeto estritamente imutável sem persistência de estado do workflow na v1.
+
+### 6.5 Auditoria
 
 ```text
 src/agent_lab/audit.py
@@ -229,7 +269,7 @@ Responsabilidades:
 - preservar material, especialista, instante e decisão;
 - produzir resultado auditável sem persistência ou efeitos externos.
 
-### 6.5 Persistência e repositório de auditoria
+### 6.6 Persistência e repositório de auditoria
 
 ```text
 src/agent_lab/audit_serialization.py
@@ -263,10 +303,10 @@ Use sempre:
 python -m unittest discover -s tests -v
 ```
 
-Baseline esperado em 2026-08-17:
+Baseline esperado em 2026-08-18:
 
 ```text
-Ran 136 tests
+Ran 152 tests
 OK
 ```
 
@@ -441,13 +481,14 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 
 ## 13. Decisões deliberadamente adiadas
 
+- persistência ou reconstrução temporal do workflow a partir do disco;
+- múltiplos ciclos de workflow ou reabertura após solicitação de correção;
 - persistência em banco de dados;
 - proteção física ou criptográfica contra adulteração do histórico;
 - event sourcing completo;
 - autenticação e autorização;
 - papéis e segregação de funções;
 - taxonomia completa de motivos;
-- estados de workflow;
 - filas e SLAs;
 - notificações e escalonamento;
 - interface do especialista;
@@ -470,6 +511,7 @@ Frentes oficiais de evolução:
 - arquitetura híbrida de regras, similaridade, RAG e LLM;
 - Evidence Engine;
 - Human-in-the-Loop;
+- workflow temporal e métricas de ciclo de revisão;
 - benchmark com ground truth;
 - métricas de precision, recall e F1;
 - versionamento de dados;
@@ -519,25 +561,25 @@ Governança assistida de materiais PDM/BOM.
 
 Arquitetura atual:
 Regras + LLM estruturada + evidências + recomendação
-+ identidade verificável + decisão humana + evento de auditoria
-+ serialização versionada + repositório JSONL append-only.
++ identidade verificável + decisão humana + workflow temporal em memória
++ evento de auditoria + serialização versionada + repositório JSONL append-only.
 
 Autoridade:
 A IA recomenda; o humano decide.
 
 Baseline:
-136 testes | unittest | Python 3.11.
+152 testes | unittest | Python 3.11.
 
 Última entrega:
-Issue #41 | SPEC 0041 | PR #42.
+Issue #44 | SPEC 0044 | PR #45.
 
 Limite atual:
-Identidade verificável sem autenticação/autorização real e sem workflow temporal.
+Workflow temporal somente em memória (sem persistência/reconstrução temporal),
+sem autenticação/autorização real, filas, SLAs ou ERP.
 
 Próxima âncora:
-Workflow temporal.
+Persistência/reconstrução temporal do workflow (candidata sujeita a nova Issue e análise explícita).
 
 Comando oficial:
 python -m unittest discover -s tests -v
 ```
-
