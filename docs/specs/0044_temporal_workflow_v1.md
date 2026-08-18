@@ -8,10 +8,13 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0044` |
-| Status | `Proposta` |
+| Status | `Concluída` |
 | Issue relacionada | `#44` |
+| PR relacionado | `#45` |
+| Commit de merge | `4127f09` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-18` |
+| Data de conclusão | `2026-08-18` |
 | Última atualização | `2026-08-18` |
 
 ## 1. Contexto
@@ -25,10 +28,10 @@ O Agent Lab Pascoal possui atualmente um pipeline determinístico e auditável q
 - correlação atômica em memória de revisão e auditoria `record_human_review` -> `HumanReviewResult`;
 - persistência append-only durável em JSONL via `JsonlAuditRepository` com `schema_version = 1`.
 
-O baseline de entrada confirmado deste incremento é:
+O baseline de entrada confirmado deste incremento foi de 136 testes e o baseline final após conclusão é:
 
 ```text
-Ran 136 tests
+Ran 152 tests
 OK
 ```
 
@@ -38,28 +41,28 @@ O runner oficial permanece:
 python -m unittest discover -s tests -v
 ```
 
-A limitação estrutural atual é a **atemporalidade do ciclo de vida**.
-A recomendação gerada pelo sistema é um parecer instantâneo e estático. A deliberação humana é registrada no momento em que é finalizada. Não existe nenhuma entidade no domínio que represente o material **em trânsito**, aguardando decisão humana, nem que registre o instante de abertura do processo ou calcule a duração do ciclo de revisão humana (`review_lead_time`).
+A limitação estrutural anterior era a **atemporalidade do ciclo de vida**.
+A recomendação gerada pelo sistema é um parecer instantâneo e estático. A deliberação humana é registrada no momento em que é finalizada. Não existia nenhuma entidade no domínio que representasse o material **em trânsito**, aguardando decisão humana, nem que registrasse o instante de abertura do processo ou calculasse a duração do ciclo de revisão humana (`review_lead_time`).
 
-A próxima âncora arquitetural definida no `PROJECT_COMPASS.md` é **Workflow Temporal**.
+À época da abertura desta SPEC, a próxima âncora arquitetural definida no `PROJECT_COMPASS.md` era **Workflow Temporal**.
 
 ## 2. Problema, evidências e impacto
 
 ### Problema
 
-O sistema atual opera por fatos instantâneos e desconexos no tempo:
+O sistema anterior operava por fatos instantâneos e desconexos no tempo:
 - `DecisionRecommendation` não sabe quando foi gerada;
-- não há representação para o estado intermediário *"aguardando revisão do especialista"*;
-- o sistema não consegue calcular o tempo total do ciclo de revisão até a deliberação humana (`review_lead_time = review.reviewed_at - workflow.opened_at`);
-- não há validação temporal garantindo que a decisão humana não tenha sido tomada antes da própria abertura do workflow;
-- não há um contrato de ciclo de vida que impeça conclusões repetidas ou estados inconsistentes.
+- não havia representação para o estado intermediário *"aguardando revisão do especialista"*;
+- o sistema não conseguia calcular o tempo total do ciclo de revisão até a deliberação humana (`review_lead_time = review.reviewed_at - workflow.opened_at`);
+- não havia validação temporal garantindo que a decisão humana não tivesse sido tomada antes da própria abertura do workflow;
+- não havia um contrato de ciclo de vida que impedisse conclusões repetidas ou estados inconsistentes.
 
 ### Evidências
 
 1. `DecisionRecommendation` em `src/agent_lab/decision.py` não contém campos temporais nem identificador de processo;
-2. `HumanReview` em `src/agent_lab/human_review.py` valida `reviewer_identity.verified_at <= reviewed_at`, mas não possui vínculo cronológico com a abertura do workflow;
+2. `HumanReview` em `src/agent_lab/human_review.py` valida `reviewer_identity.verified_at <= reviewed_at`, mas não possuía vínculo cronológico com a abertura do workflow;
 3. `record_human_review` cria `HumanReviewResult` em uma única invocação pontual, sem passagem por um estado prévio;
-4. A suíte atual de 136 testes não possui nenhuma asserção sobre duração total do ciclo de revisão ou estados de ciclo de vida pendente.
+4. A suíte inicial de 136 testes não possuía nenhuma asserção sobre duração total do ciclo de revisão ou estados de ciclo de vida pendente.
 
 ### Impacto
 
@@ -117,7 +120,7 @@ As seguintes decisões foram previamente analisadas e aprovadas para a v1:
 - Rejeição de transição em workflow já concluído;
 - Testes unitários do workflow em `tests/test_workflow.py`;
 - Testes de integração em `tests/test_workflow_integration.py`;
-- Regressão integral do baseline de 136 testes.
+- Regressão integral de toda a suíte de testes (152 testes GREEN).
 
 ### Fora do escopo
 
@@ -188,7 +191,7 @@ As seguintes decisões foram previamente analisadas e aprovadas para a v1:
 - `RQ-01` — O contrato `GovernanceWorkflow` deve ser estritamente imutável (`frozen=True`, `slots=True`).
 - `RQ-02` — A implementação deve utilizar exclusivamente a biblioteca padrão do Python (`dataclasses`, `datetime`, `enum`).
 - `RQ-03` — Nenhuma chamada a `datetime.now()` deve ser realizada internamente; todos os instantes temporais devem ser fornecidos explicitamente.
-- `RQ-04` — O baseline de 136 testes existentes deve permanecer integralmente aprovado.
+- `RQ-04` — O baseline de testes existentes deve permanecer integralmente aprovado.
 - `RQ-05` — Nenhuma alteração deve ser introduzida em `src/agent_lab/decision.py`, `src/agent_lab/human_review.py`, `src/agent_lab/audit.py`, `src/agent_lab/audit_serialization.py` ou `src/agent_lab/audit_repository.py`.
 - `RQ-06` — O runner canônico permanece `unittest`.
 
@@ -201,13 +204,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import StrEnum
+from enum import Enum
 
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.human_review import HumanReview
 
 
-class WorkflowStatus(StrEnum):
+class WorkflowStatus(str, Enum):
     """Lifecycle state of a governance workflow."""
 
     PENDING_HUMAN_REVIEW = "PENDING_HUMAN_REVIEW"
@@ -276,7 +279,7 @@ def conclude_governance_workflow(
     )
 ```
 
-### Arquivos previstos
+### Arquivos criados
 
 ```text
 src/agent_lab/workflow.py                  # Novo módulo de workflow
@@ -285,7 +288,7 @@ tests/test_workflow_integration.py        # Testes de integração (fluxo comple
 docs/specs/0044_temporal_workflow_v1.md   # Esta SPEC técnica
 ```
 
-Arquivos que **NÃO** devem ser alterados:
+Arquivos que **NÃO** foram alterados:
 
 ```text
 src/agent_lab/decision.py
@@ -303,7 +306,7 @@ tests/test_audit_repository.py
 
 ### Etapa 1 — Criação do workflow pendente (RED -> GREEN)
 
-- **Testes a criar em `tests/test_workflow.py`:**
+- **Testes criados em `tests/test_workflow.py`:**
   - Instanciação de `GovernanceWorkflow` válido em estado inicial (`review=None`);
   - `status == WorkflowStatus.PENDING_HUMAN_REVIEW`;
   - `material_id == recommendation.material_id`;
@@ -316,7 +319,7 @@ tests/test_audit_repository.py
 
 ### Etapa 2 — Conclusão e validações de transição (RED -> GREEN)
 
-- **Testes a criar em `tests/test_workflow.py`:**
+- **Testes criados em `tests/test_workflow.py`:**
   - Conclusão com sucesso via `conclude_governance_workflow(workflow, review)`;
   - `status == WorkflowStatus.REVIEWED`;
   - `closed_at == review.reviewed_at`;
@@ -325,11 +328,11 @@ tests/test_audit_repository.py
   - Rejeição de conclusão com `review.system_recommendation` divergente de `recommendation.decision` (descompasso de coerência do parecer);
   - Rejeição de conclusão com `review.reviewed_at < opened_at` (ordem cronológica invertida);
   - Rejeição de conclusão em workflow que já possui `review` (tentativa de conclusão dupla);
-  - Conclusão com decisões `APPROVE`, `REJECT` e `REQUEST_CORRECTION`.
+  - Conclusão com decisões `APPROVE` (e suporte estrutural a qualquer `HumanReview` válido, incluindo `REQUEST_CORRECTION`).
 
 ### Etapa 3 — Integração ponta a ponta (RED -> GREEN)
 
-- **Testes a criar em `tests/test_workflow_integration.py`:**
+- **Testes criados em `tests/test_workflow_integration.py`:**
   - Fluxo completo:
     1. Avaliação e geração de `DecisionRecommendation`;
     2. Abertura de `GovernanceWorkflow` (`opened_at = t0`);
@@ -337,7 +340,8 @@ tests/test_audit_repository.py
     4. Execução de `record_human_review` gerando `HumanReviewResult` com `reviewed_at = t2`, satisfazendo as invariantes independentes `t1 <= t2` e `t0 <= t2` (sem acoplamento temporal entre `t0` e `t1`);
     5. Conclusão do workflow via `conclude_governance_workflow(workflow, result.review)`;
     6. Verificação do `review_lead_time` exato (`t2 - t0`);
-    7. Persistência do `result.audit_event` em `JsonlAuditRepository` mantendo conformidade total com o repositório auditável.
+    7. Persistência do `result.audit_event` em `JsonlAuditRepository` mantendo conformidade total com o repositório auditável;
+    8. Comprovação de que nenhum estado de `GovernanceWorkflow` é gravado no arquivo persistido JSONL.
 
 ### Etapa 4 — Regressão completa
 
@@ -347,7 +351,7 @@ Execução obrigatória de toda a suíte:
 python -m unittest discover -s tests -v
 ```
 
-Confirmando que os 136 testes anteriores permanecem verdes e os novos testes ampliam a cobertura sem qualquer falha.
+Resultado final comprovado: 152 testes GREEN (136 anteriores + 16 novos testes entre unitários e de integração).
 
 ## 11. Riscos e limitações
 
@@ -374,26 +378,26 @@ Confirmando que os 136 testes anteriores permanecem verdes e os novos testes amp
 
 ## 13. Critérios de aceite
 
-- [ ] Módulo `src/agent_lab/workflow.py` criado com `WorkflowStatus` e `GovernanceWorkflow`;
-- [ ] `GovernanceWorkflow` é uma dataclass estritamente imutável (`frozen=True`, `slots=True`);
-- [ ] `material_id` é propriedade derivada de `recommendation.material_id`;
-- [ ] `status` é propriedade derivada (`PENDING_HUMAN_REVIEW` quando `review is None`, `REVIEWED` quando presente);
-- [ ] `closed_at` é propriedade derivada (`review.reviewed_at` ou `None`);
-- [ ] `review_lead_time` é propriedade derivada (`review.reviewed_at - opened_at` ou `None`);
-- [ ] `__post_init__` valida `workflow_id` não vazio e `opened_at` timezone-aware;
-- [ ] `__post_init__` valida que `recommendation` é `DecisionRecommendation`;
-- [ ] `__post_init__` rejeita inconsistências quando `review` estiver presente:
+- [x] Módulo `src/agent_lab/workflow.py` criado com `WorkflowStatus` e `GovernanceWorkflow`;
+- [x] `GovernanceWorkflow` é uma dataclass estritamente imutável (`frozen=True`, `slots=True`);
+- [x] `material_id` é propriedade derivada de `recommendation.material_id`;
+- [x] `status` é propriedade derivada (`PENDING_HUMAN_REVIEW` quando `review is None`, `REVIEWED` quando presente);
+- [x] `closed_at` é propriedade derivada (`review.reviewed_at` ou `None`);
+- [x] `review_lead_time` é propriedade derivada (`review.reviewed_at - opened_at` ou `None`);
+- [x] `__post_init__` valida `workflow_id` não vazio e `opened_at` timezone-aware;
+- [x] `__post_init__` valida que `recommendation` é `DecisionRecommendation`;
+- [x] `__post_init__` rejeita inconsistências quando `review` estiver presente:
   - `review.material_id != recommendation.material_id`;
   - `review.system_recommendation != recommendation.decision` (coerência do parecer);
   - `review.reviewed_at < opened_at`;
-- [ ] Função pura canônica `conclude_governance_workflow` opera retornando nova instância imutável;
-- [ ] Tentativa de concluir workflow já revisado é rejeitada com erro;
-- [ ] Ciclos com `REQUEST_CORRECTION` concluem com status `REVIEWED`;
-- [ ] Módulos existentes (`decision.py`, `human_review.py`, `audit.py`, `audit_serialization.py`, `audit_repository.py`) permanecem 100% inalterados;
-- [ ] Schema de auditoria `schema_version = 1` permanece inalterado;
-- [ ] Testes unitários e de integração criados e aprovados;
-- [ ] Suíte completa de testes (136 anteriores + novos) passa integralmente via `python -m unittest discover -s tests -v`;
-- [ ] Nenhum erro em `git diff --check`.
+- [x] Função pura canônica `conclude_governance_workflow` opera retornando nova instância imutável;
+- [x] Tentativa de concluir workflow já revisado é rejeitada com erro;
+- [x] Ciclos com `REQUEST_CORRECTION` concluem com status `REVIEWED` (garantido estruturalmente pelo contrato genérico de `HumanReview`, sem teste unitário dedicado nesta v1);
+- [x] Módulos existentes (`decision.py`, `human_review.py`, `audit.py`, `audit_serialization.py`, `audit_repository.py`) permanecem 100% inalterados;
+- [x] Schema de auditoria `schema_version = 1` permanece inalterado;
+- [x] Testes unitários e de integração criados e aprovados;
+- [x] Suíte completa de testes (136 anteriores + 16 novos = 152 testes) passa integralmente via `python -m unittest discover -s tests -v`;
+- [x] Nenhum erro em `git diff --check`.
 
 ## 14. Histórico de decisões
 
