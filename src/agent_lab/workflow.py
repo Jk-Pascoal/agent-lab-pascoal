@@ -3,12 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from agent_lab.decision import DecisionRecommendation
-
-if TYPE_CHECKING:
-    from agent_lab.human_review import HumanReview
+from agent_lab.human_review import HumanReview
 
 
 class WorkflowStatus(str, Enum):
@@ -52,6 +49,28 @@ class GovernanceWorkflow:
 
         _require_aware_datetime(self.opened_at, "opened_at")
 
+        if self.review is not None:
+            if not isinstance(self.review, HumanReview):
+                raise ValueError("review must be a HumanReview")
+
+            if self.review.material_id != self.recommendation.material_id:
+                raise ValueError(
+                    "review material_id must match recommendation material_id"
+                )
+
+            if (
+                self.review.system_recommendation
+                != self.recommendation.decision
+            ):
+                raise ValueError(
+                    "review system_recommendation must match recommendation decision"
+                )
+
+            if self.review.reviewed_at < self.opened_at:
+                raise ValueError(
+                    "review reviewed_at cannot be earlier than workflow opened_at"
+                )
+
     @property
     def material_id(self) -> str:
         return self.recommendation.material_id
@@ -73,3 +92,24 @@ class GovernanceWorkflow:
         if self.review is None:
             return None
         return self.review.reviewed_at - self.opened_at
+
+
+def conclude_governance_workflow(
+    workflow: GovernanceWorkflow,
+    review: HumanReview,
+) -> GovernanceWorkflow:
+    """Produce a new GovernanceWorkflow with the human review applied."""
+    if not isinstance(workflow, GovernanceWorkflow):
+        raise TypeError("workflow must be a GovernanceWorkflow")
+
+    if workflow.review is not None:
+        raise ValueError(
+            f"Workflow {workflow.workflow_id} is already reviewed"
+        )
+
+    return GovernanceWorkflow(
+        workflow_id=workflow.workflow_id,
+        recommendation=workflow.recommendation,
+        opened_at=workflow.opened_at,
+        review=review,
+    )
