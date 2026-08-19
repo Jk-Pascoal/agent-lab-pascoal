@@ -13,13 +13,13 @@
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
 - **Estado registrado em:** 2026-08-19
-- **Baseline integrado na main:** 152 testes aprovados
-- **Baseline local (branch feat/47-workflow-opening-persistence-v1):** 206 testes aprovados
-- **Última entrega integrada na main:** Workflow Temporal v1
-- **Última Issue concluída na main:** #44
-- **Último PR funcional integrado na main:** #45
-- **Incremento atual:** Workflow Opening Persistence v1 — Issue #47 — implementação local concluída e validada (206 testes OK); aguardando push/PR/CI/merge
-- **Última SPEC em desenvolvimento:** `docs/specs/0047_workflow_opening_persistence_v1.md`
+- **Baseline integrado na main:** 206 testes aprovados
+- **Última entrega integrada na main:** Workflow Opening Persistence v1
+- **Última Issue concluída na main:** #47
+- **Último PR funcional integrado na main:** #48
+- **Último merge funcional:** `eabd659` — Merge pull request #48
+- **Última SPEC integrada:** `docs/specs/0047_workflow_opening_persistence_v1.md`
+- **Incremento atual:** Nenhum incremento aberto — próxima âncora a definir
 
 ## 2. Propósito
 
@@ -32,7 +32,7 @@ O Agent Lab Pascoal é um sistema experimental de engenharia para governança de
 - evidências auditáveis;
 - recomendações de decisão;
 - revisão humana obrigatória;
-- ciclo de vida temporal de governança em memória e persistência append-only de abertura;
+- ciclo de vida temporal de governança em memória com persistência append-only de abertura e reidratação;
 - trilha de auditoria append-only desacoplada.
 
 O sistema não substitui o especialista de governança. Ele organiza evidências, detecta riscos, gerencia o ciclo temporal de revisão e produz recomendações para apoiar uma decisão humana rastreável.
@@ -109,13 +109,13 @@ O sistema já representa e valida:
 - integração ponta a ponta entre `GovernanceWorkflow`, `HumanReview`, `AuditEvent` e `JsonlAuditRepository`;
 - eventos de auditoria imutáveis com `schema_version = 1` isolado;
 - persistência local append-only de auditoria com `JsonlAuditRepository`;
-- **novo na branch #47:** evento de domínio imutável `WorkflowOpened` com `event_id`, `workflow_id`, `recommendation` e `opened_at`;
-- **novo na branch #47:** serialização versionada de lifecycle (`schema_version = 1`) com preservação integral de `DecisionRecommendation` e `GovernanceEvidence`;
-- **novo na branch #47:** repositório `JsonlWorkflowLifecycleRepository` append-only com escrita durável (`flush` + `os.fsync`);
-- **novo na branch #47:** leitura *fail-closed* com identificação precisa de `line_number` em caso de corrupção;
-- **novo na branch #47:** bloqueio de `event_id` duplicado (`DuplicateWorkflowEventError`) e bloqueio de segunda abertura para o mesmo `workflow_id` (`WorkflowAlreadyOpenedError`);
-- **novo na branch #47:** projeção pura `rehydrate_pending_workflow` reconstituindo fielmente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` sem reexecução de regras ou LLM;
-- **novo na branch #47:** comprovação por testes de integração de que o workflow reidratado após restart pode ser concluído por `HumanReview`.
+- evento de domínio imutável `WorkflowOpened` com `event_id`, `workflow_id`, `recommendation` e `opened_at`;
+- serialização versionada de lifecycle (`schema_version = 1`) com preservação integral de `DecisionRecommendation` e `GovernanceEvidence`;
+- repositório `JsonlWorkflowLifecycleRepository` append-only com escrita durável (`flush` + `os.fsync`);
+- leitura *fail-closed* com identificação precisa de `line_number` em caso de corrupção;
+- bloqueio de `event_id` duplicado (`DuplicateWorkflowEventError`) e bloqueio de segunda abertura para o mesmo `workflow_id` (`WorkflowAlreadyOpenedError`);
+- projeção pura `rehydrate_pending_workflow` reconstituindo fielmente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` sem reexecução de regras ou LLM;
+- conclusão de workflow reidratado via `conclude_governance_workflow` com validação de ciclo completo.
 
 ### 4.2 Limite atual
 
@@ -135,9 +135,9 @@ A versão atual possui:
 
 ### 4.3 Próxima âncora
 
-A próxima âncora arquitetural será definida após integração e closeout formal da Issue #47 na `main`.
+Próxima âncora arquitetural: a definir após análise explícita da limitação atual.
 
-A evolução para persistência do fechamento de ciclo (`WorkflowConcluded`) constitui uma extensão natural futura, mas permanece explicitamente fora do escopo atual.
+A evolução para persistência do fechamento de ciclo (`WorkflowConcluded`) constitui uma extensão natural futura, mas permanece explicitamente fora do escopo atual até definição em nova Issue.
 
 Sequência evolutiva recomendada:
 
@@ -146,7 +146,7 @@ Contrato
   → Memória persistente
   → Identidade verificável
   → Workflow temporal
-  → Persistência de abertura de workflow (Issue #47)
+  → Persistência de abertura de workflow (concluída na #47)
   → Persistência de conclusão de workflow
   → Integração ERP
 ```
@@ -259,7 +259,7 @@ Responsabilidades:
 - validar consistência de material, coerência do parecer e invariantes cronológicas (`opened_at <= reviewed_at`);
 - manter o objeto estritamente imutável.
 
-### 6.5 Ciclo de Vida: Eventos, Projeção, Serialização e Repositório (Issue #47)
+### 6.5 Ciclo de Vida: Eventos, Projeção, Serialização e Repositório
 
 ```text
 src/agent_lab/workflow_events.py
@@ -321,7 +321,7 @@ Responsabilidades:
 - recuperar histórico por `event_id`, `material_id` e listagem completa;
 - falhar de forma *fail-closed* diante de corrupção ou duplicidade.
 
-## 7. Comando canônico de testes e baselines
+## 7. Comando canônico de testes e baseline
 
 Use sempre:
 
@@ -329,11 +329,14 @@ Use sempre:
 python -m unittest discover -s tests -v
 ```
 
-Distinção de baselines:
+Baseline oficial integrado na `main`:
 
-- **Baseline integrado na `main`:** 152 testes
-- **Baseline local da branch `feat/47-workflow-opening-persistence-v1`:** 206 testes
-- **Incremento da Issue #47:** +54 testes
+```text
+Ran 206 tests
+OK
+```
+
+Incremento da Issue #47: +54 testes sobre o baseline anterior de 152.
 
 Não assumir `pytest`.
 
@@ -588,32 +591,30 @@ Governança assistida de materiais PDM/BOM.
 
 Arquitetura atual:
 Regras + LLM estruturada + evidências + recomendação + identidade verificável
-+ decisão humana + workflow temporal em memória + evento de auditoria + serialização versionada
-+ repositório JSONL de auditoria + [novo na branch #47] persistência de abertura WorkflowOpened
-+ serialização versionada de lifecycle + repositório JSONL de lifecycle + projeção rehydrate_pending_workflow.
++ decisão humana + workflow temporal + persistência append-only de WorkflowOpened
++ reidratação de workflow pendente + auditoria append-only desacoplada.
 
 Autoridade:
 A IA recomenda; o humano decide.
 
 Baseline:
-Main: 152 testes | Branch feat/47-workflow-opening-persistence-v1: 206 testes | unittest | Python 3.11.
+206 testes | unittest | Python 3.11.
 
 Última entrega integrada na main:
-Issue #44 | Workflow Temporal v1 | PR #45.
+Issue #47 | Workflow Opening Persistence v1 | PR #48.
+
+Merge:
+eabd659 — Merge pull request #48.
 
 Incremento atual:
-Issue #47 | Workflow Opening Persistence v1 | implementação local completa (206 testes OK)
-| aguardando push/PR/CI/merge.
-
-Último commit funcional/local:
-932adda — test: add workflow opening restart integration.
+Nenhum incremento aberto.
 
 Limite atual:
-Apenas abertura de workflow é persistida no lifecycle; conclusão/REVIEWED continua sem
-reconstrução de log; sem autenticação/autorização real, filas, SLAs ou ERP.
+Abertura de workflow sobrevive a restart; conclusão/REVIEWED continua sem
+reconstrução integral de lifecycle; sem autenticação/autorização real, filas, SLAs ou ERP.
 
 Próxima âncora:
-Definição após integração e closeout formal da Issue #47 na main.
+A definir por nova análise/Issue.
 
 Comando oficial:
 python -m unittest discover -s tests -v
