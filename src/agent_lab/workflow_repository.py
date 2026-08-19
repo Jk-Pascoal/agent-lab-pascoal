@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Protocol
 
@@ -9,6 +10,26 @@ from agent_lab.workflow_serialization import (
     workflow_opened_from_record,
     workflow_opened_to_record,
 )
+
+
+class WorkflowPersistenceError(Exception):
+    """Base error for workflow lifecycle persistence."""
+
+
+class DuplicateWorkflowEventError(WorkflowPersistenceError):
+    """Raised when event_id already exists."""
+
+
+class WorkflowAlreadyOpenedError(WorkflowPersistenceError):
+    """Raised when a second WorkflowOpened uses the same workflow_id."""
+
+
+class WorkflowCorruptionError(WorkflowPersistenceError):
+    """Raised when persisted lifecycle history is corrupted."""
+
+    def __init__(self, message: str, *, line_number: int) -> None:
+        super().__init__(message)
+        self.line_number = line_number
 
 
 class WorkflowLifecycleRepository(Protocol):
@@ -31,19 +52,55 @@ class JsonlWorkflowLifecycleRepository:
     def __init__(self, path: Path) -> None:
         self._path = Path(path)
 
+    @property
+    def path(self) -> Path:
+        return self._path
+
     def _read_all(self) -> list[WorkflowOpened]:
         if not self._path.exists():
             return []
 
+        try:
+            with open(self._path, "r", encoding="utf-8") as file:
+                lines = file.readlines()
+        except OSError as exc:
+            raise WorkflowPersistenceError(
+                f"Failed to read workflow file: {self._path}"
+            ) from exc
+
         events: list[WorkflowOpened] = []
-        with open(self._path, "r", encoding="utf-8") as file:
-            for line in file:
-                line_str = line.strip()
-                if not line_str:
-                    continue
-                record = json.loads(line_str)
+        for line_idx, raw_line in enumerate(lines, start=1):
+            line = raw_line.strip()
+            if not line:
+                raise WorkflowCorruptionError(
+                    f"Empty line detected at line {line_idx} in {self._path}",
+                    line_number=line_idx,
+                )
+
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise WorkflowCorruptionError(
+                    f"Malformed JSON at line {line_idx} in {self._path}: {exc}",
+                    line_number=line_idx,
+                ) from exc
+
+            if not isinstance(record, dict):
+                raise WorkflowCorruptionError(
+                    f"Record at line {line_idx} is not a JSON object: {record!r}",
+                    line_number=line_idx,
+                )
+
+            try:
                 event = workflow_opened_from_record(record)
-                events.append(event)
+            except ValueError as exc:
+                raise WorkflowCorruptionError(
+                    f"Invalid workflow record at line {line_idx}: {exc}",
+                    line_number=line_idx,
+                ) from exc
+
+            events.append(event)
+
         return events
 
     def append_opened(self, event: WorkflowOpened) -> None:
@@ -52,12 +109,35 @@ class JsonlWorkflowLifecycleRepository:
                 f"Expected WorkflowOpened instance, got {type(event).__name__}"
             )
 
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        record = workflow_opened_to_record(event)
-        serialized_line = json.dumps(record) + "\n"
+        existing_events = self._read_all()
+        for existing in existing_events:
+            if existing.event_id == event.event_id:
+                raise DuplicateWorkflowEventError(
+                    f"WorkflowOpened event with event_id '{event.event_id}' already exists in {self._path}"
+                )
+            if existing.workflow_id == event.workflow_id:
+                raise WorkflowAlreadyOpenedError(
+                    f"Workflow with workflow_id '{event.workflow_id}' has already been opened in {self._path}"
+                )
 
-        with open(self._path, "a", encoding="utf-8") as file:
-            file.write(serialized_line)
+        record = workflow_opened_to_record(event)
+        try:
+            line = json.dumps(record, sort_keys=True)
+        except (TypeError, ValueError) as exc:
+            raise WorkflowPersistenceError(
+                f"Failed to serialize workflow event {event.event_id} to JSON"
+            ) from exc
+
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._path, "a", encoding="utf-8") as file:
+                file.write(f"{line}\n")
+                file.flush()
+                os.fsync(file.fileno())
+        except OSError as exc:
+            raise WorkflowPersistenceError(
+                f"Failed to append workflow event to file {self._path}"
+            ) from exc
 
     def get_opened_by_id(self, event_id: str) -> WorkflowOpened | None:
         if not isinstance(event_id, str):
