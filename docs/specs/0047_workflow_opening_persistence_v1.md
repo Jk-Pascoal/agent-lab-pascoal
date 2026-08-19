@@ -9,11 +9,13 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0047` |
-| Status | `Implementada (local — aguardando PR/CI/merge)` |
+| Status | `Concluída e integrada` |
 | Issue relacionada | `#47` |
+| Pull Request | `#48` |
+| Merge commit | `eabd659d8459a73570266bed3d636a00b8ac90d9` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-19` |
-| Data de conclusão | `Unreleased` |
+| Data de conclusão | `2026-08-19` |
 | Última atualização | `2026-08-19` |
 
 ## 1. Contexto
@@ -427,9 +429,19 @@ Em caso de necessidade de reversão:
 - [x] Leitura em modo fail-closed com identificação de linha em caso de corrupção;
 - [x] `AuditEvent`, `audit_serialization.py`, `audit_repository.py` e `schema_version = 1` de auditoria permanecem intocados;
 - [x] Testes unitários e de integração implementados com `unittest`;
-- [x] Suíte completa de testes (152 anteriores + 54 novos = 206) passa com 100% de aprovação local;
+- [x] Suíte completa de testes (152 anteriores + 54 novos = 206) passa com 100% de aprovação na main pós-merge;
 - [x] Nenhum erro em `git diff --check`;
-- [ ] Pipeline de CI no GitHub Actions validada após abertura de PR e push da branch.
+- [x] CI em Python 3.11 validada com sucesso no PR #48 antes do merge.
+
+### Resultado da Integração
+
+- **Baseline de entrada:** 152 testes
+- **Novos testes implementados:** +54 testes
+- **Baseline final integrado na `main`:** 206 testes
+- **CI GitHub Actions:** GREEN
+- **Pull Request:** #48
+- **Merge commit:** `eabd659d8459a73570266bed3d636a00b8ac90d9`
+- **Issue associada:** #47 (`completed`)
 
 ## 16. Questões em aberto
 
