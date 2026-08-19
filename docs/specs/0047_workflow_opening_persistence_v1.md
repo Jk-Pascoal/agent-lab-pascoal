@@ -9,7 +9,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0047` |
-| Status | `Proposta` |
+| Status | `Implementada (local — aguardando PR/CI/merge)` |
 | Issue relacionada | `#47` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-19` |
@@ -418,17 +418,18 @@ Em caso de necessidade de reversão:
 
 ## 15. Critérios de aceite
 
-- [ ] Contrato `WorkflowOpened` implementado como dataclass imutável em `src/agent_lab/workflow_events.py`;
-- [ ] Função pura `rehydrate_pending_workflow` implementada e testada em `src/agent_lab/workflow_projection.py`;
-- [ ] Serialização versionada `schema_version = 1` implementada preservando toda a `DecisionRecommendation` e `GovernanceEvidence` em `src/agent_lab/workflow_serialization.py`;
-- [ ] Repositório `JsonlWorkflowLifecycleRepository` implementado com operações de busca e listagem em `src/agent_lab/workflow_repository.py`;
-- [ ] Escrita com `flush` e `os.fsync` (escrita durável);
-- [ ] Rejeição de `event_id` duplicado e `workflow_id` já aberto;
-- [ ] Leitura em modo fail-closed com identificação de linha em caso de corrupção;
-- [ ] `AuditEvent`, `audit_serialization.py`, `audit_repository.py` e `schema_version = 1` de auditoria permanecem intocados;
-- [ ] Testes unitários e de integração implementados com `unittest`;
-- [ ] Suíte completa de testes (152 anteriores + novos) passa com 100% de aprovação;
-- [ ] Nenhum erro em `git diff --check`.
+- [x] Contrato `WorkflowOpened` implementado como dataclass imutável em `src/agent_lab/workflow_events.py`;
+- [x] Função pura `rehydrate_pending_workflow` implementada e testada em `src/agent_lab/workflow_projection.py`;
+- [x] Serialização versionada `schema_version = 1` implementada preservando toda a `DecisionRecommendation` e `GovernanceEvidence` em `src/agent_lab/workflow_serialization.py`;
+- [x] Repositório `JsonlWorkflowLifecycleRepository` implementado com operações de busca e listagem em `src/agent_lab/workflow_repository.py`;
+- [x] Escrita com `flush` e `os.fsync` (escrita durável);
+- [x] Rejeição de `event_id` duplicado e `workflow_id` já aberto;
+- [x] Leitura em modo fail-closed com identificação de linha em caso de corrupção;
+- [x] `AuditEvent`, `audit_serialization.py`, `audit_repository.py` e `schema_version = 1` de auditoria permanecem intocados;
+- [x] Testes unitários e de integração implementados com `unittest`;
+- [x] Suíte completa de testes (152 anteriores + 54 novos = 206) passa com 100% de aprovação local;
+- [x] Nenhum erro em `git diff --check`;
+- [ ] Pipeline de CI no GitHub Actions validada após abertura de PR e push da branch.
 
 ## 16. Questões em aberto
 
