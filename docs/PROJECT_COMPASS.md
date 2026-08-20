@@ -12,14 +12,21 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-19
+- **Estado registrado em:** 2026-08-20
 - **Baseline integrado na main:** 206 testes aprovados
-- **Última entrega integrada na main:** Workflow Opening Persistence v1
-- **Última Issue concluída na main:** #47
+- **Última entrega funcional integrada na main:** Workflow Opening Persistence v1
+- **Última Issue funcional concluída na main:** #47
 - **Último PR funcional integrado na main:** #48
 - **Último merge funcional:** `eabd659` — Merge pull request #48
 - **Última SPEC integrada:** `docs/specs/0047_workflow_opening_persistence_v1.md`
-- **Incremento atual:** Nenhum incremento aberto — próxima âncora a definir
+- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
+- **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
+- **Status da release:** publicada / Latest
+- **Tag:** `v0.1.0`
+- **Commit âncora da release:** `c5a9e462d535f90212c59c6f3f7b1354450170de`
+- **PR de preparação da release:** #50 — docs: preparar release v0.1.0
+
+> **Distinção de governança:** Merge fecha um incremento; release fecha uma versão coerente.
 
 ## 2. Propósito
 
@@ -79,7 +86,22 @@ A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle pr
 
 ## 4. Estado arquitetural atual
 
-### 4.1 Núcleo normativo implementado
+### 4.1 Baseline versionado atual (v0.1.0)
+
+A versão `v0.1.0 — Governed Agent Workflow Baseline` é a primeira release formal e versionada do laboratório. Ela consolida uma linha de base fundacional composta por:
+
+- baseline determinístico e validação cadastral de materiais;
+- fronteira LLM estruturada, tipada e com guardrail de identidade (`MaterialIdentityMismatchError`);
+- Evidence Engine multiorigem (`RULE`, `VALIDATION`, `DUPLICATE`, `LLM`);
+- recommendation pipeline determinístico com compulsoriedade de `requires_human_decision = True`;
+- deliberação humana estruturada via `HumanReview` com `VerifiedSpecialistIdentity`;
+- persistência auditável durável append-only (`AuditEvent` com `schema_version = 1` e `JsonlAuditRepository`);
+- ciclo de vida temporal de governança em memória (`GovernanceWorkflow` com `opened_at`, `closed_at`, `review_lead_time`);
+- evento de domínio imutável `WorkflowOpened`;
+- persistência de lifecycle de abertura append-only (`JsonlWorkflowLifecycleRepository` com `schema_version = 1`);
+- projeção pura de reidratação de workflows pendentes (`rehydrate_pending_workflow`) sem reexecução de regras ou chamadas a LLM.
+
+### 4.2 Núcleo normativo implementado
 
 O sistema já representa e valida:
 
@@ -117,7 +139,7 @@ O sistema já representa e valida:
 - projeção pura `rehydrate_pending_workflow` reconstituindo fielmente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` sem reexecução de regras ou LLM;
 - conclusão de workflow reidratado via `conclude_governance_workflow` com validação de ciclo completo.
 
-### 4.2 Limite atual
+### 4.3 Limite atual
 
 A versão atual possui:
 
@@ -133,7 +155,7 @@ A versão atual possui:
 - ausência de filas e SLAs operacionais;
 - ausência de integração com ERP.
 
-### 4.3 Próxima âncora
+### 4.4 Próxima âncora
 
 Próxima âncora arquitetural: a definir após análise explícita da limitação atual.
 
@@ -589,6 +611,12 @@ AGENT LAB PASCOAL
 Propósito:
 Governança assistida de materiais PDM/BOM.
 
+Release formal atual:
+v0.1.0 — Governed Agent Workflow Baseline (publicada / Latest | tag v0.1.0 | commit c5a9e46).
+
+Distinção de governança:
+Merge fecha um incremento; release fecha uma versão coerente.
+
 Arquitetura atual:
 Regras + LLM estruturada + evidências + recomendação + identidade verificável
 + decisão humana + workflow temporal + persistência append-only de WorkflowOpened
@@ -600,21 +628,18 @@ A IA recomenda; o humano decide.
 Baseline:
 206 testes | unittest | Python 3.11.
 
-Última entrega integrada na main:
-Issue #47 | Workflow Opening Persistence v1 | PR #48.
+Última entrega funcional integrada na main:
+Issue #47 | Workflow Opening Persistence v1 | PR #48 (merge eabd659).
 
-Merge:
-eabd659 — Merge pull request #48.
-
-Incremento atual:
-Nenhum incremento aberto.
+Incremento funcional atual:
+Nenhum incremento funcional aberto.
 
 Limite atual:
 Abertura de workflow sobrevive a restart; conclusão/REVIEWED continua sem
 reconstrução integral de lifecycle; sem autenticação/autorização real, filas, SLAs ou ERP.
 
 Próxima âncora:
-A definir por nova análise/Issue.
+A definir por nova análise/Issue (WorkflowConcluded permanece extensão futura candidata).
 
 Comando oficial:
 python -m unittest discover -s tests -v
