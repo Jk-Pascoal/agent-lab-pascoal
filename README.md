@@ -37,13 +37,29 @@ MaterialRecord
                                             │
                                             └──► DecisionRecommendation
                                                       │
-                                                      └──► Human-in-the-Loop (HumanReview)
-                                                                 │
-                                                                 └──► AuditEvent
-                                                                           │
-                                                                           └──► Serialização versionada (schema_version = 1)
-                                                                                     │
-                                                                                     └──► JsonlAuditRepository (append-only)
+                                                      └──► WorkflowOpened
+                                                                │
+                                                                └──► Workflow lifecycle serialization v1
+                                                                          │
+                                                                          └──► JsonlWorkflowLifecycleRepository (append-only)
+                                                                                    │
+                                                                                    └──► rehydrate_pending_workflow
+                                                                                              │
+                                                                                              └──► GovernanceWorkflow (PENDING_HUMAN_REVIEW)
+                                                                                                        │
+                                                                                                        └──► HumanReview (+ VerifiedSpecialistIdentity)
+                                                                                                                  │
+                                                                                                                  ├──► conclude_governance_workflow
+                                                                                                                  │         │
+                                                                                                                  │         └──► GovernanceWorkflow (REVIEWED)
+                                                                                                                  │
+                                                                                                                  └──► record_human_review
+                                                                                                                            │
+                                                                                                                            └──► AuditEvent
+                                                                                                                                      │
+                                                                                                                                      └──► Audit serialization v1
+                                                                                                                                                │
+                                                                                                                                                └──► JsonlAuditRepository (append-only)
 ```
 
 A fronteira LLM está implementada de forma independente de fornecedor. O projeto ainda não realiza chamadas reais para OpenAI, Anthropic, Gemini ou outro provider externo.
@@ -125,6 +141,19 @@ O contrato estruturado garante conformidade sintática e estrutural. Ele não co
 - leitura *fail-closed* diante de qualquer corrupção ou incompatibilidade com identificação de `line_number`;
 - detecção explícita de duplicidade (`DuplicateAuditEventError`).
 
+### Módulo 6 — Identidade verificável e workflow temporal
+
+- contrato imutável `VerifiedSpecialistIdentity` com rastreamento de provedor, sujeito, identificador de verificação e timestamp;
+- ciclo de vida temporal de governança em memória `GovernanceWorkflow` com estados `PENDING_HUMAN_REVIEW` e `REVIEWED`;
+- transição pura canônica `conclude_governance_workflow` com validação cronológica (`opened_at <= reviewed_at`) e derivação de `review_lead_time`.
+
+### Módulo 7 — Persistência de abertura de workflow e reidratação v1
+
+- evento de domínio imutável `WorkflowOpened` (`event_id`, `workflow_id`, `recommendation`, `opened_at`);
+- serialização versionada (`schema_version = 1`) preservando integralmente `DecisionRecommendation` e coleção de `GovernanceEvidence`;
+- protocolo `WorkflowLifecycleRepository` e repositório append-only `JsonlWorkflowLifecycleRepository` com escrita durável (`flush` + `os.fsync`) e leitura *fail-closed*;
+- projeção pura `rehydrate_pending_workflow` para restabelecer o `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` após reinício de processo sem reexecução de regras ou LLM.
+
 ## Resultados do baseline
 
 | Conjunto | Registros | Correspondência exata | Precisão de duplicidade | Recall de duplicidade |
@@ -169,7 +198,7 @@ O projeto atualmente possui:
 - SPECs versionadas;
 - desenvolvimento orientado por testes (TDD);
 - GitHub Actions em Python 3.11;
-- suíte automatizada com **128 testes**;
+- suíte automatizada com **206 testes** cobrindo estruturalmente as principais camadas, contratos, invariantes e integrações da versão;
 - proteção da branch `main`;
 - status check de CI obrigatório antes do merge;
 - política de Versionamento Semântico;
@@ -196,7 +225,8 @@ agent-lab-pascoal/
 │   ├── 01_problem_definition.md
 │   ├── 02_learning_roadmap.md
 │   ├── 03_module_01_baseline.md
-│   └── 04_engineering_workflow.md
+│   ├── 04_engineering_workflow.md
+│   └── PROJECT_COMPASS.md
 ├── src/
 │   └── agent_lab/
 │       ├── audit.py
@@ -216,7 +246,12 @@ agent-lab-pascoal/
 │       ├── metrics.py
 │       ├── normalization.py
 │       ├── rules.py
-│       └── validator.py
+│       ├── validator.py
+│       ├── workflow.py
+│       ├── workflow_events.py
+│       ├── workflow_projection.py
+│       ├── workflow_repository.py
+│       └── workflow_serialization.py
 ├── tests/
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
@@ -250,7 +285,9 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 - benchmark de qualidade entre modelos reais;
 - detecção semântica de duplicidades por embeddings ou similaridade vetorial;
 - RAG sobre normas, catálogos ou procedimentos;
-- autenticação, autorização e identidade verificável;
+- autenticação e autorização real (SSO, OAuth2, RBAC corporativo);
+- persistência e reidratação do evento de conclusão (`WorkflowConcluded`) e estado `REVIEWED` a partir do log de lifecycle;
+- reabertura de workflow ou múltiplos ciclos de correção para o mesmo `workflow_id`;
 - banco de dados relacional remoto ou cliente/servidor;
 - concorrência multiprocesso ou múltiplos escritores;
 - workflow completo com filas, SLAs e escalonamento;
@@ -263,17 +300,17 @@ Essas capacidades pertencem à esteira evolutiva e devem ser introduzidas em inc
 
 ## Próximas frentes
 
-A evolução planejada inclui:
+Frentes evolutivas candidatas incluem, sem ordem de prioridade:
 
-1. implementar identidade verificável do especialista;
-2. integrar um provider real sem quebrar a abstração `LLMProvider`;
-3. medir a LLM contra o baseline determinístico;
-4. introduzir detecção semântica de duplicidades;
-5. expandir evidências e justificativas auditáveis;
-6. testar arquitetura híbrida de regras + similaridade + RAG + LLM;
-7. construir benchmark com ground truth;
-8. acompanhar precision, recall, falsos negativos, revisões desnecessárias, custo, latência e risco;
-9. evoluir para uma PoC de diagnóstico de qualidade cadastral antes de qualquer promessa de produto industrial.
+1. persistência de fechamento de ciclo (`WorkflowConcluded`);
+2. integração de um provider real sem quebrar a abstração `LLMProvider`;
+3. medição da LLM contra o baseline determinístico;
+4. introdução de detecção semântica de duplicidades;
+5. expansão de evidências e justificativas auditáveis;
+6. teste de arquitetura híbrida de regras + similaridade + RAG + LLM;
+7. construção de benchmark com ground truth;
+8. acompanhamento de precision, recall, falsos negativos, revisões desnecessárias, custo, latência e risco;
+9. evolução para uma PoC de diagnóstico de qualidade cadastral antes de qualquer promessa de produto industrial.
 
 ## Segurança dos dados
 
@@ -307,6 +344,10 @@ A decisão final permanece humana.
 
 ✅ **Módulo 5 concluído:** persistência auditável durável com repositório JSONL append-only pela API.
 
-🧪 **128 testes automatizados** protegem o comportamento atual com `unittest`.
+✅ **Módulo 6 concluído:** identidade verificável de especialista e workflow temporal de governança em memória.
 
-➡️ **Próxima etapa:** implementar identidade verificável do especialista e evoluir para workflow temporal.
+✅ **Módulo 7 concluído:** persistência append-only de abertura de workflow (`WorkflowOpened`) e reidratação de workflows pendentes.
+
+🧪 **206 testes automatizados** protegem o comportamento atual com `unittest`.
+
+➡️ **Próxima etapa:** definir próxima âncora arquitetural na esteira evolutiva.
