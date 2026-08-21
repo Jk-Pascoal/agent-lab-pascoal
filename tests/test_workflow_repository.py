@@ -114,11 +114,12 @@ class JsonlWorkflowLifecycleRepositoryTests(unittest.TestCase):
         material_id: str = "MAT-001",
         reviewed_at: datetime | None = None,
         human_decision: HumanDecision = HumanDecision.APPROVE,
+        system_recommendation: GovernanceDecision = GovernanceDecision.REVIEW,
     ) -> WorkflowConcluded:
         review = HumanReview(
             review_id=f"rev-{workflow_id}",
             material_id=material_id,
-            system_recommendation=GovernanceDecision.REVIEW,
+            system_recommendation=system_recommendation,
             human_decision=human_decision,
             reviewer_identity=self.identity,
             reviewed_at=reviewed_at or self.reviewed_at,
@@ -449,6 +450,106 @@ class JsonlWorkflowLifecycleRepositoryTests(unittest.TestCase):
         mock_fsync.assert_called_once()
         file_descriptor = mock_fsync.call_args[0][0]
         self.assertIsInstance(file_descriptor, int)
+
+    def test_append_concluded_rejects_material_id_mismatch_with_opening(
+        self,
+    ) -> None:
+        opened = self.build_event(
+            workflow_id="wf-001",
+            material_id="MAT-001",
+        )
+        concluded = self.build_concluded_event(
+            workflow_id="wf-001",
+            material_id="MAT-999",
+        )
+
+        self.repository.append_opened(opened)
+
+        with self.assertRaises(WorkflowPersistenceError):
+            self.repository.append_concluded(concluded)
+
+        self.assertEqual(
+            self.repository.list_all_events(),
+            (opened,),
+        )
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+
+    def test_append_concluded_rejects_system_recommendation_mismatch_with_opening(
+        self,
+    ) -> None:
+        opened = self.build_event(
+            workflow_id="wf-001",
+            material_id="MAT-001",
+        )
+        concluded = self.build_concluded_event(
+            workflow_id="wf-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.APPROVE,
+        )
+
+        self.repository.append_opened(opened)
+
+        with self.assertRaises(WorkflowPersistenceError):
+            self.repository.append_concluded(concluded)
+
+        self.assertEqual(
+            self.repository.list_all_events(),
+            (opened,),
+        )
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+
+    def test_append_concluded_rejects_reviewed_at_before_opened_at(
+        self,
+    ) -> None:
+        opened_at = datetime(2026, 8, 19, 8, 30, 0, tzinfo=timezone.utc)
+        reviewed_at = datetime(2026, 8, 19, 8, 15, 0, tzinfo=timezone.utc)
+
+        opened = self.build_event(
+            workflow_id="wf-001",
+            opened_at=opened_at,
+        )
+        concluded = self.build_concluded_event(
+            workflow_id="wf-001",
+            reviewed_at=reviewed_at,
+        )
+
+        self.repository.append_opened(opened)
+
+        with self.assertRaises(WorkflowPersistenceError):
+            self.repository.append_concluded(concluded)
+
+        self.assertEqual(
+            self.repository.list_all_events(),
+            (opened,),
+        )
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+
+    def test_append_concluded_accepts_reviewed_at_equal_to_opened_at(
+        self,
+    ) -> None:
+        timestamp = datetime(2026, 8, 19, 8, 30, 0, tzinfo=timezone.utc)
+
+        opened = self.build_event(
+            workflow_id="wf-001",
+            opened_at=timestamp,
+        )
+        concluded = self.build_concluded_event(
+            workflow_id="wf-001",
+            reviewed_at=timestamp,
+        )
+
+        self.repository.append_opened(opened)
+        self.repository.append_concluded(concluded)
+
+        self.assertEqual(
+            self.repository.list_all_events(),
+            (opened, concluded),
+        )
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
 
     def test_new_repository_instance_recovers_persisted_event(self) -> None:
         event = self.build_event()

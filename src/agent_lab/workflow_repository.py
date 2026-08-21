@@ -197,6 +197,30 @@ class JsonlWorkflowLifecycleRepository:
                     f"Workflow with workflow_id '{event.workflow_id}' has already been concluded in {self._path}"
                 )
 
+        if event.review.material_id != opened_event.recommendation.material_id:
+            raise WorkflowPersistenceError(
+                f"Material ID mismatch in workflow '{event.workflow_id}': "
+                f"opened material_id '{opened_event.recommendation.material_id}' != "
+                f"conclusion material_id '{event.review.material_id}'"
+            )
+
+        if (
+            event.review.system_recommendation
+            != opened_event.recommendation.decision
+        ):
+            raise WorkflowPersistenceError(
+                f"System recommendation mismatch in workflow '{event.workflow_id}': "
+                f"opened decision '{opened_event.recommendation.decision.value}' != "
+                f"conclusion system_recommendation '{event.review.system_recommendation.value}'"
+            )
+
+        if event.review.reviewed_at < opened_event.opened_at:
+            raise WorkflowPersistenceError(
+                f"Temporal inconsistency in workflow '{event.workflow_id}': "
+                f"conclusion reviewed_at '{event.review.reviewed_at.isoformat()}' is before "
+                f"opened_at '{opened_event.opened_at.isoformat()}'"
+            )
+
         record = workflow_concluded_to_record(event)
         try:
             line = json.dumps(record, sort_keys=True)
