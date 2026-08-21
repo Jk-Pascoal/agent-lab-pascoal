@@ -13,7 +13,11 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
-from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
+from agent_lab.workflow_events import (
+    WorkflowConcluded,
+    WorkflowLifecycleEvent,
+    WorkflowOpened,
+)
 
 SCHEMA_VERSION_V1 = 1
 EVENT_TYPE_WORKFLOW_CONCLUDED = "WORKFLOW_CONCLUDED"
@@ -30,9 +34,12 @@ def _require_str(mapping: Mapping[str, Any], key: str) -> str:
     return val
 
 
-def _require_optional_str(mapping: Mapping[str, Any], key: str) -> str | None:
+def _require_nullable_str(
+    mapping: Mapping[str, Any],
+    key: str,
+) -> str | None:
     if key not in mapping:
-        return None
+        raise ValueError(f"Missing required field '{key}'")
     val = mapping[key]
     if val is None:
         return None
@@ -158,7 +165,7 @@ def _parse_correction_request(data: Any) -> CorrectionRequest:
 
     field_name = _require_str(data, "field_name")
     reason = _require_str(data, "reason")
-    suggested_value = _require_optional_str(data, "suggested_value")
+    suggested_value = _require_nullable_str(data, "suggested_value")
 
     return CorrectionRequest(
         field_name=field_name,
@@ -205,9 +212,11 @@ def _parse_human_review(data: Any) -> HumanReview:
             f"reviewed_at must be timezone-aware: '{reviewed_at_str}'"
         )
 
-    justification = _require_optional_str(data, "justification")
+    justification = _require_nullable_str(data, "justification")
 
-    corrections_raw = data.get("corrections", [])
+    if "corrections" not in data:
+        raise ValueError("Missing required field 'corrections'")
+    corrections_raw = data["corrections"]
     if not isinstance(corrections_raw, list):
         raise ValueError("Field 'corrections' must be a list")
 
@@ -391,4 +400,39 @@ def workflow_concluded_from_record(
         event_id=event_id,
         workflow_id=workflow_id,
         review=review,
+    )
+
+
+def workflow_event_to_record(
+    event: WorkflowLifecycleEvent,
+) -> dict[str, object]:
+    """Serialize a WorkflowLifecycleEvent domain event into a versioned dictionary record."""
+    if isinstance(event, WorkflowOpened):
+        return workflow_opened_to_record(event)
+    if isinstance(event, WorkflowConcluded):
+        return workflow_concluded_to_record(event)
+
+    raise ValueError(
+        f"Expected WorkflowLifecycleEvent instance, got {type(event).__name__}"
+    )
+
+
+def workflow_event_from_record(
+    record: Mapping[str, object],
+) -> WorkflowLifecycleEvent:
+    """Deserialize a versioned dictionary record into a WorkflowLifecycleEvent domain event."""
+    if not isinstance(record, Mapping):
+        raise ValueError(
+            f"Expected mapping record, got {type(record).__name__}"
+        )
+
+    if "event_type" not in record:
+        return workflow_opened_from_record(record)
+
+    event_type = record["event_type"]
+    if event_type == EVENT_TYPE_WORKFLOW_CONCLUDED:
+        return workflow_concluded_from_record(record)
+
+    raise ValueError(
+        f"Unsupported or unknown event_type: '{event_type}'"
     )

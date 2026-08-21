@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TypeAlias
 
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.human_review import HumanReview
@@ -64,3 +65,6 @@ class WorkflowConcluded:
 
         if not isinstance(self.review, HumanReview):
             raise ValueError("review must be a HumanReview instance")
+
+
+WorkflowLifecycleEvent: TypeAlias = WorkflowOpened | WorkflowConcluded

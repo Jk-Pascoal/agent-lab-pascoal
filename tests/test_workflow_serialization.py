@@ -17,6 +17,8 @@ from agent_lab.workflow_serialization import (
     SCHEMA_VERSION_V1,
     workflow_concluded_from_record,
     workflow_concluded_to_record,
+    workflow_event_from_record,
+    workflow_event_to_record,
     workflow_opened_from_record,
     workflow_opened_to_record,
 )
@@ -346,6 +348,217 @@ class WorkflowSerializationTests(unittest.TestCase):
             with self.subTest(invalid_input=invalid_input):
                 with self.assertRaises(ValueError):
                     workflow_concluded_to_record(invalid_input)  # type: ignore[arg-type]
+
+    def test_workflow_event_to_record_dispatches_workflow_opened_preserving_legacy_format(
+        self,
+    ) -> None:
+        record = workflow_event_to_record(self.event)
+        self.assertEqual(record, workflow_opened_to_record(self.event))
+        self.assertNotIn("event_type", record)
+
+    def test_workflow_event_to_record_dispatches_workflow_concluded(
+        self,
+    ) -> None:
+        record = workflow_event_to_record(self.concluded_event)
+        self.assertEqual(
+            record, workflow_concluded_to_record(self.concluded_event)
+        )
+        self.assertEqual(record["event_type"], "WORKFLOW_CONCLUDED")
+
+    def test_workflow_event_to_record_rejects_unknown_object(self) -> None:
+        cases = ["not-an-event", None, 123, dict(), tuple(), object()]
+        for invalid_input in cases:
+            with self.subTest(invalid_input=invalid_input):
+                with self.assertRaises(ValueError):
+                    workflow_event_to_record(invalid_input)  # type: ignore[arg-type]
+
+    def test_workflow_event_from_record_reads_legacy_workflow_opened_when_event_type_absent(
+        self,
+    ) -> None:
+        record = workflow_opened_to_record(self.event)
+        self.assertNotIn("event_type", record)
+
+        restored = workflow_event_from_record(record)
+        self.assertEqual(restored, self.event)
+        self.assertIsInstance(restored, WorkflowOpened)
+
+    def test_workflow_event_from_record_reads_workflow_concluded_when_event_type_is_workflow_concluded(
+        self,
+    ) -> None:
+        record = workflow_concluded_to_record(self.concluded_event)
+        self.assertEqual(record["event_type"], "WORKFLOW_CONCLUDED")
+
+        restored = workflow_event_from_record(record)
+        self.assertEqual(restored, self.concluded_event)
+        self.assertIsInstance(restored, WorkflowConcluded)
+
+    def test_workflow_event_from_record_explicitly_rejects_event_type_workflow_opened(
+        self,
+    ) -> None:
+        record = dict(workflow_opened_to_record(self.event))
+        record["event_type"] = "WORKFLOW_OPENED"
+
+        with self.assertRaises(ValueError):
+            workflow_event_from_record(record)
+
+    def test_workflow_event_from_record_rejects_explicit_null_event_type_on_legacy_opened_payload(
+        self,
+    ) -> None:
+        record = dict(workflow_opened_to_record(self.event))
+        record["event_type"] = None
+
+        with self.assertRaises(ValueError):
+            workflow_event_from_record(record)
+
+    def test_workflow_event_from_record_rejects_other_invalid_event_types(
+        self,
+    ) -> None:
+        base_record = workflow_concluded_to_record(self.concluded_event)
+        cases = ["", "UNKNOWN", "WORKFLOW_CLOSED", 123, True, [], {}]
+        for invalid_type in cases:
+            with self.subTest(invalid_type=invalid_type):
+                record = dict(base_record)
+                record["event_type"] = invalid_type
+                with self.assertRaises(ValueError):
+                    workflow_event_from_record(record)
+
+    def test_workflow_event_from_record_rejects_non_mapping_input(
+        self,
+    ) -> None:
+        cases = ["str", None, [1, 2], 123, True]
+        for invalid_input in cases:
+            with self.subTest(invalid_input=invalid_input):
+                with self.assertRaises(ValueError):
+                    workflow_event_from_record(invalid_input)  # type: ignore[arg-type]
+
+    def test_workflow_concluded_from_record_rejects_missing_review_structural_fields(
+        self,
+    ) -> None:
+        valid_record = workflow_concluded_to_record(self.concluded_event)
+        review_fields = [
+            "review_id",
+            "material_id",
+            "system_recommendation",
+            "human_decision",
+            "reviewer_identity",
+            "reviewed_at",
+            "justification",
+            "corrections",
+        ]
+        for field_name in review_fields:
+            with self.subTest(missing_review_field=field_name):
+                record = dict(valid_record)
+                record["review"] = dict(valid_record["review"])
+                del record["review"][field_name]
+                with self.assertRaises(ValueError):
+                    workflow_concluded_from_record(record)
+
+        # Decision de schema: justification=None and corrections=[] are valid when keys are present
+        approve_review = HumanReview(
+            review_id="rev-app-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.APPROVE,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=self.identity,
+            reviewed_at=self.reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+        approve_event = WorkflowConcluded(
+            event_id="evt-app-001",
+            workflow_id="wf-mat-001-01",
+            review=approve_review,
+        )
+        approve_record = workflow_concluded_to_record(approve_event)
+        self.assertIsNone(approve_record["review"]["justification"])
+        self.assertEqual(approve_record["review"]["corrections"], [])
+        restored_approve = workflow_concluded_from_record(approve_record)
+        self.assertEqual(restored_approve, approve_event)
+
+    def test_workflow_concluded_from_record_rejects_missing_reviewer_identity_fields(
+        self,
+    ) -> None:
+        valid_record = workflow_concluded_to_record(self.concluded_event)
+        identity_fields = [
+            "specialist_id",
+            "identity_provider",
+            "identity_subject",
+            "verification_id",
+            "verified_at",
+        ]
+        for field_name in identity_fields:
+            with self.subTest(missing_identity_field=field_name):
+                record = dict(valid_record)
+                record["review"] = dict(valid_record["review"])
+                record["review"]["reviewer_identity"] = dict(
+                    valid_record["review"]["reviewer_identity"]
+                )
+                del record["review"]["reviewer_identity"][field_name]
+                with self.assertRaises(ValueError):
+                    workflow_concluded_from_record(record)
+
+    def test_workflow_concluded_from_record_rejects_invalid_corrections_structure(
+        self,
+    ) -> None:
+        valid_record = workflow_concluded_to_record(self.concluded_event)
+
+        # corrections non-list
+        record_bad_corrections = dict(valid_record)
+        record_bad_corrections["review"] = dict(valid_record["review"])
+        record_bad_corrections["review"]["corrections"] = "not-a-list"
+        with self.assertRaises(ValueError):
+            workflow_concluded_from_record(record_bad_corrections)
+
+        # item non-mapping
+        record_bad_item = dict(valid_record)
+        record_bad_item["review"] = dict(valid_record["review"])
+        record_bad_item["review"]["corrections"] = ["not-a-mapping"]
+        with self.assertRaises(ValueError):
+            workflow_concluded_from_record(record_bad_item)
+
+        # missing fields in correction item
+        corr_fields = ["field_name", "reason", "suggested_value"]
+        for field_name in corr_fields:
+            with self.subTest(missing_corr_field=field_name):
+                record = dict(valid_record)
+                record["review"] = dict(valid_record["review"])
+                item = dict(valid_record["review"]["corrections"][0])
+                del item[field_name]
+                record["review"]["corrections"] = [item]
+                with self.assertRaises(ValueError):
+                    workflow_concluded_from_record(record)
+
+        # suggested_value is None but key is present -> valid
+        record_null_sug = dict(valid_record)
+        record_null_sug["review"] = dict(valid_record["review"])
+        item_null_sug = dict(valid_record["review"]["corrections"][0])
+        item_null_sug["suggested_value"] = None
+        record_null_sug["review"]["corrections"] = [item_null_sug]
+
+        corr_null_sug = (
+            CorrectionRequest(
+                field_name=item_null_sug["field_name"],
+                reason=item_null_sug["reason"],
+                suggested_value=None,
+            ),
+        )
+        rev_null_sug = HumanReview(
+            review_id=self.concluded_review.review_id,
+            material_id=self.concluded_review.material_id,
+            system_recommendation=self.concluded_review.system_recommendation,
+            human_decision=self.concluded_review.human_decision,
+            reviewer_identity=self.concluded_review.reviewer_identity,
+            reviewed_at=self.concluded_review.reviewed_at,
+            justification=self.concluded_review.justification,
+            corrections=corr_null_sug,
+        )
+        evt_null_sug = WorkflowConcluded(
+            event_id=self.concluded_event.event_id,
+            workflow_id=self.concluded_event.workflow_id,
+            review=rev_null_sug,
+        )
+        restored = workflow_concluded_from_record(record_null_sug)
+        self.assertEqual(restored, evt_null_sug)
 
     def test_to_record_rejects_non_workflow_opened_instance(self) -> None:
         cases = ["not-an-event", None, 123, dict(), tuple()]

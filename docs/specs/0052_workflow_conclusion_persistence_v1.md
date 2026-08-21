@@ -189,9 +189,9 @@ A persistência em arquivo JSONL compartilhado utiliza `schema_version = 1` e di
    }
    ```
 3. **Regra de desserialização em `workflow_event_from_record`:**
-   - Se `event_type is None` (ausência do campo `event_type`), o registro é tratado como `WorkflowOpened` legado `schema_version = 1` (delegando a `workflow_opened_from_record`);
-   - Se `event_type == "WORKFLOW_CONCLUDED"`, o registro é tratado como `WorkflowConcluded` (delegando a `workflow_concluded_from_record`);
-   - Qualquer outro valor de `event_type` (incluindo `"WORKFLOW_OPENED"`, strings vazias, valores arbitrários ou tipos incorretos) é sumariamente rejeitado de forma *fail-closed* (`ValueError` -> `WorkflowCorruptionError`).
+   - Se a chave `"event_type"` estiver ausente no registro (`"event_type" not in record`), o registro é tratado como `WorkflowOpened` legado `schema_version = 1` (delegando a `workflow_opened_from_record`);
+   - Se `"event_type"` estiver presente e `event_type == "WORKFLOW_CONCLUDED"`, o registro é tratado como `WorkflowConcluded` (delegando a `workflow_concluded_from_record`);
+   - Qualquer outro caso de chave `"event_type"` presente (incluindo `None`, `"WORKFLOW_OPENED"`, strings vazias, valores arbitrários ou tipos incorretos) é sumariamente rejeitado de forma *fail-closed* (`ValueError` -> `WorkflowCorruptionError`).
 
 ### 4.4 Payload Mínimo e Round-Trip Integral de `HumanReview`
 
@@ -368,7 +368,7 @@ Em alinhamento rigoroso com a SPEC 0044:
   - `workflow_concluded_to_record(event: WorkflowConcluded) -> dict[str, object]` (produzindo envelope com `"event_type": "WORKFLOW_CONCLUDED"`);
   - `workflow_concluded_from_record(record: Mapping[str, object]) -> WorkflowConcluded`;
   - `workflow_event_to_record(event: WorkflowLifecycleEvent) -> dict[str, object]`;
-  - `workflow_event_from_record(record: Mapping[str, object]) -> WorkflowLifecycleEvent` (tratando exclusivamente a ausência de `event_type` como `WorkflowOpened` legado `schema_version = 1`, `event_type == "WORKFLOW_CONCLUDED"` como `WorkflowConcluded` e falhando *fail-closed* para qualquer outro valor).
+  - `workflow_event_from_record(record: Mapping[str, object]) -> WorkflowLifecycleEvent` (tratando exclusivamente a ausência da chave `"event_type"` como `WorkflowOpened` legado `schema_version = 1`, `event_type == "WORKFLOW_CONCLUDED"` como `WorkflowConcluded` e falhando *fail-closed* para qualquer outro caso com a chave presente).
 - `RF-05` — A serialização de `WorkflowConcluded` deve preservar 100% da estrutura de `HumanReview`, incluindo `VerifiedSpecialistIdentity` completa, `justification` e todas as `CorrectionRequest` (com `field_name`, `reason`, `suggested_value`).
 - `RF-06` — `workflow_concluded_from_record` deve validar tipo, campos obrigatórios, enums e datetime timezone-aware de forma fail-closed com mensagens claras.
 - `RF-07` — Deve existir a exceção `WorkflowNotOpenedError(WorkflowPersistenceError)` lançada ao tentar concluir um workflow inexistente no repositório.
@@ -509,13 +509,16 @@ def workflow_event_from_record(
 ) -> WorkflowLifecycleEvent:
     """Deserialize a versioned dictionary record into the corresponding workflow lifecycle event."""
     if not isinstance(record, Mapping):
-        raise ValueError(f"Expected mapping record, got {type(record).__name__}")
+        raise ValueError(
+            f"Expected mapping record, got {type(record).__name__}"
+        )
 
-    event_type = record.get("event_type")
+    if "event_type" not in record:
+        return workflow_opened_from_record(record)
+
+    event_type = record["event_type"]
     if event_type == EVENT_TYPE_WORKFLOW_CONCLUDED:
         return workflow_concluded_from_record(record)
-    if event_type is None:
-        return workflow_opened_from_record(record)
 
     raise ValueError(f"Unsupported or unknown event_type: '{event_type}'")
 ```
@@ -754,10 +757,10 @@ tests/test_audit_persistence_integration.py
 - Serialização de `WorkflowConcluded` com decisão `REJECT` e `justification`;
 - Serialização de `WorkflowConcluded` com decisão `REQUEST_CORRECTION`, múltiplas `CorrectionRequest` e `suggested_value` preenchidos e nulos;
 - Round-trip 100% idêntico de `VerifiedSpecialistIdentity` e `HumanReview`;
-- Preservação da leitura de registros legados `WorkflowOpened` (onde `event_type is None` é a única representação válida);
+- Preservação da leitura de registros legados `WorkflowOpened` (onde a ausência da chave `"event_type"` é a única representação válida);
 - Rejeição fail-closed de payloads corrompidos:
   - `schema_version` ausente, inválido ou diferente de `1`;
-  - `event_type` desconhecido ou inválido (incluindo tentativa de registrar `"WORKFLOW_OPENED"`);
+  - chave `"event_type"` presente com valor inválido ou desconhecido (incluindo `None`, `"WORKFLOW_OPENED"`, strings vazias ou tipos incorretos);
   - campos obrigatórios ausentes no envelope ou no objeto `review`;
   - strings em branco ou tipos incorretos;
   - valores inválidos de enum em `system_recommendation` ou `human_decision`;
@@ -772,68 +775,54 @@ tests/test_audit_persistence_integration.py
   - `review_lead_time == review.reviewed_at - opened_at`;
 - Rejeição de reidratação com `workflow_id` divergente entre abertura e conclusão;
 - Rejeição de descompasso de material ou recomendação em `GovernanceWorkflow`;
-- `rehydrate_workflow` operando sobre sequência `[Opened]` -> retorna `PENDING_HUMAN_REVIEW`;
-- `rehydrate_workflow` operando sobre sequência `[Opened, Concluded]` -> retorna `REVIEWED`;
-- Rejeição de sequências inválidas (lista vazia, `Concluded` sem `Opened`, múltiplos `Opened`, múltiplos `Concluded`).
+- Reidratação via `rehydrate_workflow(events)`:
+  - Lista com `[WorkflowOpened]` → retorna workflow `PENDING_HUMAN_REVIEW`;
+  - Lista com `[WorkflowOpened, WorkflowConcluded]` → retorna workflow `REVIEWED`;
+  - Lista vazia → levanta `ValueError`;
+  - Lista com múltiplos `WorkflowOpened` ou múltiplos `WorkflowConcluded` → levanta `ValueError`;
+  - Lista iniciando por `WorkflowConcluded` → levanta `ValueError`.
 
-### Etapa 4 — Repositório JSONL e Regras de Sequência (RED → GREEN)
+### Etapa 4 — Repositório `JsonlWorkflowLifecycleRepository` (RED → GREEN)
 
-- `append_concluded` grava duravelmente via `flush` + `os.fsync`;
-- `append_concluded` rejeita `event_id` duplicado (`DuplicateWorkflowEventError`);
-- `append_concluded` rejeita conclusão sem abertura prévia (`WorkflowNotOpenedError`);
-- `append_concluded` rejeita dupla conclusão (`WorkflowAlreadyConcludedError`);
-- `append_concluded` rejeita conclusão com `material_id` divergente da abertura;
-- `append_concluded` rejeita conclusão com `system_recommendation` divergente da recomendação de abertura;
-- `append_concluded` rejeita conclusão com timestamp anterior à abertura (`review.reviewed_at < opened_at`);
-- `get_events_by_workflow_id` retorna tupla com `(WorkflowOpened, WorkflowConcluded)` preservando a ordem de gravação;
-- `list_all_events` lista todos os registros em ordem física;
+- `append_concluded` grava evento como linha JSON com `event_type = "WORKFLOW_CONCLUDED"`;
+- Verificação de chamada a `flush` e `os.fsync` após escrita;
+- Rejeição de duplicidade de `event_id` contra histórico global (`DuplicateWorkflowEventError`);
+- Rejeição de conclusão de workflow inexistente (`WorkflowNotOpenedError`);
+- Rejeição de conclusão de workflow já concluído (`WorkflowAlreadyConcludedError`);
+- Rejeição de incompatibilidade de material entre abertura e conclusão;
+- Rejeição de incompatibilidade de parecer entre recomendação e parecer revisado;
+- Rejeição de inversão temporal (`opened.opened_at <= review.reviewed_at`);
+- `get_events_by_workflow_id(workflow_id)`:
+  - Retorna tupla vazia se workflow não existe;
+  - Retorna `(WorkflowOpened,)` para workflow aberto e não concluído;
+  - Retorna `(WorkflowOpened, WorkflowConcluded)` na ordem de escrita para workflow concluído;
+- `list_all_events()`:
+  - Retorna todos os eventos do repositório em ordem física de gravação;
+  - Retorna coleção vazia para arquivo inexistente ou vazio;
 - Fail-closed com `WorkflowCorruptionError` indicando `line_number` em caso de corrupção na linha de conclusão ou `event_type` inválido.
 
-### Etapa 5 — Teste de Integração Ponta a Ponta: Um Ciclo Completo com Dois Restarts (RED → GREEN)
+### Etapa 5 — Integração E2E com dois restarts de processo (RED → GREEN)
 
-- Fluxo integrado multietapa:
-  1. Geração de `DecisionRecommendation` com evidências multiorigem;
-  2. Abertura do workflow (`WorkflowOpened`) em $t_0$ e persistência em repositório JSONL;
-  3. **Simulação de Restart 1:** nova instância do repositório lê o arquivo -> reidratação via `rehydrate_workflow` -> estado `PENDING_HUMAN_REVIEW`;
-  4. Execução da deliberação humana pelo especialista em $t_1$ (`HumanReview` com `VerifiedSpecialistIdentity`);
-  5. Conclusão no domínio via `conclude_governance_workflow`;
-  6. Registro de auditoria desacoplado via `record_human_review` -> persistência em `JsonlAuditRepository`;
-  7. Registro de conclusão de lifecycle via `WorkflowConcluded` -> persistência em `JsonlWorkflowLifecycleRepository`;
-  8. **Simulação de Restart 2:** nova instância do repositório lê o arquivo JSONL de ciclo de vida -> reidratação via `rehydrate_workflow` -> estado `REVIEWED` com:
-     - `closed_at == t_1`;
-     - `review_lead_time == t_1 - t_0`;
-     - dados completos de `HumanReview` e `CorrectionRequest`;
-     - zero chamadas a analisadores de regras ou LLM;
-  9. Tentativa de segunda conclusão rejeitada com `WorkflowAlreadyConcludedError`.
+- Teste ponta a ponta `tests/test_workflow_conclusion_integration.py` cobrindo o ciclo completo de vida operacional com dois restarts em instâncias limpas do repositório:
+  1. Abertura do workflow (`append_opened`) no repositório `repo1`;
+  2. Primeiro restart: novo repositório `repo2` recupera eventos via `get_events_by_workflow_id` e reidrata `GovernanceWorkflow` com status `PENDING_HUMAN_REVIEW`;
+  3. Revisão humana realizada e conclusão gravada (`append_concluded`) via `repo2`;
+  4. Segundo restart: novo repositório `repo3` recupera eventos via `get_events_by_workflow_id` e reidrata `GovernanceWorkflow` com status `REVIEWED`, validando `closed_at`, `review_lead_time` e todas as correções humanas intactas;
+  5. Auditoria executada em paralelo e gravada no repositório de auditoria independente.
 
-### Etapa 6 — Regressão Completa
+### Etapa 6 — Regressão Completa e Validação dos Gates (GREEN)
 
-Execução do comando oficial:
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
-Comprovação de aprovação de todos os 206 testes do baseline anterior, somados aos novos testes da Issue #52.
+- Execução da suíte completa de testes: `python -m unittest discover -s tests -v` garantindo 100% de aprovação (todos os 206 testes do baseline v0.1.0 + novos testes da Issue #52);
+- Validação estrita de formatação: `git diff --check`.
 
 ---
 
-## 11. Gates de qualidade
+## 11. Plano de implantação
 
-Antes do Pull Request, executar obrigatoriamente:
-
-```powershell
-python -m unittest discover -s tests -v
-git diff --check
-git status -sb
-```
-
-Critérios mínimos para aceite:
-- 100% dos testes aprovados (baseline 206 + novos testes);
-- Nenhum erro de espaço em branco ou formatação em `git diff --check`;
-- Escopo de alteração restrito aos arquivos previstos na SPEC;
-- Nenhuma dependência externa adicionada;
-- Nenhuma alteração nos módulos de auditoria ou recomendação atemporal.
+1. Execução do pipeline de testes locais (`python -m unittest discover -s tests -v`);
+2. Verificação de inexistência de erros de formatação (`git diff --check`);
+3. Criação de commits semânticos atômicos para cada etapa do TDD;
+4. Integração na branch de trabalho da Issue #52.
 
 ---
 
@@ -880,7 +869,7 @@ Em caso de necessidade de reversão:
 - [ ] Contrato mínimo `WorkflowConcluded` implementado como dataclass imutável (`frozen=True`, `slots=True`) em `src/agent_lab/workflow_events.py` contendo apenas `event_id`, `workflow_id` e `review`;
 - [ ] Type alias `WorkflowLifecycleEvent` definido em `src/agent_lab/workflow_events.py`;
 - [ ] Serialização versionada `schema_version = 1` implementada em `src/agent_lab/workflow_serialization.py` garantindo round-trip integral de `HumanReview` (incluindo `VerifiedSpecialistIdentity`, `justification` e `CorrectionRequest`);
-- [ ] Registros legados `WorkflowOpened` sem `event_type` são a única representação válida de abertura e `WorkflowConcluded` grava `"event_type": "WORKFLOW_CONCLUDED"`, falhando *fail-closed* diante de qualquer outro `event_type` (incluindo `"WORKFLOW_OPENED"`);
+- [ ] Registros legados `WorkflowOpened` com ausência da chave `"event_type"` são a única representação válida de abertura e `WorkflowConcluded` grava `"event_type": "WORKFLOW_CONCLUDED"`, falhando *fail-closed* diante de qualquer chave `"event_type"` presente inválida (incluindo `None` e `"WORKFLOW_OPENED"`);
 - [ ] Exceções `WorkflowNotOpenedError` e `WorkflowAlreadyConcludedError` implementadas em `src/agent_lab/workflow_repository.py`;
 - [ ] Repositório `JsonlWorkflowLifecycleRepository` estendido exclusivamente com os métodos `append_concluded`, `get_events_by_workflow_id` e `list_all_events`;
 - [ ] Gravação de `WorkflowConcluded` realiza `flush` e `os.fsync` (escrita durável);
@@ -905,7 +894,7 @@ Em caso de necessidade de reversão:
 | Data | Decisão | Motivo | Responsável |
 | --- | --- | --- | --- |
 | 2026-08-21 | Tornar `WorkflowConcluded` mínimo sem `concluded_at` | `review.reviewed_at` é a única fonte da verdade temporal da conclusão; eliminar redundância | `Jk-Pascoal` |
-| 2026-08-21 | Adotar discriminador explícito `"event_type": "WORKFLOW_CONCLUDED"` e ausência de `event_type` como única forma de `WorkflowOpened` v1 | Eliminar ambiguidade na serialização, preservar compatibilidade com arquivos existentes e falhar fail-closed diante de qualquer outro valor (inclusive `"WORKFLOW_OPENED"`) | `Jk-Pascoal` |
+| 2026-08-21 | Adotar discriminador explícito `"event_type": "WORKFLOW_CONCLUDED"` e ausência da chave `"event_type"` como única forma de `WorkflowOpened` v1 | Eliminar ambiguidade na serialização, preservar compatibilidade com arquivos existentes e falhar fail-closed diante de qualquer chave presente diferente de `"WORKFLOW_CONCLUDED"` (inclusive `None` e `"WORKFLOW_OPENED"`) | `Jk-Pascoal` |
 | 2026-08-21 | Restringir novas APIs do repositório a `append_concluded`, `get_events_by_workflow_id` e `list_all_events` | Manter a superfície de API enxuta e estritamente necessária para a reconstrução do estado de workflow | `Jk-Pascoal` |
 | 2026-08-21 | Registrar limitação explícita de dual-write (divergência potencialmente persistente sem autocura na v1) | Deixar claro que a v1 não possui transação atômica coordenada nem reconciliação automática entre os dois repositórios JSONL | `Jk-Pascoal` |
 | 2026-08-21 | Ajustar seção de responsabilidade humana para foco na autoridade modelada | Evitar alegação inverificável de prova física de presença humana pela dataclass | `Jk-Pascoal` |
