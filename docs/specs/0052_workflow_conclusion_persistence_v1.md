@@ -225,9 +225,8 @@ A separação estrita de responsabilidades entre persistência e recomposição 
   - Não constrói nem conhece o agregado de domínio `GovernanceWorkflow`.
 - **`workflow_projection.py` (Projeção Pura de Domínio):**
   - Módulo sem dependência de I/O em disco;
-  - `rehydrate_pending_workflow(opened: WorkflowOpened) -> GovernanceWorkflow`
-  - `rehydrate_reviewed_workflow(opened: WorkflowOpened, concluded: WorkflowConcluded) -> GovernanceWorkflow`
-  - `rehydrate_workflow(events: Iterable[WorkflowLifecycleEvent]) -> GovernanceWorkflow`
+  - `rehydrate_pending_workflow(event: WorkflowOpened) -> GovernanceWorkflow`
+  - `rehydrate_workflow(events: Sequence[WorkflowLifecycleEvent]) -> GovernanceWorkflow`
   - Instancia `GovernanceWorkflow`, deixando que as propriedades derivadas (`material_id`, `status`, `closed_at`, `review_lead_time`) sejam calculadas pelas regras puras do domínio.
 
 ### 4.6 Regras de Sequência de Ciclo de Vida (`Opened → Concluded`)
@@ -302,8 +301,7 @@ Em alinhamento rigoroso com a SPEC 0044:
 - Preservação integral de todas as APIs do repositório entregues na Issue #47;
 - Validação estrita de integridade e sequência (`Opened → Concluded`, material, parecer, `opened.opened_at <= review.reviewed_at`) em `JsonlWorkflowLifecycleRepository`;
 - Projeção e reidratação em `src/agent_lab/workflow_projection.py`:
-  - `rehydrate_reviewed_workflow(opened: WorkflowOpened, concluded: WorkflowConcluded) -> GovernanceWorkflow`
-  - `rehydrate_workflow(events: Iterable[WorkflowLifecycleEvent]) -> GovernanceWorkflow`
+  - `rehydrate_workflow(events: Sequence[WorkflowLifecycleEvent]) -> GovernanceWorkflow`
   - Preservação intacta de `rehydrate_pending_workflow(event: WorkflowOpened) -> GovernanceWorkflow`;
 - Testes unitários para eventos, serialização, projeção e repositório com `unittest`;
 - Testes de integração end-to-end simulando um único ciclo completo com dois restarts;
@@ -385,8 +383,7 @@ Em alinhamento rigoroso com a SPEC 0044:
   - `event.review.system_recommendation == opened.recommendation.decision`;
   - `event.review.reviewed_at >= opened.opened_at`.
 - `RF-11` — `src/agent_lab/workflow_projection.py` deve fornecer:
-  - `rehydrate_reviewed_workflow(opened: WorkflowOpened, concluded: WorkflowConcluded) -> GovernanceWorkflow`;
-  - `rehydrate_workflow(events: Iterable[WorkflowLifecycleEvent]) -> GovernanceWorkflow`.
+  - `rehydrate_workflow(events: Sequence[WorkflowLifecycleEvent]) -> GovernanceWorkflow`.
 - `RF-12` — A reidratação de workflow concluído deve produzir uma instância de `GovernanceWorkflow` onde:
   - `status == WorkflowStatus.REVIEWED`;
   - `review == concluded.review`;
@@ -566,9 +563,9 @@ def workflow_event_from_record(
 ```python
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import Sequence
 
-from agent_lab.workflow import GovernanceWorkflow, WorkflowStatus
+from agent_lab.workflow import GovernanceWorkflow
 from agent_lab.workflow_events import (
     WorkflowConcluded,
     WorkflowLifecycleEvent,
@@ -589,19 +586,57 @@ def rehydrate_pending_workflow(event: WorkflowOpened) -> GovernanceWorkflow:
     )
 
 
-def rehydrate_reviewed_workflow(
-    opened: WorkflowOpened,
-    concluded: WorkflowConcluded,
+def rehydrate_workflow(
+    events: Sequence[WorkflowLifecycleEvent],
 ) -> GovernanceWorkflow:
-    """Project opened and concluded events into a reviewed GovernanceWorkflow."""
-    if not isinstance(opened, WorkflowOpened):
-        raise TypeError("opened must be a WorkflowOpened instance")
-    if not isinstance(concluded, WorkflowConcluded):
-        raise TypeError("concluded must be a WorkflowConcluded instance")
+    """Project an ordered sequence of lifecycle events into a GovernanceWorkflow."""
+    if not events:
+        raise ValueError("events sequence cannot be empty")
 
-    if opened.workflow_id != concluded.workflow_id:
+    for event in events:
+        if not isinstance(event, (WorkflowOpened, WorkflowConcluded)):
+            raise ValueError(
+                f"Unsupported lifecycle event type: {type(event).__name__}"
+            )
+
+    if not isinstance(events[0], WorkflowOpened):
+        raise ValueError("First event in workflow history must be WorkflowOpened")
+
+    opened_events = [
+        event for event in events if isinstance(event, WorkflowOpened)
+    ]
+    if len(opened_events) != 1:
         raise ValueError(
-            f"workflow_id mismatch: opened '{opened.workflow_id}' vs concluded '{concluded.workflow_id}'"
+            f"Expected exactly one WorkflowOpened event, got {len(opened_events)}"
+        )
+
+    concluded_events = [
+        event for event in events if isinstance(event, WorkflowConcluded)
+    ]
+    if len(concluded_events) > 1:
+        raise ValueError(
+            f"Expected at most one WorkflowConcluded event, got {len(concluded_events)}"
+        )
+
+    if len(events) not in (1, 2):
+        raise ValueError(
+            f"Unexpected number of events for workflow lifecycle: {len(events)}"
+        )
+
+    opened = events[0]
+
+    if len(events) == 1:
+        return rehydrate_pending_workflow(opened)
+
+    concluded = events[1]
+    if not isinstance(concluded, WorkflowConcluded):
+        raise ValueError(
+            "Second event in reviewed workflow history must be WorkflowConcluded"
+        )
+
+    if concluded.workflow_id != opened.workflow_id:
+        raise ValueError(
+            f"workflow_id mismatch between opened '{opened.workflow_id}' and concluded '{concluded.workflow_id}'"
         )
 
     return GovernanceWorkflow(
@@ -610,50 +645,6 @@ def rehydrate_reviewed_workflow(
         opened_at=opened.opened_at,
         review=concluded.review,
     )
-
-
-def rehydrate_workflow(
-    events: Iterable[WorkflowLifecycleEvent],
-) -> GovernanceWorkflow:
-    """Project an ordered sequence of lifecycle events for a single workflow into its current GovernanceWorkflow state."""
-    event_list = list(events)
-    if not event_list:
-        raise ValueError("events sequence cannot be empty")
-
-    opened: WorkflowOpened | None = None
-    concluded: WorkflowConcluded | None = None
-
-    for event in event_list:
-        if isinstance(event, WorkflowOpened):
-            if opened is not None:
-                raise ValueError(
-                    f"Multiple WorkflowOpened events detected for workflow '{event.workflow_id}'"
-                )
-            opened = event
-        elif isinstance(event, WorkflowConcluded):
-            if opened is None:
-                raise ValueError(
-                    f"WorkflowConcluded encountered before WorkflowOpened for workflow '{event.workflow_id}'"
-                )
-            if concluded is not None:
-                raise ValueError(
-                    f"Multiple WorkflowConcluded events detected for workflow '{event.workflow_id}'"
-                )
-            if event.workflow_id != opened.workflow_id:
-                raise ValueError(
-                    f"workflow_id mismatch: opened '{opened.workflow_id}' vs concluded '{event.workflow_id}'"
-                )
-            concluded = event
-        else:
-            raise TypeError(f"Unsupported event type: {type(event).__name__}")
-
-    if opened is None:
-        raise ValueError("No WorkflowOpened event found in sequence")
-
-    if concluded is None:
-        return rehydrate_pending_workflow(opened)
-
-    return rehydrate_reviewed_workflow(opened, concluded)
 ```
 
 #### 4. Repositório e Exceções (`src/agent_lab/workflow_repository.py`)
@@ -714,12 +705,12 @@ class WorkflowLifecycleRepository(Protocol):
 src/agent_lab/workflow_events.py                  # Adição de WorkflowConcluded e WorkflowLifecycleEvent
 src/agent_lab/workflow_serialization.py           # Serialização de HumanReview, WorkflowConcluded e dispatcher
 src/agent_lab/workflow_repository.py              # Exceções (WorkflowNotOpenedError, WorkflowAlreadyConcludedError) e métodos append_concluded, queries
-src/agent_lab/workflow_projection.py              # Funções rehydrate_reviewed_workflow e rehydrate_workflow
+src/agent_lab/workflow_projection.py              # Projeção pura rehydrate_workflow e preservação de rehydrate_pending_workflow
 tests/test_workflow_events.py                    # Testes unitários do evento WorkflowConcluded
 tests/test_workflow_serialization.py             # Testes de serialização, round-trip e fail-closed de WorkflowConcluded
-tests/test_workflow_projection.py                # Testes unitários de rehydrate_reviewed_workflow e rehydrate_workflow
+tests/test_workflow_projection.py                # Testes unitários de rehydrate_workflow e rehydrate_pending_workflow
 tests/test_workflow_repository.py                # Testes de append_concluded, integridade de sequência e consultas
-tests/test_workflow_conclusion_integration.py   # Testes de integração ponta a ponta com persistência durável e 2 restarts
+tests/test_workflow_conclusion_persistence_integration.py # Testes de integração ponta a ponta com persistência durável e 2 restarts
 docs/specs/0052_workflow_conclusion_persistence_v1.md # Esta especificação técnica
 ```
 
@@ -766,21 +757,17 @@ tests/test_audit_persistence_integration.py
   - valores inválidos de enum em `system_recommendation` ou `human_decision`;
   - datetimes sem timezone ou formato ISO 8601 malformado.
 
-### Etapa 3 — Projeções `rehydrate_reviewed_workflow` e `rehydrate_workflow` (RED → GREEN)
+### Etapa 3 — Projeção pura `rehydrate_workflow` (RED → GREEN)
 
-- Reidratação de workflow concluído a partir de `(WorkflowOpened, WorkflowConcluded)`:
-  - `status == WorkflowStatus.REVIEWED`;
-  - `material_id == recommendation.material_id`;
-  - `closed_at == review.reviewed_at`;
-  - `review_lead_time == review.reviewed_at - opened_at`;
-- Rejeição de reidratação com `workflow_id` divergente entre abertura e conclusão;
-- Rejeição de descompasso de material ou recomendação em `GovernanceWorkflow`;
-- Reidratação via `rehydrate_workflow(events)`:
-  - Lista com `[WorkflowOpened]` → retorna workflow `PENDING_HUMAN_REVIEW`;
-  - Lista com `[WorkflowOpened, WorkflowConcluded]` → retorna workflow `REVIEWED`;
-  - Lista vazia → levanta `ValueError`;
-  - Lista com múltiplos `WorkflowOpened` ou múltiplos `WorkflowConcluded` → levanta `ValueError`;
-  - Lista iniciando por `WorkflowConcluded` → levanta `ValueError`.
+- Preservação da API legada `rehydrate_pending_workflow(event)`;
+- Reidratação determinística via `rehydrate_workflow(events)`:
+  - Sequência com `[WorkflowOpened]` → retorna workflow `PENDING_HUMAN_REVIEW` (com `review=None`, `closed_at=None`, `review_lead_time=None`);
+  - Sequência com `[WorkflowOpened, WorkflowConcluded]` → retorna workflow `REVIEWED` (com `review` preservada, `closed_at == review.reviewed_at`, `review_lead_time == review.reviewed_at - opened_at`);
+  - Sequência vazia → levanta `ValueError`;
+  - Sequência com evento de tipo não suportado → levanta `ValueError`;
+  - Sequência iniciando por `WorkflowConcluded` → levanta `ValueError`;
+  - Sequência com múltiplos `WorkflowOpened` ou múltiplos `WorkflowConcluded` → levanta `ValueError`;
+  - Sequência com `workflow_id` divergente entre abertura e conclusão → levanta `ValueError`.
 
 ### Etapa 4 — Repositório `JsonlWorkflowLifecycleRepository` (RED → GREEN)
 
@@ -801,14 +788,17 @@ tests/test_audit_persistence_integration.py
   - Retorna coleção vazia para arquivo inexistente ou vazio;
 - Fail-closed com `WorkflowCorruptionError` indicando `line_number` em caso de corrupção na linha de conclusão ou `event_type` inválido.
 
-### Etapa 5 — Integração E2E com dois restarts de processo (RED → GREEN)
+### Etapa 5 — Integração E2E com dois restarts de processo (validação de composição)
 
-- Teste ponta a ponta `tests/test_workflow_conclusion_integration.py` cobrindo o ciclo completo de vida operacional com dois restarts em instâncias limpas do repositório:
+Observação de execução: este teste de integração ficou GREEN em sua primeira execução. Isso foi esperado nesta etapa, pois os contratos de evento, serialização, persistência e projeção já haviam sido desenvolvidos e validados separadamente nos ciclos TDD anteriores. O objetivo deste teste é comprovar a composição end-to-end desses componentes através de dois restarts, e não introduzir um novo comportamento unitário inicialmente ausente.
+
+- Teste ponta a ponta `tests/test_workflow_conclusion_persistence_integration.py` cobrindo exclusivamente o ciclo completo de vida operacional com dois restarts em instâncias limpas do repositório:
   1. Abertura do workflow (`append_opened`) no repositório `repo1`;
-  2. Primeiro restart: novo repositório `repo2` recupera eventos via `get_events_by_workflow_id` e reidrata `GovernanceWorkflow` com status `PENDING_HUMAN_REVIEW`;
+  2. Primeiro restart: novo repositório `repo2` recupera eventos via `get_events_by_workflow_id` e reidrata `GovernanceWorkflow` com status `PENDING_HUMAN_REVIEW` via `rehydrate_workflow`;
   3. Revisão humana realizada e conclusão gravada (`append_concluded`) via `repo2`;
-  4. Segundo restart: novo repositório `repo3` recupera eventos via `get_events_by_workflow_id` e reidrata `GovernanceWorkflow` com status `REVIEWED`, validando `closed_at`, `review_lead_time` e todas as correções humanas intactas;
-  5. Auditoria executada em paralelo e gravada no repositório de auditoria independente.
+  4. Segundo restart: novo repositório `repo3` recupera eventos via `get_events_by_workflow_id` e comprova histórico `(opened, concluded)`;
+  5. Reidratação via `rehydrate_workflow` para o estado `REVIEWED`, comprovando preservação de `HumanReview`, `closed_at` e `review_lead_time` derivados;
+  6. A trilha de auditoria permanece desacoplada, inalterada e coberta pelos seus próprios testes unitários e de integração; a validação detalhada da coleção de `CorrectionRequest` é garantida pelos testes unitários de serialização.
 
 ### Etapa 6 — Regressão Completa e Validação dos Gates (GREEN)
 
@@ -844,7 +834,7 @@ tests/test_audit_persistence_integration.py
 
 Em caso de necessidade de reversão:
 1. Reverter as modificações em `src/agent_lab/workflow_events.py`, `src/agent_lab/workflow_serialization.py`, `src/agent_lab/workflow_projection.py` e `src/agent_lab/workflow_repository.py`;
-2. Remover os testes específicos da Issue #52 (`tests/test_workflow_conclusion_integration.py` e acréscimos nos testes unitários);
+2. Remover os testes específicos da Issue #52 (`tests/test_workflow_conclusion_persistence_integration.py` e acréscimos nos testes unitários);
 3. Executar o comando canônico de testes para verificar a integridade dos 206 testes do baseline da v0.1.0.
 
 ---
