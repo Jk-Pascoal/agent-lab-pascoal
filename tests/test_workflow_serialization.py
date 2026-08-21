@@ -6,9 +6,17 @@ from datetime import datetime, timezone
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision, IssueSeverity, IssueType
 from agent_lab.evidence import EvidenceSource, GovernanceEvidence
-from agent_lab.workflow_events import WorkflowOpened
+from agent_lab.human_review import (
+    CorrectionRequest,
+    HumanDecision,
+    HumanReview,
+    VerifiedSpecialistIdentity,
+)
+from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
 from agent_lab.workflow_serialization import (
     SCHEMA_VERSION_V1,
+    workflow_concluded_from_record,
+    workflow_concluded_to_record,
     workflow_opened_from_record,
     workflow_opened_to_record,
 )
@@ -53,6 +61,59 @@ class WorkflowSerializationTests(unittest.TestCase):
             workflow_id="wf-mat-001-01",
             recommendation=self.recommendation,
             opened_at=self.opened_at,
+        )
+
+        self.verified_at = datetime(
+            2026,
+            8,
+            19,
+            8,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        self.reviewed_at = datetime(
+            2026,
+            8,
+            19,
+            9,
+            15,
+            0,
+            tzinfo=timezone.utc,
+        )
+        self.identity = VerifiedSpecialistIdentity(
+            specialist_id="spec-042",
+            identity_provider="CORP_IDP",
+            identity_subject="analyst@company.com",
+            verification_id="ver-auth-987",
+            verified_at=self.verified_at,
+        )
+        self.corrections = (
+            CorrectionRequest(
+                field_name="description",
+                reason="Texto fora do padrão PDM",
+                suggested_value="PARAFUSO SEXTAVADO M8X20 A2-70",
+            ),
+            CorrectionRequest(
+                field_name="base_unit",
+                reason="Unidade inválida no cadastro de entrada",
+                suggested_value="UN",
+            ),
+        )
+        self.concluded_review = HumanReview(
+            review_id="rev-mat-001-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.REVIEW,
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            reviewer_identity=self.identity,
+            reviewed_at=self.reviewed_at,
+            justification="Correção necessária na descrição curta e unidade de medida.",
+            corrections=self.corrections,
+        )
+        self.concluded_event = WorkflowConcluded(
+            event_id="evt-conc-001",
+            workflow_id="wf-mat-001-01",
+            review=self.concluded_review,
         )
 
     def test_schema_version_constant_is_one(self) -> None:
@@ -147,6 +208,144 @@ class WorkflowSerializationTests(unittest.TestCase):
             self.assertIsInstance(restored_item.source, EvidenceSource)
             self.assertIsInstance(restored_item.issue_type, IssueType)
             self.assertIsInstance(restored_item.severity, IssueSeverity)
+
+    def test_workflow_concluded_serialization_produces_expected_record(
+        self,
+    ) -> None:
+        record = workflow_concluded_to_record(self.concluded_event)
+
+        self.assertIsInstance(record, dict)
+        self.assertEqual(record["schema_version"], 1)
+        self.assertEqual(record["event_type"], "WORKFLOW_CONCLUDED")
+        self.assertEqual(record["event_id"], "evt-conc-001")
+        self.assertEqual(record["workflow_id"], "wf-mat-001-01")
+        self.assertNotIn("concluded_at", record)
+
+        review_dict = record["review"]
+        self.assertIsInstance(review_dict, dict)
+        self.assertEqual(review_dict["review_id"], "rev-mat-001-001")
+        self.assertEqual(review_dict["material_id"], "MAT-001")
+        self.assertEqual(review_dict["system_recommendation"], "REVIEW")
+        self.assertEqual(review_dict["human_decision"], "REQUEST_CORRECTION")
+        self.assertEqual(
+            review_dict["reviewed_at"], "2026-08-19T09:15:00+00:00"
+        )
+        self.assertEqual(
+            review_dict["justification"],
+            "Correção necessária na descrição curta e unidade de medida.",
+        )
+
+        identity_dict = review_dict["reviewer_identity"]
+        self.assertIsInstance(identity_dict, dict)
+        self.assertEqual(identity_dict["specialist_id"], "spec-042")
+        self.assertEqual(identity_dict["identity_provider"], "CORP_IDP")
+        self.assertEqual(
+            identity_dict["identity_subject"], "analyst@company.com"
+        )
+        self.assertEqual(identity_dict["verification_id"], "ver-auth-987")
+        self.assertEqual(
+            identity_dict["verified_at"], "2026-08-19T08:00:00+00:00"
+        )
+
+        corrections_list = review_dict["corrections"]
+        self.assertIsInstance(corrections_list, list)
+        self.assertEqual(len(corrections_list), 2)
+        self.assertEqual(
+            corrections_list[0],
+            {
+                "field_name": "description",
+                "reason": "Texto fora do padrão PDM",
+                "suggested_value": "PARAFUSO SEXTAVADO M8X20 A2-70",
+            },
+        )
+        self.assertEqual(
+            corrections_list[1],
+            {
+                "field_name": "base_unit",
+                "reason": "Unidade inválida no cadastro de entrada",
+                "suggested_value": "UN",
+            },
+        )
+
+    def test_workflow_concluded_round_trip_preserves_full_human_review(
+        self,
+    ) -> None:
+        record = workflow_concluded_to_record(self.concluded_event)
+        restored = workflow_concluded_from_record(record)
+
+        self.assertEqual(restored, self.concluded_event)
+        self.assertEqual(restored.event_id, self.concluded_event.event_id)
+        self.assertEqual(restored.workflow_id, self.concluded_event.workflow_id)
+
+        # Review attributes
+        self.assertEqual(
+            restored.review.review_id, self.concluded_review.review_id
+        )
+        self.assertEqual(
+            restored.review.material_id, self.concluded_review.material_id
+        )
+        self.assertEqual(
+            restored.review.system_recommendation,
+            self.concluded_review.system_recommendation,
+        )
+        self.assertEqual(
+            restored.review.human_decision,
+            self.concluded_review.human_decision,
+        )
+        self.assertEqual(
+            restored.review.reviewed_at, self.concluded_review.reviewed_at
+        )
+        self.assertEqual(
+            restored.review.justification, self.concluded_review.justification
+        )
+
+        # Identity attributes
+        self.assertEqual(
+            restored.review.reviewer_identity.specialist_id,
+            self.identity.specialist_id,
+        )
+        self.assertEqual(
+            restored.review.reviewer_identity.identity_provider,
+            self.identity.identity_provider,
+        )
+        self.assertEqual(
+            restored.review.reviewer_identity.identity_subject,
+            self.identity.identity_subject,
+        )
+        self.assertEqual(
+            restored.review.reviewer_identity.verification_id,
+            self.identity.verification_id,
+        )
+        self.assertEqual(
+            restored.review.reviewer_identity.verified_at,
+            self.identity.verified_at,
+        )
+
+        # Corrections collection and items
+        self.assertEqual(
+            restored.review.corrections, self.concluded_review.corrections
+        )
+        self.assertEqual(
+            len(restored.review.corrections), len(self.corrections)
+        )
+        for original_corr, restored_corr in zip(
+            self.corrections, restored.review.corrections, strict=True
+        ):
+            self.assertEqual(restored_corr, original_corr)
+            self.assertEqual(restored_corr.field_name, original_corr.field_name)
+            self.assertEqual(restored_corr.reason, original_corr.reason)
+            self.assertEqual(
+                restored_corr.suggested_value, original_corr.suggested_value
+            )
+
+    def test_workflow_concluded_to_record_rejects_non_workflow_concluded_instance(
+        self,
+    ) -> None:
+        cases = ["not-an-event", None, 123, dict(), tuple(), self.event]
+        for invalid_input in cases:
+            with self.subTest(invalid_input=invalid_input):
+                with self.assertRaises(ValueError):
+                    workflow_concluded_to_record(invalid_input)  # type: ignore[arg-type]
 
     def test_to_record_rejects_non_workflow_opened_instance(self) -> None:
         cases = ["not-an-event", None, 123, dict(), tuple()]
