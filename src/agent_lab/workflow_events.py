@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from agent_lab.decision import DecisionRecommendation
+from agent_lab.human_review import HumanReview
 
 
 def _require_non_blank(value: str, field_name: str) -> str:
@@ -42,3 +43,24 @@ class WorkflowOpened:
             raise ValueError("recommendation must be a DecisionRecommendation")
 
         _require_aware_datetime(self.opened_at, "opened_at")
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowConcluded:
+    """Immutable domain event representing the conclusion of a governance workflow."""
+
+    event_id: str
+    workflow_id: str
+    review: HumanReview
+
+    def __post_init__(self) -> None:
+        sanitized_event_id = _require_non_blank(self.event_id, "event_id")
+        object.__setattr__(self, "event_id", sanitized_event_id)
+
+        sanitized_workflow_id = _require_non_blank(
+            self.workflow_id, "workflow_id"
+        )
+        object.__setattr__(self, "workflow_id", sanitized_workflow_id)
+
+        if not isinstance(self.review, HumanReview):
+            raise ValueError("review must be a HumanReview instance")
