@@ -12,14 +12,15 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-20
+- **Estado registrado em:** 2026-08-21
 - **Baseline integrado na main:** 206 testes aprovados
+- **Baseline validado da branch atual:** 255 testes aprovados
 - **Última entrega funcional integrada na main:** Workflow Opening Persistence v1
 - **Última Issue funcional concluída na main:** #47
 - **Último PR funcional integrado na main:** #48
 - **Último merge funcional:** `eabd659` — Merge pull request #48
 - **Última SPEC integrada:** `docs/specs/0047_workflow_opening_persistence_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
+- **Incremento funcional atual:** Workflow Conclusion Persistence v1 — Issue #52 — SPEC 0052 — implementação concluída na branch, aguardando integração
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -39,7 +40,7 @@ O Agent Lab Pascoal é um sistema experimental de engenharia para governança de
 - evidências auditáveis;
 - recomendações de decisão;
 - revisão humana obrigatória;
-- ciclo de vida temporal de governança em memória com persistência append-only de abertura e reidratação;
+- ciclo de vida temporal de governança com persistência append-only de abertura e conclusão e projeção determinística após restart para PENDING_HUMAN_REVIEW ou REVIEWED;
 - trilha de auditoria append-only desacoplada.
 
 O sistema não substitui o especialista de governança. Ele organiza evidências, detecta riscos, gerencia o ciclo temporal de revisão e produz recomendações para apoiar uma decisão humana rastreável.
@@ -49,32 +50,39 @@ O sistema não substitui o especialista de governança. Ele organiza evidências
 O projeto segue uma rigorosa separação de responsabilidades em duas trilhas persistentes complementares e desacopladas:
 
 ```text
-Decision Recommendation
+DecisionRecommendation
         ↓
 GovernanceWorkflow
         ↓
-┌────────────────────────────────────┐
-│                                    │
-│ abertura do ciclo                  │ decisão humana
-│                                    │
-▼                                    ▼
-WorkflowOpened                    HumanReview
-        ↓                            ↓
-Workflow lifecycle              AuditEvent
-serialization v1                    ↓
-        ↓                        Audit serialization v1
-Workflow lifecycle                  ↓
-repository JSONL                 Audit repository JSONL
+WorkflowOpened
         ↓
-rehydrate_pending_workflow
+Workflow lifecycle JSONL
         ↓
-GovernanceWorkflow
-(PENDING_HUMAN_REVIEW)
+rehydrate_workflow
+        ↓
+PENDING_HUMAN_REVIEW
+
+e, após decisão humana:
+
+HumanReview
+   ├── WorkflowConcluded
+   │       ↓
+   │   Workflow lifecycle JSONL
+   │       ↓
+   │   rehydrate_workflow
+   │       ↓
+   │    REVIEWED
+   │
+   └── AuditEvent
+           ↓
+       Audit JSONL
 ```
 
 Separação conceitual mandatória:
-- **`WorkflowOpened ≠ AuditEvent`**
-- **Workflow lifecycle persistence (`WorkflowOpened`):** preserva os fatos do ciclo temporal de governança operacional e viabiliza a reidratação determinística de workflows pendentes após reinicialização do processo;
+- **`WorkflowLifecycleEvent ≠ AuditEvent`**
+- **`Repository ≠ Projection`**
+- **`DecisionRecommendation ≠ HumanReview`**
+- **Workflow lifecycle persistence (`WorkflowOpened`, `WorkflowConcluded`):** preserva os fatos do ciclo temporal de governança operacional e viabiliza a reidratação determinística de workflows nos estados `PENDING_HUMAN_REVIEW` e `REVIEWED` após reinicialização do processo;
 - **Audit persistence (`AuditEvent`):** preserva a evidência imutável da deliberação do especialista humano pós-decisão;
 - Não fundir as duas responsabilidades em uma mesma entidade ou repositório.
 
@@ -137,29 +145,38 @@ O sistema já representa e valida:
 - leitura *fail-closed* com identificação precisa de `line_number` em caso de corrupção;
 - bloqueio de `event_id` duplicado (`DuplicateWorkflowEventError`) e bloqueio de segunda abertura para o mesmo `workflow_id` (`WorkflowAlreadyOpenedError`);
 - projeção pura `rehydrate_pending_workflow` reconstituindo fielmente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` sem reexecução de regras ou LLM;
-- conclusão de workflow reidratado via `conclude_governance_workflow` com validação de ciclo completo.
+- conclusão de workflow reidratado via `conclude_governance_workflow` com validação de ciclo completo;
+- **Incremento atual da branch (`feat/52-workflow-conclusion-persistence-v1`):**
+  - evento de domínio imutável `WorkflowConcluded` com `event_id`, `workflow_id` e `review: HumanReview`;
+  - type alias `WorkflowLifecycleEvent = WorkflowOpened | WorkflowConcluded`;
+  - serialização versionada de lifecycle (`schema_version = 1`) com discriminador explícito `event_type = "WORKFLOW_CONCLUDED"` e round-trip integral de `HumanReview`;
+  - dispatcher de ciclo de vida fail-closed (`workflow_event_to_record` / `workflow_event_from_record`) com preservação estrita da compatibilidade de `WorkflowOpened` legado (ausência da chave `event_type`);
+  - repositório `JsonlWorkflowLifecycleRepository` misto suportando `append_concluded`, `get_events_by_workflow_id` e `list_all_events`;
+  - bloqueio de conclusão sem abertura prévia (`WorkflowNotOpenedError`), bloqueio de segunda conclusão (`WorkflowAlreadyConcludedError`) e unicidade global de `event_id` (`DuplicateWorkflowEventError`);
+  - validação estrita de consistência de material (`concluded.review.material_id == opened.recommendation.material_id`), parecer (`concluded.review.system_recommendation == opened.recommendation.decision`) e temporalidade (`opened.opened_at <= concluded.review.reviewed_at`);
+  - projeção pura `rehydrate_workflow` reconstruindo deterministicamente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` (se contiver apenas `WorkflowOpened`) ou `REVIEWED` (se contiver `WorkflowOpened` seguido de `WorkflowConcluded`), mantendo `closed_at` e `review_lead_time` derivados pelas regras de domínio;
+  - teste de integração ponta a ponta validando persistência e reconstrução de workflow revisado através de dois restarts de processo.
 
 ### 4.3 Limite atual
 
-A versão atual possui:
+O estado atual da branch possui:
 
-- apenas o fato de **abertura** (`WorkflowOpened`) possui persistência de lifecycle implementada;
-- `WorkflowConcluded` ainda não existe;
-- `HumanReview` não possui representação completa serializada no repositório de lifecycle;
-- o estado `REVIEWED` ainda não pode ser reconstituído a partir do log de lifecycle (somente o estado `PENDING_HUMAN_REVIEW` sobrevive a restart);
-- `closed_at` não é persistido no lifecycle log;
-- `review_lead_time` continua derivado em memória no domínio;
+- persistência append-only de abertura e conclusão de ciclo de vida operacional (`WorkflowOpened` e `WorkflowConcluded`);
+- dual-write entre `AuditEvent` e `WorkflowConcluded` não é atômico (escritas independentes em arquivos JSONL distintos sem transação coordenada ou mecanismo de reconciliação automática na v1);
+- `closed_at` e `review_lead_time` não são persistidos de forma redundante, permanecendo derivados em memória no domínio;
 - múltiplos ciclos de workflow e reabertura após correção permanecem fora do escopo;
 - execução síncrona/monoprocesso;
+- ausência de locking multiprocesso;
 - ausência de autenticação e autorização real (RBAC);
 - ausência de filas e SLAs operacionais;
-- ausência de integração com ERP.
+- ausência de integração com ERP;
+- ausência de banco de dados relacional ou transacional.
 
 ### 4.4 Próxima âncora
 
-Próxima âncora arquitetural: a definir após análise explícita da limitação atual.
+Incremento atual: Workflow Conclusion Persistence v1 — Issue #52 — implementação concluída na branch, aguardando integração.
 
-A evolução para persistência do fechamento de ciclo (`WorkflowConcluded`) constitui uma extensão natural futura, mas permanece explicitamente fora do escopo atual até definição em nova Issue.
+Próxima âncora arquitetural: a definir somente após integração da Issue #52.
 
 Sequência evolutiva recomendada:
 
@@ -169,8 +186,8 @@ Contrato
   → Identidade verificável
   → Workflow temporal
   → Persistência de abertura de workflow (concluída na #47)
-  → Persistência de conclusão de workflow
-  → Integração ERP
+  → Persistência de conclusão de workflow (implementada na #52, aguardando integração)
+  → Integração ERP (futura)
 ```
 
 ## 5. Invariantes constitucionais
@@ -293,10 +310,15 @@ src/agent_lab/workflow_repository.py
 Contratos principais:
 
 - `WorkflowOpened`: evento de domínio imutável da abertura do ciclo;
+- `WorkflowConcluded`: evento de domínio imutável da conclusão do ciclo com `HumanReview`;
+- `WorkflowLifecycleEvent`: TypeAlias unindo `WorkflowOpened | WorkflowConcluded`;
 - `rehydrate_pending_workflow`: projeção pura reconstruindo `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW`;
-- `workflow_opened_to_record` / `workflow_opened_from_record`: serialização versionada (`schema_version = 1`);
-- `WorkflowLifecycleRepository` (Protocol) / `JsonlWorkflowLifecycleRepository`: repositório append-only em JSONL com escrita durável (`os.fsync`) e leitura *fail-closed*;
-- `WorkflowPersistenceError`, `DuplicateWorkflowEventError`, `WorkflowAlreadyOpenedError`, `WorkflowCorruptionError`.
+- `rehydrate_workflow`: projeção pura reconstruindo `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` ou `REVIEWED` a partir do histórico;
+- `workflow_opened_to_record` / `workflow_opened_from_record`: serialização versionada de abertura (`schema_version = 1`);
+- `workflow_concluded_to_record` / `workflow_concluded_from_record`: serialização versionada de conclusão com `HumanReview` completo;
+- `workflow_event_to_record` / `workflow_event_from_record`: dispatcher polimórfico de ciclo de vida com fail-closed estrito;
+- `WorkflowLifecycleRepository` (Protocol) / `JsonlWorkflowLifecycleRepository`: repositório append-only em JSONL com escrita durável (`os.fsync`), leitura *fail-closed* e operações de persistência e consulta (`append_opened`, `append_concluded`, `get_opened_by_id`, `get_opened_by_workflow_id`, `list_opened_by_material`, `list_all_opened`, `get_events_by_workflow_id`, `list_all_events`);
+- `WorkflowPersistenceError`, `DuplicateWorkflowEventError`, `WorkflowAlreadyOpenedError`, `WorkflowAlreadyConcludedError`, `WorkflowNotOpenedError`, `WorkflowCorruptionError`.
 
 ### 6.6 Auditoria
 
@@ -359,6 +381,15 @@ OK
 ```
 
 Incremento da Issue #47: +54 testes sobre o baseline anterior de 152.
+
+Baseline validado da branch `feat/52-workflow-conclusion-persistence-v1`:
+
+```text
+Ran 255 tests
+OK
+```
+
+Incremento da Issue #52: +49 testes sobre o baseline de entrada de 206.
 
 Não assumir `pytest`.
 
@@ -531,13 +562,13 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 
 ## 13. Decisões deliberadamente adiadas
 
-- persistência de fechamento de ciclo (`WorkflowConcluded`);
-- reconstrução do estado `REVIEWED` a partir do lifecycle log;
 - múltiplos ciclos de workflow ou reabertura após solicitação de correção;
-- persistência em banco de dados;
+- atomicidade transacional e reconciliação automática entre trilha de auditoria e trilha de lifecycle;
+- persistência em banco de dados relacional ou transacional;
 - proteção física ou criptográfica contra adulteração do histórico;
 - event sourcing completo;
-- autenticação e autorização;
+- concorrência multiprocesso e distributed locking;
+- autenticação e autorização real (RBAC);
 - papéis e segregação de funções;
 - taxonomia completa de motivos;
 - filas e SLAs;
@@ -617,29 +648,26 @@ v0.1.0 — Governed Agent Workflow Baseline (publicada / Latest | tag v0.1.0 | c
 Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
-Arquitetura atual:
-Regras + LLM estruturada + evidências + recomendação + identidade verificável
-+ decisão humana + workflow temporal + persistência append-only de WorkflowOpened
-+ reidratação de workflow pendente + auditoria append-only desacoplada.
+MAIN INTEGRADA:
+- Baseline integrado na main: 206 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #47 | Workflow Opening Persistence v1 | PR #48 (merge eabd659).
+- Último PR funcional integrado: PR #48.
 
-Autoridade:
-A IA recomenda; o humano decide.
-
-Baseline:
-206 testes | unittest | Python 3.11.
-
-Última entrega funcional integrada na main:
-Issue #47 | Workflow Opening Persistence v1 | PR #48 (merge eabd659).
-
-Incremento funcional atual:
-Nenhum incremento funcional aberto.
-
-Limite atual:
-Abertura de workflow sobrevive a restart; conclusão/REVIEWED continua sem
-reconstrução integral de lifecycle; sem autenticação/autorização real, filas, SLAs ou ERP.
+BRANCH ATUAL (feat/52-workflow-conclusion-persistence-v1):
+- Incremento funcional: Workflow Conclusion Persistence v1 — Issue #52 — SPEC 0052 Implementada.
+- Status: implementação concluída na branch, aguardando integração.
+- Baseline validado na branch: 255 testes GREEN.
+- Arquitetura: Regras + LLM estruturada + evidências + recomendação + identidade verificável
+  + decisão humana + workflow temporal + persistência append-only de WorkflowOpened e WorkflowConcluded
+  + projeção pura rehydrate_workflow (reconstruindo PENDING_HUMAN_REVIEW e REVIEWED após restarts)
+  + auditoria append-only desacoplada.
+- Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview.
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional.
+- Limites atuais: Dual-write AuditEvent/WorkflowConcluded não é atômico (sem reconciliação automática na v1);
+  sem múltiplos ciclos/reopen, locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 Próxima âncora:
-A definir por nova análise/Issue (WorkflowConcluded permanece extensão futura candidata).
+A definir somente após integração da Issue #52.
 
 Comando oficial:
 python -m unittest discover -s tests -v

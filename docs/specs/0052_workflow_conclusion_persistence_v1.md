@@ -10,7 +10,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0052` |
-| Status | `Proposta` |
+| Status | `Implementada` |
 | Issue relacionada | `#52` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-21` |
@@ -866,20 +866,20 @@ Em caso de necessidade de reversão:
 
 ## 15. Critérios de aceite
 
-- [ ] Contrato mínimo `WorkflowConcluded` implementado como dataclass imutável (`frozen=True`, `slots=True`) em `src/agent_lab/workflow_events.py` contendo apenas `event_id`, `workflow_id` e `review`;
-- [ ] Type alias `WorkflowLifecycleEvent` definido em `src/agent_lab/workflow_events.py`;
-- [ ] Serialização versionada `schema_version = 1` implementada em `src/agent_lab/workflow_serialization.py` garantindo round-trip integral de `HumanReview` (incluindo `VerifiedSpecialistIdentity`, `justification` e `CorrectionRequest`);
-- [ ] Registros legados `WorkflowOpened` com ausência da chave `"event_type"` são a única representação válida de abertura e `WorkflowConcluded` grava `"event_type": "WORKFLOW_CONCLUDED"`, falhando *fail-closed* diante de qualquer chave `"event_type"` presente inválida (incluindo `None` e `"WORKFLOW_OPENED"`);
-- [ ] Exceções `WorkflowNotOpenedError` e `WorkflowAlreadyConcludedError` implementadas em `src/agent_lab/workflow_repository.py`;
-- [ ] Repositório `JsonlWorkflowLifecycleRepository` estendido exclusivamente com os métodos `append_concluded`, `get_events_by_workflow_id` e `list_all_events`;
-- [ ] Gravação de `WorkflowConcluded` realiza `flush` e `os.fsync` (escrita durável);
-- [ ] `append_concluded` rejeita conclusão sem abertura (`WorkflowNotOpenedError`), dupla conclusão (`WorkflowAlreadyConcludedError`), `event_id` duplicado (`DuplicateWorkflowEventError`), descompasso de material, descompasso de recomendação e inversão cronológica (`opened.opened_at <= review.reviewed_at`);
-- [ ] Funções puras `rehydrate_reviewed_workflow` e `rehydrate_workflow` implementadas em `src/agent_lab/workflow_projection.py`;
-- [ ] Reidratação de workflow concluído produz `GovernanceWorkflow` com status `REVIEWED`, `closed_at` e `review_lead_time` derivados e dados intactos sem reexecutar regras ou LLM;
-- [ ] Módulos de auditoria (`audit.py`, `audit_serialization.py`, `audit_repository.py`) e recomendação (`decision.py`) permanecem 100% inalterados;
-- [ ] Testes unitários e de integração (cobrindo um único ciclo completo com 2 restarts) implementados com `unittest`;
-- [ ] Suíte completa de testes (206 anteriores + novos testes da Issue #52) passa integralmente via `python -m unittest discover -s tests -v`;
-- [ ] Nenhum erro em `git diff --check`.
+- [x] Contrato mínimo `WorkflowConcluded` implementado como dataclass imutável (`frozen=True`, `slots=True`) em `src/agent_lab/workflow_events.py` contendo apenas `event_id`, `workflow_id` e `review`;
+- [x] Type alias `WorkflowLifecycleEvent` definido em `src/agent_lab/workflow_events.py`;
+- [x] Serialização versionada `schema_version = 1` implementada em `src/agent_lab/workflow_serialization.py` garantindo round-trip integral de `HumanReview` (incluindo `VerifiedSpecialistIdentity`, `justification` e `CorrectionRequest`);
+- [x] Registros legados `WorkflowOpened` com ausência da chave `"event_type"` são a única representação válida de abertura e `WorkflowConcluded` grava `"event_type": "WORKFLOW_CONCLUDED"`, falhando *fail-closed* diante de qualquer chave `"event_type"` presente inválida (incluindo `None` e `"WORKFLOW_OPENED"`);
+- [x] Exceções `WorkflowNotOpenedError` e `WorkflowAlreadyConcludedError` implementadas em `src/agent_lab/workflow_repository.py`;
+- [x] Repositório `JsonlWorkflowLifecycleRepository` estendido exclusivamente com os métodos `append_concluded`, `get_events_by_workflow_id` e `list_all_events`;
+- [x] Gravação de `WorkflowConcluded` realiza `flush` e `os.fsync` (escrita durável);
+- [x] `append_concluded` rejeita conclusão sem abertura (`WorkflowNotOpenedError`), dupla conclusão (`WorkflowAlreadyConcludedError`), `event_id` duplicado (`DuplicateWorkflowEventError`), descompasso de material, descompasso de recomendação e inversão cronológica (`opened.opened_at <= review.reviewed_at`);
+- [x] API legada `rehydrate_pending_workflow` preservada e função pura `rehydrate_workflow` implementada em `src/agent_lab/workflow_projection.py`, projetando `WorkflowOpened` para `PENDING_HUMAN_REVIEW` e `WorkflowOpened + WorkflowConcluded` para `REVIEWED`;
+- [x] Reidratação de workflow concluído produz `GovernanceWorkflow` com status `REVIEWED`, `closed_at` e `review_lead_time` derivados e dados intactos sem reexecutar regras ou LLM;
+- [x] Módulos de auditoria (`audit.py`, `audit_serialization.py`, `audit_repository.py`) e recomendação (`decision.py`) permanecem 100% inalterados;
+- [x] Testes unitários e de integração (cobrindo um único ciclo completo com 2 restarts) implementados com `unittest`;
+- [x] Suíte completa de testes (206 anteriores + novos testes da Issue #52) passa integralmente via `python -m unittest discover -s tests -v` (255/255 testes GREEN);
+- [x] Nenhum erro em `git diff --check`.
 
 ---
 
