@@ -5,9 +5,14 @@ import os
 from pathlib import Path
 from typing import Protocol
 
-from agent_lab.workflow_events import WorkflowOpened
+from agent_lab.workflow_events import (
+    WorkflowConcluded,
+    WorkflowLifecycleEvent,
+    WorkflowOpened,
+)
 from agent_lab.workflow_serialization import (
-    workflow_opened_from_record,
+    workflow_concluded_to_record,
+    workflow_event_from_record,
     workflow_opened_to_record,
 )
 
@@ -24,6 +29,14 @@ class WorkflowAlreadyOpenedError(WorkflowPersistenceError):
     """Raised when a second WorkflowOpened uses the same workflow_id."""
 
 
+class WorkflowAlreadyConcludedError(WorkflowPersistenceError):
+    """Raised when a workflow already has a conclusion event."""
+
+
+class WorkflowNotOpenedError(WorkflowPersistenceError):
+    """Raised when concluding a workflow that has not been opened."""
+
+
 class WorkflowCorruptionError(WorkflowPersistenceError):
     """Raised when persisted lifecycle history is corrupted."""
 
@@ -36,6 +49,7 @@ class WorkflowLifecycleRepository(Protocol):
     """Protocol defining the repository contract for workflow lifecycle events."""
 
     def append_opened(self, event: WorkflowOpened) -> None: ...
+    def append_concluded(self, event: WorkflowConcluded) -> None: ...
     def get_opened_by_id(self, event_id: str) -> WorkflowOpened | None: ...
     def get_opened_by_workflow_id(
         self, workflow_id: str
@@ -44,6 +58,10 @@ class WorkflowLifecycleRepository(Protocol):
         self, material_id: str
     ) -> tuple[WorkflowOpened, ...]: ...
     def list_all_opened(self) -> tuple[WorkflowOpened, ...]: ...
+    def get_events_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[WorkflowLifecycleEvent, ...]: ...
+    def list_all_events(self) -> tuple[WorkflowLifecycleEvent, ...]: ...
 
 
 class JsonlWorkflowLifecycleRepository:
@@ -56,7 +74,7 @@ class JsonlWorkflowLifecycleRepository:
     def path(self) -> Path:
         return self._path
 
-    def _read_all(self) -> list[WorkflowOpened]:
+    def _read_all(self) -> list[WorkflowLifecycleEvent]:
         if not self._path.exists():
             return []
 
@@ -68,7 +86,7 @@ class JsonlWorkflowLifecycleRepository:
                 f"Failed to read workflow file: {self._path}"
             ) from exc
 
-        events: list[WorkflowOpened] = []
+        events: list[WorkflowLifecycleEvent] = []
         for line_idx, raw_line in enumerate(lines, start=1):
             line = raw_line.strip()
             if not line:
@@ -92,7 +110,7 @@ class JsonlWorkflowLifecycleRepository:
                 )
 
             try:
-                event = workflow_opened_from_record(record)
+                event = workflow_event_from_record(record)
             except ValueError as exc:
                 raise WorkflowCorruptionError(
                     f"Invalid workflow record at line {line_idx}: {exc}",
@@ -115,7 +133,10 @@ class JsonlWorkflowLifecycleRepository:
                 raise DuplicateWorkflowEventError(
                     f"WorkflowOpened event with event_id '{event.event_id}' already exists in {self._path}"
                 )
-            if existing.workflow_id == event.workflow_id:
+            if (
+                isinstance(existing, WorkflowOpened)
+                and existing.workflow_id == event.workflow_id
+            ):
                 raise WorkflowAlreadyOpenedError(
                     f"Workflow with workflow_id '{event.workflow_id}' has already been opened in {self._path}"
                 )
@@ -139,6 +160,86 @@ class JsonlWorkflowLifecycleRepository:
                 f"Failed to append workflow event to file {self._path}"
             ) from exc
 
+    def append_concluded(self, event: WorkflowConcluded) -> None:
+        if not isinstance(event, WorkflowConcluded):
+            raise ValueError(
+                f"Expected WorkflowConcluded instance, got {type(event).__name__}"
+            )
+
+        existing_events = self._read_all()
+
+        for existing in existing_events:
+            if existing.event_id == event.event_id:
+                raise DuplicateWorkflowEventError(
+                    f"Workflow event with event_id '{event.event_id}' already exists in {self._path}"
+                )
+
+        opened_event: WorkflowOpened | None = None
+        for existing in existing_events:
+            if (
+                isinstance(existing, WorkflowOpened)
+                and existing.workflow_id == event.workflow_id
+            ):
+                opened_event = existing
+                break
+
+        if opened_event is None:
+            raise WorkflowNotOpenedError(
+                f"Workflow with workflow_id '{event.workflow_id}' has not been opened in {self._path}"
+            )
+
+        for existing in existing_events:
+            if (
+                isinstance(existing, WorkflowConcluded)
+                and existing.workflow_id == event.workflow_id
+            ):
+                raise WorkflowAlreadyConcludedError(
+                    f"Workflow with workflow_id '{event.workflow_id}' has already been concluded in {self._path}"
+                )
+
+        if event.review.material_id != opened_event.recommendation.material_id:
+            raise WorkflowPersistenceError(
+                f"Material ID mismatch in workflow '{event.workflow_id}': "
+                f"opened material_id '{opened_event.recommendation.material_id}' != "
+                f"conclusion material_id '{event.review.material_id}'"
+            )
+
+        if (
+            event.review.system_recommendation
+            != opened_event.recommendation.decision
+        ):
+            raise WorkflowPersistenceError(
+                f"System recommendation mismatch in workflow '{event.workflow_id}': "
+                f"opened decision '{opened_event.recommendation.decision.value}' != "
+                f"conclusion system_recommendation '{event.review.system_recommendation.value}'"
+            )
+
+        if event.review.reviewed_at < opened_event.opened_at:
+            raise WorkflowPersistenceError(
+                f"Temporal inconsistency in workflow '{event.workflow_id}': "
+                f"conclusion reviewed_at '{event.review.reviewed_at.isoformat()}' is before "
+                f"opened_at '{opened_event.opened_at.isoformat()}'"
+            )
+
+        record = workflow_concluded_to_record(event)
+        try:
+            line = json.dumps(record, sort_keys=True)
+        except (TypeError, ValueError) as exc:
+            raise WorkflowPersistenceError(
+                f"Failed to serialize workflow conclusion event {event.event_id} to JSON"
+            ) from exc
+
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._path, "a", encoding="utf-8") as file:
+                file.write(f"{line}\n")
+                file.flush()
+                os.fsync(file.fileno())
+        except OSError as exc:
+            raise WorkflowPersistenceError(
+                f"Failed to append workflow conclusion event to file {self._path}"
+            ) from exc
+
     def get_opened_by_id(self, event_id: str) -> WorkflowOpened | None:
         if not isinstance(event_id, str):
             raise ValueError(
@@ -146,7 +247,7 @@ class JsonlWorkflowLifecycleRepository:
             )
 
         for event in self._read_all():
-            if event.event_id == event_id:
+            if isinstance(event, WorkflowOpened) and event.event_id == event_id:
                 return event
         return None
 
@@ -159,7 +260,10 @@ class JsonlWorkflowLifecycleRepository:
             )
 
         for event in self._read_all():
-            if event.workflow_id == workflow_id:
+            if (
+                isinstance(event, WorkflowOpened)
+                and event.workflow_id == workflow_id
+            ):
                 return event
         return None
 
@@ -174,8 +278,30 @@ class JsonlWorkflowLifecycleRepository:
         return tuple(
             event
             for event in self._read_all()
-            if event.recommendation.material_id == material_id
+            if isinstance(event, WorkflowOpened)
+            and event.recommendation.material_id == material_id
         )
 
     def list_all_opened(self) -> tuple[WorkflowOpened, ...]:
+        return tuple(
+            event
+            for event in self._read_all()
+            if isinstance(event, WorkflowOpened)
+        )
+
+    def get_events_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[WorkflowLifecycleEvent, ...]:
+        if not isinstance(workflow_id, str):
+            raise ValueError(
+                f"workflow_id must be a string, got {type(workflow_id).__name__}"
+            )
+
+        return tuple(
+            event
+            for event in self._read_all()
+            if event.workflow_id == workflow_id
+        )
+
+    def list_all_events(self) -> tuple[WorkflowLifecycleEvent, ...]:
         return tuple(self._read_all())
