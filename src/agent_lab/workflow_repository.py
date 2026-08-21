@@ -5,9 +5,9 @@ import os
 from pathlib import Path
 from typing import Protocol
 
-from agent_lab.workflow_events import WorkflowOpened
+from agent_lab.workflow_events import WorkflowLifecycleEvent, WorkflowOpened
 from agent_lab.workflow_serialization import (
-    workflow_opened_from_record,
+    workflow_event_from_record,
     workflow_opened_to_record,
 )
 
@@ -44,6 +44,10 @@ class WorkflowLifecycleRepository(Protocol):
         self, material_id: str
     ) -> tuple[WorkflowOpened, ...]: ...
     def list_all_opened(self) -> tuple[WorkflowOpened, ...]: ...
+    def get_events_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[WorkflowLifecycleEvent, ...]: ...
+    def list_all_events(self) -> tuple[WorkflowLifecycleEvent, ...]: ...
 
 
 class JsonlWorkflowLifecycleRepository:
@@ -56,7 +60,7 @@ class JsonlWorkflowLifecycleRepository:
     def path(self) -> Path:
         return self._path
 
-    def _read_all(self) -> list[WorkflowOpened]:
+    def _read_all(self) -> list[WorkflowLifecycleEvent]:
         if not self._path.exists():
             return []
 
@@ -68,7 +72,7 @@ class JsonlWorkflowLifecycleRepository:
                 f"Failed to read workflow file: {self._path}"
             ) from exc
 
-        events: list[WorkflowOpened] = []
+        events: list[WorkflowLifecycleEvent] = []
         for line_idx, raw_line in enumerate(lines, start=1):
             line = raw_line.strip()
             if not line:
@@ -92,7 +96,7 @@ class JsonlWorkflowLifecycleRepository:
                 )
 
             try:
-                event = workflow_opened_from_record(record)
+                event = workflow_event_from_record(record)
             except ValueError as exc:
                 raise WorkflowCorruptionError(
                     f"Invalid workflow record at line {line_idx}: {exc}",
@@ -115,7 +119,10 @@ class JsonlWorkflowLifecycleRepository:
                 raise DuplicateWorkflowEventError(
                     f"WorkflowOpened event with event_id '{event.event_id}' already exists in {self._path}"
                 )
-            if existing.workflow_id == event.workflow_id:
+            if (
+                isinstance(existing, WorkflowOpened)
+                and existing.workflow_id == event.workflow_id
+            ):
                 raise WorkflowAlreadyOpenedError(
                     f"Workflow with workflow_id '{event.workflow_id}' has already been opened in {self._path}"
                 )
@@ -146,7 +153,7 @@ class JsonlWorkflowLifecycleRepository:
             )
 
         for event in self._read_all():
-            if event.event_id == event_id:
+            if isinstance(event, WorkflowOpened) and event.event_id == event_id:
                 return event
         return None
 
@@ -159,7 +166,10 @@ class JsonlWorkflowLifecycleRepository:
             )
 
         for event in self._read_all():
-            if event.workflow_id == workflow_id:
+            if (
+                isinstance(event, WorkflowOpened)
+                and event.workflow_id == workflow_id
+            ):
                 return event
         return None
 
@@ -174,8 +184,30 @@ class JsonlWorkflowLifecycleRepository:
         return tuple(
             event
             for event in self._read_all()
-            if event.recommendation.material_id == material_id
+            if isinstance(event, WorkflowOpened)
+            and event.recommendation.material_id == material_id
         )
 
     def list_all_opened(self) -> tuple[WorkflowOpened, ...]:
+        return tuple(
+            event
+            for event in self._read_all()
+            if isinstance(event, WorkflowOpened)
+        )
+
+    def get_events_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[WorkflowLifecycleEvent, ...]:
+        if not isinstance(workflow_id, str):
+            raise ValueError(
+                f"workflow_id must be a string, got {type(workflow_id).__name__}"
+            )
+
+        return tuple(
+            event
+            for event in self._read_all()
+            if event.workflow_id == workflow_id
+        )
+
+    def list_all_events(self) -> tuple[WorkflowLifecycleEvent, ...]:
         return tuple(self._read_all())
