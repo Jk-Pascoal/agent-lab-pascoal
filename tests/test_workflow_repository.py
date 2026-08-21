@@ -19,9 +19,11 @@ from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
 from agent_lab.workflow_repository import (
     DuplicateWorkflowEventError,
     JsonlWorkflowLifecycleRepository,
+    WorkflowAlreadyConcludedError,
     WorkflowAlreadyOpenedError,
     WorkflowCorruptionError,
     WorkflowLifecycleRepository,
+    WorkflowNotOpenedError,
     WorkflowPersistenceError,
 )
 from agent_lab.workflow_serialization import (
@@ -294,6 +296,160 @@ class JsonlWorkflowLifecycleRepositoryTests(unittest.TestCase):
         self.assertEqual(record["recommendation"]["decision"], "REVIEW")
         self.assertIs(record["recommendation"]["requires_human_decision"], True)
 
+    def test_append_concluded_persists_event_after_existing_opening(
+        self,
+    ) -> None:
+        opened = self.build_event()
+        concluded = self.build_concluded_event()
+
+        self.repository.append_opened(opened)
+        self.repository.append_concluded(concluded)
+
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
+
+        record_opened = json.loads(lines[0])
+        record_concluded = json.loads(lines[1])
+
+        self.assertEqual(record_opened, workflow_event_to_record(opened))
+        self.assertEqual(record_concluded, workflow_event_to_record(concluded))
+        self.assertEqual(record_concluded["event_type"], "WORKFLOW_CONCLUDED")
+
+    def test_append_concluded_survives_repository_restart(self) -> None:
+        opened = self.build_event()
+        concluded = self.build_concluded_event()
+
+        self.repository.append_opened(opened)
+        self.repository.append_concluded(concluded)
+
+        reopened = JsonlWorkflowLifecycleRepository(self.file_path)
+        self.assertEqual(
+            reopened.get_events_by_workflow_id(opened.workflow_id),
+            (opened, concluded),
+        )
+        self.assertEqual(
+            reopened.list_all_events(),
+            (opened, concluded),
+        )
+
+    def test_append_concluded_rejects_non_workflow_concluded_instance(
+        self,
+    ) -> None:
+        opened = self.build_event()
+        cases = ["not-an-event", None, 123, {}, (), opened]
+        for invalid_input in cases:
+            with self.subTest(invalid_input=invalid_input):
+                with self.assertRaises(ValueError):
+                    self.repository.append_concluded(invalid_input)  # type: ignore[arg-type]
+
+    def test_append_concluded_rejects_workflow_without_opening(self) -> None:
+        concluded = self.build_concluded_event()
+
+        with self.assertRaises(WorkflowNotOpenedError):
+            self.repository.append_concluded(concluded)
+
+        self.assertFalse(self.file_path.exists())
+
+    def test_append_concluded_rejects_second_conclusion(self) -> None:
+        opened = self.build_event(workflow_id="wf-001")
+        concluded_1 = self.build_concluded_event(
+            event_id="evt-conc-001",
+            workflow_id="wf-001",
+        )
+        concluded_2 = self.build_concluded_event(
+            event_id="evt-conc-002",
+            workflow_id="wf-001",
+        )
+
+        self.repository.append_opened(opened)
+        self.repository.append_concluded(concluded_1)
+
+        with self.assertRaises(WorkflowAlreadyConcludedError):
+            self.repository.append_concluded(concluded_2)
+
+        self.assertEqual(
+            self.repository.list_all_events(),
+            (opened, concluded_1),
+        )
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
+
+    def test_append_concluded_rejects_duplicate_event_id_used_by_opening(
+        self,
+    ) -> None:
+        opened = self.build_event(
+            event_id="evt-shared-001",
+            workflow_id="wf-001",
+        )
+        concluded = self.build_concluded_event(
+            event_id="evt-shared-001",
+            workflow_id="wf-001",
+        )
+
+        self.repository.append_opened(opened)
+
+        with self.assertRaises(DuplicateWorkflowEventError):
+            self.repository.append_concluded(concluded)
+
+        self.assertEqual(
+            self.repository.list_all_events(),
+            (opened,),
+        )
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+
+    def test_append_concluded_rejects_duplicate_event_id_used_by_other_conclusion(
+        self,
+    ) -> None:
+        opened_1 = self.build_event(
+            event_id="evt-open-001",
+            workflow_id="wf-001",
+            material_id="MAT-001",
+        )
+        concluded_1 = self.build_concluded_event(
+            event_id="evt-conclusion-shared",
+            workflow_id="wf-001",
+            material_id="MAT-001",
+        )
+        opened_2 = self.build_event(
+            event_id="evt-open-002",
+            workflow_id="wf-002",
+            material_id="MAT-002",
+        )
+        concluded_2 = self.build_concluded_event(
+            event_id="evt-conclusion-shared",
+            workflow_id="wf-002",
+            material_id="MAT-002",
+        )
+
+        self.repository.append_opened(opened_1)
+        self.repository.append_concluded(concluded_1)
+        self.repository.append_opened(opened_2)
+
+        with self.assertRaises(DuplicateWorkflowEventError):
+            self.repository.append_concluded(concluded_2)
+
+        self.assertEqual(
+            self.repository.list_all_events(),
+            (opened_1, concluded_1, opened_2),
+        )
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 3)
+
+    @patch("agent_lab.workflow_repository.os.fsync")
+    def test_append_concluded_calls_fsync(self, mock_fsync) -> None:
+        opened = self.build_event()
+        concluded = self.build_concluded_event()
+
+        self.repository.append_opened(opened)
+        mock_fsync.reset_mock()
+
+        self.repository.append_concluded(concluded)
+
+        mock_fsync.assert_called_once()
+        file_descriptor = mock_fsync.call_args[0][0]
+        self.assertIsInstance(file_descriptor, int)
+
     def test_new_repository_instance_recovers_persisted_event(self) -> None:
         event = self.build_event()
         self.repository.append_opened(event)
@@ -425,6 +581,12 @@ class JsonlWorkflowLifecycleRepositoryTests(unittest.TestCase):
         )
         self.assertTrue(
             issubclass(WorkflowAlreadyOpenedError, WorkflowPersistenceError)
+        )
+        self.assertTrue(
+            issubclass(WorkflowAlreadyConcludedError, WorkflowPersistenceError)
+        )
+        self.assertTrue(
+            issubclass(WorkflowNotOpenedError, WorkflowPersistenceError)
         )
         self.assertTrue(
             issubclass(WorkflowCorruptionError, WorkflowPersistenceError)
