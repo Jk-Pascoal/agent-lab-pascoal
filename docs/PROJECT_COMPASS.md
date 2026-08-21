@@ -13,14 +13,13 @@
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
 - **Estado registrado em:** 2026-08-21
-- **Baseline integrado na main:** 206 testes aprovados
-- **Baseline validado da branch atual:** 255 testes aprovados
-- **Última entrega funcional integrada na main:** Workflow Opening Persistence v1
-- **Última Issue funcional concluída na main:** #47
-- **Último PR funcional integrado na main:** #48
-- **Último merge funcional:** `eabd659` — Merge pull request #48
-- **Última SPEC integrada:** `docs/specs/0047_workflow_opening_persistence_v1.md`
-- **Incremento funcional atual:** Workflow Conclusion Persistence v1 — Issue #52 — SPEC 0052 — implementação concluída na branch, aguardando integração
+- **Baseline integrado na main:** 255 testes aprovados
+- **Última entrega funcional integrada na main:** Workflow Conclusion Persistence v1
+- **Última Issue funcional concluída na main:** #52
+- **Último PR funcional integrado na main:** #53
+- **Último merge funcional:** `486835b` — Merge pull request #53
+- **Última SPEC integrada:** `docs/specs/0052_workflow_conclusion_persistence_v1.md`
+- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -146,7 +145,7 @@ O sistema já representa e valida:
 - bloqueio de `event_id` duplicado (`DuplicateWorkflowEventError`) e bloqueio de segunda abertura para o mesmo `workflow_id` (`WorkflowAlreadyOpenedError`);
 - projeção pura `rehydrate_pending_workflow` reconstituindo fielmente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` sem reexecução de regras ou LLM;
 - conclusão de workflow reidratado via `conclude_governance_workflow` com validação de ciclo completo;
-- **Incremento atual da branch (`feat/52-workflow-conclusion-persistence-v1`):**
+- **Incremento integrado da Issue #52 (Workflow Conclusion Persistence v1):**
   - evento de domínio imutável `WorkflowConcluded` com `event_id`, `workflow_id` e `review: HumanReview`;
   - type alias `WorkflowLifecycleEvent = WorkflowOpened | WorkflowConcluded`;
   - serialização versionada de lifecycle (`schema_version = 1`) com discriminador explícito `event_type = "WORKFLOW_CONCLUDED"` e round-trip integral de `HumanReview`;
@@ -159,7 +158,7 @@ O sistema já representa e valida:
 
 ### 4.3 Limite atual
 
-O estado atual da branch possui:
+A versão atual integrada possui:
 
 - persistência append-only de abertura e conclusão de ciclo de vida operacional (`WorkflowOpened` e `WorkflowConcluded`);
 - dual-write entre `AuditEvent` e `WorkflowConcluded` não é atômico (escritas independentes em arquivos JSONL distintos sem transação coordenada ou mecanismo de reconciliação automática na v1);
@@ -174,9 +173,9 @@ O estado atual da branch possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: Workflow Conclusion Persistence v1 — Issue #52 — implementação concluída na branch, aguardando integração.
+Incremento atual: nenhum incremento funcional aberto — Issue #52 concluída e integrada.
 
-Próxima âncora arquitetural: a definir somente após integração da Issue #52.
+Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
 Sequência evolutiva recomendada:
 
@@ -186,7 +185,7 @@ Contrato
   → Identidade verificável
   → Workflow temporal
   → Persistência de abertura de workflow (concluída na #47)
-  → Persistência de conclusão de workflow (implementada na #52, aguardando integração)
+  → Persistência de conclusão de workflow (concluída na #52)
   → Integração ERP (futura)
 ```
 
@@ -376,20 +375,15 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 206 tests
-OK
-```
-
-Incremento da Issue #47: +54 testes sobre o baseline anterior de 152.
-
-Baseline validado da branch `feat/52-workflow-conclusion-persistence-v1`:
-
-```text
 Ran 255 tests
 OK
 ```
 
-Incremento da Issue #52: +49 testes sobre o baseline de entrada de 206.
+Histórico de baselines integrados:
+- Baseline inicial / release v0.1.0: 206 testes
+- Incremento da Issue #47: +54 testes sobre o baseline anterior de 152
+- Incremento da Issue #52: +49 testes sobre o baseline de entrada de 206
+- Baseline integrado após a Issue #52: 255 testes
 
 Não assumir `pytest`.
 
@@ -649,25 +643,25 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 206 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #47 | Workflow Opening Persistence v1 | PR #48 (merge eabd659).
-- Último PR funcional integrado: PR #48.
-
-BRANCH ATUAL (feat/52-workflow-conclusion-persistence-v1):
-- Incremento funcional: Workflow Conclusion Persistence v1 — Issue #52 — SPEC 0052 Implementada.
-- Status: implementação concluída na branch, aguardando integração.
-- Baseline validado na branch: 255 testes GREEN.
-- Arquitetura: Regras + LLM estruturada + evidências + recomendação + identidade verificável
+- Baseline integrado na main: 255 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #52 | Workflow Conclusion Persistence v1 | PR #53 (merge 486835b).
+- Última SPEC integrada: docs/specs/0052_workflow_conclusion_persistence_v1.md.
+- Último PR funcional integrado: PR #53.
+- Último merge funcional: 486835b.
+- Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened e WorkflowConcluded
-  + projeção pura rehydrate_workflow (reconstruindo PENDING_HUMAN_REVIEW e REVIEWED após restarts)
+  + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts)
   + auditoria append-only desacoplada.
 - Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview.
 - Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded não é atômico (sem reconciliação automática na v1);
   sem múltiplos ciclos/reopen, locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
-Próxima âncora:
-A definir somente após integração da Issue #52.
+INCREMENTO ATUAL:
+- Nenhum incremento funcional aberto — Issue #52 concluída e integrada.
+
+PRÓXIMA ÂNCORA:
+- Ainda não definida; deve ser escolhida somente após novo planejamento humano.
 
 Comando oficial:
 python -m unittest discover -s tests -v
