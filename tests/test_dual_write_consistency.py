@@ -11,9 +11,11 @@ from agent_lab.consistency import (
     DualWriteConsistencyReport,
     verify_dual_write_consistency,
 )
-from agent_lab.domain import GovernanceDecision
+from agent_lab.decision import DecisionRecommendation
+from agent_lab.domain import GovernanceDecision, IssueSeverity, IssueType
+from agent_lab.evidence import EvidenceSource, GovernanceEvidence
 from agent_lab.human_review import HumanDecision, VerifiedSpecialistIdentity
-from agent_lab.workflow_events import WorkflowConcluded
+from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
 
 
 class ConsistencyContractsTests(unittest.TestCase):
@@ -838,6 +840,65 @@ class DualWriteConsistencyFunctionTests(unittest.TestCase):
             ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE,
         )
         self.assertEqual(report.issues[0].review_id, "rev-001")
+
+    def _create_workflow_opened(
+        self,
+        *,
+        event_id: str = "evt-open-001",
+        workflow_id: str = "wf-001",
+        material_id: str = "MAT-001",
+    ) -> WorkflowOpened:
+        evidence = (
+            GovernanceEvidence(
+                material_id=material_id,
+                source=EvidenceSource.RULE,
+                issue_type=IssueType.MISSING_CRITICAL_FIELD,
+                observation="Campo obrigatório não informado.",
+                severity=IssueSeverity.WARNING,
+            ),
+        )
+        recommendation = DecisionRecommendation(
+            material_id=material_id,
+            decision=GovernanceDecision.REVIEW,
+            evidence=evidence,
+            rationale=f"Recomendação REVIEW para {material_id}",
+            requires_human_decision=True,
+        )
+        return WorkflowOpened(
+            event_id=event_id,
+            workflow_id=workflow_id,
+            recommendation=recommendation,
+            opened_at=datetime(2026, 8, 22, 10, 0, tzinfo=timezone.utc),
+        )
+
+    def test_ca11_test_a_workflow_opened_alone_is_ignored_producing_empty_consistent_report(
+        self,
+    ) -> None:
+        opened = self._create_workflow_opened()
+
+        report = verify_dual_write_consistency([opened], [])
+
+        self.assertEqual(report.total_concluded_events, 0)
+        self.assertEqual(report.total_audit_review_events, 0)
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issues, ())
+        self.assertEqual(report.issue_count, 0)
+        self.assertTrue(report.is_consistent)
+
+    def test_ca11_test_b_workflow_opened_alongside_perfect_pair_does_not_interfere(
+        self,
+    ) -> None:
+        opened = self._create_workflow_opened()
+        concluded, audit = self._create_perfect_pair()
+
+        report = verify_dual_write_consistency([opened, concluded], [audit])
+
+        self.assertEqual(report.total_concluded_events, 1)
+        self.assertEqual(report.total_audit_review_events, 1)
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issues, ())
+        self.assertEqual(report.issue_count, 0)
+        self.assertTrue(report.is_consistent)
 
 
 if __name__ == "__main__":
