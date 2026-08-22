@@ -13,13 +13,13 @@
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
 - **Estado registrado em:** 2026-08-22
-- **Baseline integrado na main:** 255 testes aprovados
-- **Última entrega funcional integrada na main:** Workflow Conclusion Persistence v1
-- **Última Issue funcional concluída na main:** #52
-- **Último PR funcional integrado na main:** #53
-- **Último merge funcional:** `486835b` — Merge pull request #53
-- **Última SPEC integrada:** `docs/specs/0052_workflow_conclusion_persistence_v1.md`
-- **Incremento funcional atual:** Issue #55 — Dual-Write Consistency Check v1 (concluída na branch `feat/55-dual-write-consistency-v1` com 284 testes GREEN; aguardando abertura de PR e merge)
+- **Baseline integrado na main:** 284 testes aprovados
+- **Última entrega funcional integrada na main:** Dual-Write Consistency Check v1
+- **Última Issue funcional concluída na main:** #55
+- **Último PR funcional integrado na main:** #56
+- **Último merge funcional:** `1253fbe` — Merge pull request #56
+- **Última SPEC integrada:** `docs/specs/0055_dual_write_consistency_v1.md`
+- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -156,7 +156,7 @@ O sistema já representa e valida:
   - validação estrita de consistência de material (`concluded.review.material_id == opened.recommendation.material_id`), parecer (`concluded.review.system_recommendation == opened.recommendation.decision`) e temporalidade (`opened.opened_at <= concluded.review.reviewed_at`);
   - projeção pura `rehydrate_workflow` reconstruindo deterministicamente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` (se contiver apenas `WorkflowOpened`) ou `REVIEWED` (se contiver `WorkflowOpened` seguido de `WorkflowConcluded`), mantendo `closed_at` e `review_lead_time` derivados pelas regras de domínio;
   - teste de integração ponta a ponta validando persistência e reconstrução de workflow revisado através de dois restarts de processo;
-- **Incremento da Issue #55 (Dual-Write Consistency Check v1):**
+- **Incremento integrado da Issue #55 (Dual-Write Consistency Check v1):**
   - módulo `src/agent_lab/consistency.py`;
   - enum canônico `ConsistencyIssueType` com 8 categorias discriminadas de inconsistência (`MISSING_AUDIT_EVENT`, `MISSING_WORKFLOW_CONCLUDED`, `MATERIAL_ID_MISMATCH`, `ACTOR_ID_MISMATCH`, `TIMESTAMP_MISMATCH`, `AUDIT_METADATA_MISMATCH`, `DUPLICATE_REVIEW_ID_IN_LIFECYCLE`, `DUPLICATE_REVIEW_ID_IN_AUDIT`);
   - dataclasses imutáveis `ConsistencyIssue` e `DualWriteConsistencyReport` (com `is_consistent`, `matched_pairs_count`, contagens físicas e issues ordenadas deterministicamente);
@@ -166,10 +166,10 @@ O sistema já representa e valida:
 
 ### 4.3 Limite atual
 
-A versão atual possui os seguintes limites discriminados entre o baseline integrado e o incremento corrente:
+A versão atual integrada possui:
 
-- na `main` integrada, o dual-write entre `AuditEvent` e `WorkflowConcluded` permanece não-atômico, com escritas append-only independentes em arquivos JSONL distintos sem reconciliação automática;
-- na branch `feat/55-dual-write-consistency-v1`, concluída e aguardando abertura de PR e merge, essa condição passa a ser diagnosticável de forma estritamente somente-leitura pós-restart via `verify_repositories_consistency`;
+- persistência append-only de abertura e conclusão de ciclo de vida operacional (`WorkflowOpened` e `WorkflowConcluded`);
+- dual-write entre `AuditEvent` e `WorkflowConcluded` continua não-atômico (escritas append-only independentes em arquivos JSONL distintos), agora diagnosticável de forma estritamente somente-leitura pós-restart via `verify_repositories_consistency`;
 - reparo automático, reconciliação ativa em disco e atomicidade transacional (2PC) permanecem fora do escopo;
 - `closed_at` e `review_lead_time` não são persistidos de forma redundante, permanecendo derivados em memória no domínio;
 - múltiplos ciclos de workflow e reabertura após correção permanecem fora do escopo;
@@ -182,9 +182,9 @@ A versão atual possui os seguintes limites discriminados entre o baseline integ
 
 ### 4.4 Próxima âncora
 
-Incremento atual: Issue #55 (Dual-Write Consistency Check v1) concluída na branch `feat/55-dual-write-consistency-v1`, aguardando abertura de PR e merge.
+Incremento atual: nenhum incremento funcional aberto — Issue #55 concluída e integrada.
 
-Próxima âncora arquitetural: a definir após o merge da Issue #55 e novo planejamento humano.
+Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
 Sequência evolutiva recomendada:
 
@@ -408,16 +408,17 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 255 tests
+Ran 284 tests
 OK
 ```
 
-Histórico de baselines e incrementos verificados:
+Histórico de baselines integrados:
 - Baseline inicial / release v0.1.0: 206 testes
 - Incremento da Issue #47: +54 testes sobre o baseline anterior de 152
 - Incremento da Issue #52: +49 testes sobre o baseline de entrada de 206
 - Baseline integrado após a Issue #52: 255 testes
-- Incremento da Issue #55: +29 testes sobre o baseline de entrada de 255 (27 testes unitários em `tests/test_dual_write_consistency.py` + 2 testes de integração em `tests/test_dual_write_consistency_integration.py`); baseline na branch: 284 testes
+- Incremento da Issue #55: +29 testes sobre o baseline de entrada de 255 (27 testes unitários em `tests/test_dual_write_consistency.py` + 2 testes de integração em `tests/test_dual_write_consistency_integration.py`)
+- Baseline integrado após a Issue #55: 284 testes
 
 Não assumir `pytest`.
 
@@ -591,7 +592,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 ## 13. Decisões deliberadamente adiadas
 
 - múltiplos ciclos de workflow ou reabertura após solicitação de correção;
-- atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura estão implementados na branch da Issue #55, aguardando PR/merge; intervenções ativas em disco continuam adiadas);
+- atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura foram integrados na Issue #55; intervenções ativas em disco continuam adiadas);
 - persistência em banco de dados relacional ou transacional;
 - proteção física ou criptográfica contra adulteração do histórico;
 - event sourcing completo;
@@ -677,26 +678,26 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 255 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #52 | Workflow Conclusion Persistence v1 | PR #53 (merge 486835b).
-- Última SPEC integrada: docs/specs/0052_workflow_conclusion_persistence_v1.md.
-- Último PR funcional integrado: PR #53.
-- Último merge funcional: 486835b.
+- Baseline integrado na main: 284 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #55 | Dual-Write Consistency Check v1 | PR #56 (merge 1253fbe).
+- Última SPEC integrada: docs/specs/0055_dual_write_consistency_v1.md.
+- Último PR funcional integrado: PR #56.
+- Último merge funcional: 1253fbe.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened e WorkflowConcluded
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts)
-  + auditoria append-only desacoplada.
+  + auditoria append-only desacoplada
+  + verificação determinística e somente-leitura de consistência dual-write pós-restart (verify_dual_write_consistency / verify_repositories_consistency).
 - Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview.
 - Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional.
-- Limites atuais: Dual-write AuditEvent/WorkflowConcluded não é atômico; a detecção/diagnóstico determinístico somente-leitura está implementada na branch da Issue #55, aguardando PR/merge; reconciliação e reparo automático permanecem fora da v1;
+- Limites atuais: Dual-write AuditEvent/WorkflowConcluded não é atômico (detecção/diagnóstico somente-leitura integrado na #55; sem reconciliação/reparo automático na v1);
   sem múltiplos ciclos/reopen, locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Issue #55 (Dual-Write Consistency Check v1) concluída na branch feat/55-dual-write-consistency-v1 (284 testes GREEN; aguardando abertura de PR e merge).
-- Módulo `src/agent_lab/consistency.py` implementado com verificação pura e adaptador de repositórios validado em cenários pós-restart.
+- Nenhum incremento funcional aberto — Issue #55 concluída e integrada.
 
 PRÓXIMA ÂNCORA:
-- Ainda não definida; deve ser escolhida somente após o merge da Issue #55 e novo planejamento humano.
+- Ainda não definida; deve ser escolhida somente após novo planejamento humano.
 
 Comando oficial:
 python -m unittest discover -s tests -v
