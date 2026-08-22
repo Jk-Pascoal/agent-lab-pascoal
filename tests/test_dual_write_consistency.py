@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 import unittest
 
-from agent_lab.audit import AuditEvent, record_human_review
+from agent_lab.audit import AuditEvent, AuditEventType, record_human_review
 from agent_lab.consistency import (
     ConsistencyIssue,
     ConsistencyIssueType,
@@ -14,7 +14,11 @@ from agent_lab.consistency import (
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision, IssueSeverity, IssueType
 from agent_lab.evidence import EvidenceSource, GovernanceEvidence
-from agent_lab.human_review import HumanDecision, VerifiedSpecialistIdentity
+from agent_lab.human_review import (
+    HumanDecision,
+    HumanReview,
+    VerifiedSpecialistIdentity,
+)
 from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
 
 
@@ -899,6 +903,213 @@ class DualWriteConsistencyFunctionTests(unittest.TestCase):
         self.assertEqual(report.issues, ())
         self.assertEqual(report.issue_count, 0)
         self.assertTrue(report.is_consistent)
+
+    def test_ca13_test_a_permutation_of_inputs_produces_identical_canonical_issue_order(
+        self,
+    ) -> None:
+        # rev-001: MISSING_AUDIT_EVENT (1 concluded, 0 audit)
+        concluded_1 = WorkflowConcluded(
+            event_id="wf-evt-001",
+            workflow_id="wf-001",
+            review=HumanReview(
+                review_id="rev-001",
+                material_id="MAT-001",
+                system_recommendation=GovernanceDecision.APPROVE,
+                human_decision=HumanDecision.APPROVE,
+                reviewed_at=datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc),
+                reviewer_identity=VerifiedSpecialistIdentity(
+                    specialist_id="spec-001",
+                    identity_provider="CORP_IDP",
+                    identity_subject="specialist1@corp.com",
+                    verification_id="ver-001",
+                    verified_at=datetime(2026, 8, 22, 11, 0, tzinfo=timezone.utc),
+                ),
+            ),
+        )
+
+        # rev-002: MISSING_WORKFLOW_CONCLUDED (0 concluded, 1 audit)
+        audit_2 = AuditEvent(
+            event_id="aud-evt-002",
+            event_type=AuditEventType.HUMAN_REVIEW_RECORDED,
+            material_id="MAT-002",
+            actor_id="spec-002",
+            occurred_at=datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc),
+            review_id="rev-002",
+            metadata={},
+        )
+
+        # rev-003: DUPLICATE_REVIEW_ID_IN_LIFECYCLE (2 concluded, 1 audit)
+        concluded_3a = WorkflowConcluded(
+            event_id="wf-evt-003a",
+            workflow_id="wf-003a",
+            review=HumanReview(
+                review_id="rev-003",
+                material_id="MAT-003",
+                system_recommendation=GovernanceDecision.APPROVE,
+                human_decision=HumanDecision.APPROVE,
+                reviewed_at=datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc),
+                reviewer_identity=VerifiedSpecialistIdentity(
+                    specialist_id="spec-003",
+                    identity_provider="CORP_IDP",
+                    identity_subject="specialist3@corp.com",
+                    verification_id="ver-003",
+                    verified_at=datetime(2026, 8, 22, 11, 0, tzinfo=timezone.utc),
+                ),
+            ),
+        )
+        concluded_3b = WorkflowConcluded(
+            event_id="wf-evt-003b",
+            workflow_id="wf-003b",
+            review=concluded_3a.review,
+        )
+        audit_3 = AuditEvent(
+            event_id="aud-evt-003",
+            event_type=AuditEventType.HUMAN_REVIEW_RECORDED,
+            material_id="MAT-003",
+            actor_id="spec-003",
+            occurred_at=datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc),
+            review_id="rev-003",
+            metadata={},
+        )
+
+        # rev-004: DUPLICATE_REVIEW_ID_IN_AUDIT (1 concluded, 2 audit)
+        concluded_4 = WorkflowConcluded(
+            event_id="wf-evt-004",
+            workflow_id="wf-004",
+            review=HumanReview(
+                review_id="rev-004",
+                material_id="MAT-004",
+                system_recommendation=GovernanceDecision.APPROVE,
+                human_decision=HumanDecision.APPROVE,
+                reviewed_at=datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc),
+                reviewer_identity=VerifiedSpecialistIdentity(
+                    specialist_id="spec-004",
+                    identity_provider="CORP_IDP",
+                    identity_subject="specialist4@corp.com",
+                    verification_id="ver-004",
+                    verified_at=datetime(2026, 8, 22, 11, 0, tzinfo=timezone.utc),
+                ),
+            ),
+        )
+        audit_4a = AuditEvent(
+            event_id="aud-evt-004a",
+            event_type=AuditEventType.HUMAN_REVIEW_RECORDED,
+            material_id="MAT-004",
+            actor_id="spec-004",
+            occurred_at=datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc),
+            review_id="rev-004",
+            metadata={},
+        )
+        audit_4b = AuditEvent(
+            event_id="aud-evt-004b",
+            event_type=AuditEventType.HUMAN_REVIEW_RECORDED,
+            material_id="MAT-004",
+            actor_id="spec-004",
+            occurred_at=datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc),
+            review_id="rev-004",
+            metadata={},
+        )
+
+        # Ingestão em ordem propositalmente desordenada: rev-003, rev-001, rev-004, rev-002
+        lifecycle_a = [concluded_3a, concluded_3b, concluded_1, concluded_4]
+        audit_a = [audit_4a, audit_4b, audit_2, audit_3]
+
+        # Ingestão em ordem reversa/permutada
+        lifecycle_b = [concluded_4, concluded_1, concluded_3b, concluded_3a]
+        audit_b = [audit_3, audit_2, audit_4b, audit_4a]
+
+        report_a = verify_dual_write_consistency(lifecycle_a, audit_a)
+        report_b = verify_dual_write_consistency(lifecycle_b, audit_b)
+
+        self.assertEqual(report_a.total_concluded_events, 4)
+        self.assertEqual(report_b.total_concluded_events, 4)
+        self.assertEqual(report_a.total_audit_review_events, 4)
+        self.assertEqual(report_b.total_audit_review_events, 4)
+        self.assertEqual(report_a.matched_pairs_count, 0)
+        self.assertEqual(report_b.matched_pairs_count, 0)
+        self.assertEqual(report_a.issue_count, 4)
+        self.assertEqual(report_b.issue_count, 4)
+
+        # Ordem de issues idêntica entre permutações
+        self.assertEqual(report_a.issues, report_b.issues)
+
+        # Ordem canônica rigorosa: rev-001, rev-002, rev-003, rev-004
+        expected_sequence = (
+            ("rev-001", ConsistencyIssueType.MISSING_AUDIT_EVENT),
+            ("rev-002", ConsistencyIssueType.MISSING_WORKFLOW_CONCLUDED),
+            ("rev-003", ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE),
+            ("rev-004", ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_AUDIT),
+        )
+        actual_sequence = tuple((i.review_id, i.issue_type) for i in report_a.issues)
+        self.assertEqual(actual_sequence, expected_sequence)
+
+    def test_ca13_test_b_multiple_issues_in_same_review_id_follow_canonical_order(
+        self,
+    ) -> None:
+        concluded, audit = self._create_perfect_pair()
+
+        modified_metadata = dict(audit.metadata)
+        modified_metadata["system_recommendation"] = "WRONG_RECOMMENDATION"
+
+        divergent_audit = AuditEvent(
+            event_id=audit.event_id,
+            event_type=audit.event_type,
+            material_id="MAT-DIVERGENT",
+            actor_id="spec-divergent",
+            occurred_at=datetime(2026, 8, 22, 15, 0, tzinfo=timezone.utc),
+            review_id=audit.review_id,
+            metadata=modified_metadata,
+        )
+
+        report = verify_dual_write_consistency([concluded], [divergent_audit])
+
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issue_count, 4)
+        self.assertFalse(report.is_consistent)
+
+        expected_types = (
+            ConsistencyIssueType.MATERIAL_ID_MISMATCH,
+            ConsistencyIssueType.ACTOR_ID_MISMATCH,
+            ConsistencyIssueType.TIMESTAMP_MISMATCH,
+            ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+        )
+        actual_types = tuple(i.issue_type for i in report.issues)
+        self.assertEqual(actual_types, expected_types)
+
+    def test_ca13_test_c_duplicates_in_both_histories_follow_canonical_order(
+        self,
+    ) -> None:
+        concluded_1, audit_1 = self._create_perfect_pair()
+        concluded_2 = WorkflowConcluded(
+            event_id="wf-evt-002",
+            workflow_id="wf-002",
+            review=concluded_1.review,
+        )
+        audit_2 = AuditEvent(
+            event_id="aud-evt-002",
+            event_type=audit_1.event_type,
+            material_id=audit_1.material_id,
+            actor_id=audit_1.actor_id,
+            occurred_at=audit_1.occurred_at,
+            review_id=audit_1.review_id,
+            metadata=audit_1.metadata,
+        )
+
+        report = verify_dual_write_consistency(
+            [concluded_1, concluded_2],
+            [audit_1, audit_2],
+        )
+
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issue_count, 2)
+        self.assertFalse(report.is_consistent)
+
+        expected_types = (
+            ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE,
+            ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_AUDIT,
+        )
+        actual_types = tuple(i.issue_type for i in report.issues)
+        self.assertEqual(actual_types, expected_types)
 
 
 if __name__ == "__main__":

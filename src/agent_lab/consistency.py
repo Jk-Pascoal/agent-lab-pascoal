@@ -56,6 +56,30 @@ class DualWriteConsistencyReport:
         return len(self.issues)
 
 
+_ISSUE_TYPE_CANONICAL_PRIORITY: dict[ConsistencyIssueType, int] = {
+    ConsistencyIssueType.MISSING_AUDIT_EVENT: 1,
+    ConsistencyIssueType.MISSING_WORKFLOW_CONCLUDED: 2,
+    ConsistencyIssueType.MATERIAL_ID_MISMATCH: 3,
+    ConsistencyIssueType.ACTOR_ID_MISMATCH: 4,
+    ConsistencyIssueType.TIMESTAMP_MISMATCH: 5,
+    ConsistencyIssueType.AUDIT_METADATA_MISMATCH: 6,
+    ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE: 7,
+    ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_AUDIT: 8,
+}
+
+
+def _issue_canonical_sort_key(
+    issue: ConsistencyIssue,
+) -> tuple[str, int, str, str, str]:
+    return (
+        issue.review_id,
+        _ISSUE_TYPE_CANONICAL_PRIORITY.get(issue.issue_type, 999),
+        issue.workflow_id or "",
+        issue.audit_event_id or "",
+        issue.details,
+    )
+
+
 def verify_dual_write_consistency(
     lifecycle_events: Sequence[WorkflowLifecycleEvent],
     audit_events: Sequence[AuditEvent],
@@ -328,11 +352,13 @@ def verify_dual_write_consistency(
                 )
             )
 
+    sorted_issues = tuple(sorted(issues, key=_issue_canonical_sort_key))
+
     return DualWriteConsistencyReport(
         total_concluded_events=total_concluded,
         total_audit_review_events=total_audit_reviews,
         matched_pairs_count=matched_pairs,
-        issues=tuple(issues),
+        issues=sorted_issues,
     )
 
 
