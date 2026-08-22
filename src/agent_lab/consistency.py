@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from agent_lab.audit import AuditEvent, AuditEventType
 from agent_lab.workflow_events import (
@@ -126,6 +128,135 @@ def verify_dual_write_consistency(
                         ),
                     )
                 )
+
+            metadata = audit_event.metadata or {}
+            expected_scalars: list[tuple[str, Any]] = [
+                (
+                    "system_recommendation",
+                    concluded.review.system_recommendation.value,
+                ),
+                (
+                    "human_decision",
+                    concluded.review.human_decision.value,
+                ),
+                (
+                    "agrees_with_system",
+                    concluded.review.agrees_with_system,
+                ),
+                (
+                    "correction_count",
+                    len(concluded.review.corrections),
+                ),
+                (
+                    "identity_provider",
+                    concluded.review.reviewer_identity.identity_provider,
+                ),
+                (
+                    "identity_subject",
+                    concluded.review.reviewer_identity.identity_subject,
+                ),
+                (
+                    "identity_verification_id",
+                    concluded.review.reviewer_identity.verification_id,
+                ),
+            ]
+
+            for field_name, expected_val in expected_scalars:
+                if field_name not in metadata:
+                    issues.append(
+                        ConsistencyIssue(
+                            issue_type=ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                            review_id=review_id,
+                            workflow_id=concluded.workflow_id,
+                            audit_event_id=audit_event.event_id,
+                            details=f"Metadata key '{field_name}' is missing in AuditEvent",
+                        )
+                    )
+                else:
+                    actual_val = metadata.get(field_name)
+                    if type(actual_val) is not type(expected_val) or actual_val != expected_val:
+                        issues.append(
+                            ConsistencyIssue(
+                                issue_type=ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                                review_id=review_id,
+                                workflow_id=concluded.workflow_id,
+                                audit_event_id=audit_event.event_id,
+                                details=(
+                                    f"Metadata field '{field_name}' mismatch: "
+                                    f"expected {expected_val!r}, got {actual_val!r}"
+                                ),
+                            )
+                        )
+
+            if "identity_verified_at" not in metadata:
+                issues.append(
+                    ConsistencyIssue(
+                        issue_type=ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                        review_id=review_id,
+                        workflow_id=concluded.workflow_id,
+                        audit_event_id=audit_event.event_id,
+                        details="Metadata key 'identity_verified_at' is missing in AuditEvent",
+                    )
+                )
+            else:
+                raw_verified_at = metadata.get("identity_verified_at")
+                if not isinstance(raw_verified_at, str):
+                    issues.append(
+                        ConsistencyIssue(
+                            issue_type=ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                            review_id=review_id,
+                            workflow_id=concluded.workflow_id,
+                            audit_event_id=audit_event.event_id,
+                            details=(
+                                f"Metadata field 'identity_verified_at' has invalid type: "
+                                f"expected str, got {type(raw_verified_at).__name__}"
+                            ),
+                        )
+                    )
+                else:
+                    try:
+                        parsed_dt = datetime.fromisoformat(raw_verified_at)
+                    except (ValueError, TypeError):
+                        issues.append(
+                            ConsistencyIssue(
+                                issue_type=ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                                review_id=review_id,
+                                workflow_id=concluded.workflow_id,
+                                audit_event_id=audit_event.event_id,
+                                details=(
+                                    f"Metadata field 'identity_verified_at' is not a valid ISO-8601 string: "
+                                    f"{raw_verified_at!r}"
+                                ),
+                            )
+                        )
+                    else:
+                        if parsed_dt.tzinfo is None or parsed_dt.utcoffset() is None:
+                            issues.append(
+                                ConsistencyIssue(
+                                    issue_type=ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                                    review_id=review_id,
+                                    workflow_id=concluded.workflow_id,
+                                    audit_event_id=audit_event.event_id,
+                                    details=(
+                                        f"Metadata field 'identity_verified_at' is naive (missing timezone): "
+                                        f"{raw_verified_at!r}"
+                                    ),
+                                )
+                            )
+                        elif parsed_dt != concluded.review.reviewer_identity.verified_at:
+                            issues.append(
+                                ConsistencyIssue(
+                                    issue_type=ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                                    review_id=review_id,
+                                    workflow_id=concluded.workflow_id,
+                                    audit_event_id=audit_event.event_id,
+                                    details=(
+                                        f"Metadata field 'identity_verified_at' mismatch: "
+                                        f"expected {concluded.review.reviewer_identity.verified_at.isoformat()}, "
+                                        f"got {parsed_dt.isoformat()}"
+                                    ),
+                                )
+                            )
         elif len(concluded_list) == 1 and len(audit_list) == 0:
             concluded = concluded_list[0]
             issues.append(

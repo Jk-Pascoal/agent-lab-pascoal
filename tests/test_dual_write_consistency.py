@@ -461,6 +461,233 @@ class DualWriteConsistencyFunctionTests(unittest.TestCase):
         self.assertEqual(report.issue_count, 0)
         self.assertTrue(report.is_consistent)
 
+    def _create_perfect_pair(
+        self,
+    ) -> tuple[WorkflowConcluded, AuditEvent]:
+        reviewed_at = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+        verified_at = datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc)
+        identity = VerifiedSpecialistIdentity(
+            specialist_id="spec-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.com",
+            verification_id="ver-001",
+            verified_at=verified_at,
+        )
+        result = record_human_review(
+            event_id="aud-evt-001",
+            review_id="rev-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.APPROVE,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=identity,
+            reviewed_at=reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+        concluded = WorkflowConcluded(
+            event_id="wf-evt-001",
+            workflow_id="wf-001",
+            review=result.review,
+        )
+        return concluded, result.audit_event
+
+    def test_ca08_test_a_perfect_metadata_is_consistent(self) -> None:
+        concluded, audit = self._create_perfect_pair()
+        report = verify_dual_write_consistency([concluded], [audit])
+
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issues, ())
+        self.assertEqual(report.issue_count, 0)
+        self.assertTrue(report.is_consistent)
+
+    def test_ca08_test_b_scalar_metadata_mismatches_produce_diagnostics(self) -> None:
+        concluded, audit = self._create_perfect_pair()
+        mismatch_cases = [
+            ("system_recommendation", "REJECT"),
+            ("human_decision", "REJECT"),
+            ("agrees_with_system", False),
+            ("correction_count", 3),
+            ("identity_provider", "OTHER_IDP"),
+            ("identity_subject", "other@corp.com"),
+            ("identity_verification_id", "ver-999"),
+        ]
+
+        for field_name, divergent_value in mismatch_cases:
+            with self.subTest(field=field_name):
+                modified_metadata = dict(audit.metadata)
+                modified_metadata[field_name] = divergent_value
+                divergent_audit = AuditEvent(
+                    event_id=audit.event_id,
+                    event_type=audit.event_type,
+                    material_id=audit.material_id,
+                    actor_id=audit.actor_id,
+                    occurred_at=audit.occurred_at,
+                    review_id=audit.review_id,
+                    metadata=modified_metadata,
+                )
+
+                report = verify_dual_write_consistency([concluded], [divergent_audit])
+
+                self.assertEqual(report.matched_pairs_count, 1)
+                self.assertEqual(report.issue_count, 1)
+                self.assertFalse(report.is_consistent)
+                self.assertEqual(len(report.issues), 1)
+
+                issue = report.issues[0]
+                self.assertEqual(
+                    issue.issue_type,
+                    ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                )
+                self.assertEqual(issue.review_id, "rev-001")
+                self.assertEqual(issue.workflow_id, concluded.workflow_id)
+                self.assertEqual(issue.audit_event_id, audit.event_id)
+                self.assertIn(field_name, issue.details)
+
+    def test_ca08_test_c_missing_metadata_key_produces_diagnostic_without_keyerror(
+        self,
+    ) -> None:
+        concluded, audit = self._create_perfect_pair()
+        modified_metadata = dict(audit.metadata)
+        del modified_metadata["system_recommendation"]
+
+        divergent_audit = AuditEvent(
+            event_id=audit.event_id,
+            event_type=audit.event_type,
+            material_id=audit.material_id,
+            actor_id=audit.actor_id,
+            occurred_at=audit.occurred_at,
+            review_id=audit.review_id,
+            metadata=modified_metadata,
+        )
+
+        report = verify_dual_write_consistency([concluded], [divergent_audit])
+
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(
+            report.issues[0].issue_type,
+            ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+        )
+        self.assertIn("system_recommendation", report.issues[0].details)
+
+    def test_ca08_test_d_incompatible_metadata_type_produces_diagnostic(self) -> None:
+        concluded, audit = self._create_perfect_pair()
+        modified_metadata = dict(audit.metadata)
+        modified_metadata["correction_count"] = "not-an-integer"
+
+        divergent_audit = AuditEvent(
+            event_id=audit.event_id,
+            event_type=audit.event_type,
+            material_id=audit.material_id,
+            actor_id=audit.actor_id,
+            occurred_at=audit.occurred_at,
+            review_id=audit.review_id,
+            metadata=modified_metadata,
+        )
+
+        report = verify_dual_write_consistency([concluded], [divergent_audit])
+
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(
+            report.issues[0].issue_type,
+            ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+        )
+        self.assertIn("correction_count", report.issues[0].details)
+
+    def test_ca08_test_e_divergent_identity_verified_at_produces_diagnostic(
+        self,
+    ) -> None:
+        concluded, audit = self._create_perfect_pair()
+        modified_metadata = dict(audit.metadata)
+        modified_metadata["identity_verified_at"] = (
+            "2026-08-22T15:00:00+00:00"  # diferente de 11:30
+        )
+
+        divergent_audit = AuditEvent(
+            event_id=audit.event_id,
+            event_type=audit.event_type,
+            material_id=audit.material_id,
+            actor_id=audit.actor_id,
+            occurred_at=audit.occurred_at,
+            review_id=audit.review_id,
+            metadata=modified_metadata,
+        )
+
+        report = verify_dual_write_consistency([concluded], [divergent_audit])
+
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(
+            report.issues[0].issue_type,
+            ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+        )
+        self.assertIn("identity_verified_at", report.issues[0].details)
+
+    def test_ca08_test_f_equivalent_identity_verified_at_different_offset_is_consistent(
+        self,
+    ) -> None:
+        concluded, audit = self._create_perfect_pair()
+        # 11:30 UTC == 08:30 -03:00
+        modified_metadata = dict(audit.metadata)
+        modified_metadata["identity_verified_at"] = "2026-08-22T08:30:00-03:00"
+
+        audit_with_offset = AuditEvent(
+            event_id=audit.event_id,
+            event_type=audit.event_type,
+            material_id=audit.material_id,
+            actor_id=audit.actor_id,
+            occurred_at=audit.occurred_at,
+            review_id=audit.review_id,
+            metadata=modified_metadata,
+        )
+
+        report = verify_dual_write_consistency([concluded], [audit_with_offset])
+
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issues, ())
+        self.assertEqual(report.issue_count, 0)
+        self.assertTrue(report.is_consistent)
+
+    def test_ca08_test_g_invalid_or_naive_identity_verified_at_produces_diagnostic(
+        self,
+    ) -> None:
+        concluded, audit = self._create_perfect_pair()
+        invalid_values = [
+            "invalid-isoformat-string",
+            "2026-08-22T11:30:00",  # naive, sem fuso/offset
+            123456789,  # não é string
+        ]
+
+        for invalid_val in invalid_values:
+            with self.subTest(invalid_value=invalid_val):
+                modified_metadata = dict(audit.metadata)
+                modified_metadata["identity_verified_at"] = invalid_val
+
+                divergent_audit = AuditEvent(
+                    event_id=audit.event_id,
+                    event_type=audit.event_type,
+                    material_id=audit.material_id,
+                    actor_id=audit.actor_id,
+                    occurred_at=audit.occurred_at,
+                    review_id=audit.review_id,
+                    metadata=modified_metadata,
+                )
+
+                report = verify_dual_write_consistency([concluded], [divergent_audit])
+
+                self.assertEqual(report.matched_pairs_count, 1)
+                self.assertEqual(report.issue_count, 1)
+                self.assertFalse(report.is_consistent)
+                self.assertEqual(
+                    report.issues[0].issue_type,
+                    ConsistencyIssueType.AUDIT_METADATA_MISMATCH,
+                )
+                self.assertIn("identity_verified_at", report.issues[0].details)
+
 
 if __name__ == "__main__":
     unittest.main()
