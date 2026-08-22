@@ -12,14 +12,14 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-21
+- **Estado registrado em:** 2026-08-22
 - **Baseline integrado na main:** 255 testes aprovados
 - **Última entrega funcional integrada na main:** Workflow Conclusion Persistence v1
 - **Última Issue funcional concluída na main:** #52
 - **Último PR funcional integrado na main:** #53
 - **Último merge funcional:** `486835b` — Merge pull request #53
 - **Última SPEC integrada:** `docs/specs/0052_workflow_conclusion_persistence_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
+- **Incremento funcional atual:** Issue #55 — Dual-Write Consistency Check v1 (concluída na branch `feat/55-dual-write-consistency-v1` com 284 testes GREEN; aguardando abertura de PR e merge)
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -40,7 +40,8 @@ O Agent Lab Pascoal é um sistema experimental de engenharia para governança de
 - recomendações de decisão;
 - revisão humana obrigatória;
 - ciclo de vida temporal de governança com persistência append-only de abertura e conclusão e projeção determinística após restart para PENDING_HUMAN_REVIEW ou REVIEWED;
-- trilha de auditoria append-only desacoplada.
+- trilha de auditoria append-only desacoplada;
+- verificação determinística e somente-leitura de consistência cruzada entre as trilhas de lifecycle e auditoria (`verify_dual_write_consistency` e `verify_repositories_consistency`).
 
 O sistema não substitui o especialista de governança. Ele organiza evidências, detecta riscos, gerencia o ciclo temporal de revisão e produz recomendações para apoiar uma decisão humana rastreável.
 
@@ -154,14 +155,22 @@ O sistema já representa e valida:
   - bloqueio de conclusão sem abertura prévia (`WorkflowNotOpenedError`), bloqueio de segunda conclusão (`WorkflowAlreadyConcludedError`) e unicidade global de `event_id` (`DuplicateWorkflowEventError`);
   - validação estrita de consistência de material (`concluded.review.material_id == opened.recommendation.material_id`), parecer (`concluded.review.system_recommendation == opened.recommendation.decision`) e temporalidade (`opened.opened_at <= concluded.review.reviewed_at`);
   - projeção pura `rehydrate_workflow` reconstruindo deterministicamente `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` (se contiver apenas `WorkflowOpened`) ou `REVIEWED` (se contiver `WorkflowOpened` seguido de `WorkflowConcluded`), mantendo `closed_at` e `review_lead_time` derivados pelas regras de domínio;
-  - teste de integração ponta a ponta validando persistência e reconstrução de workflow revisado através de dois restarts de processo.
+  - teste de integração ponta a ponta validando persistência e reconstrução de workflow revisado através de dois restarts de processo;
+- **Incremento da Issue #55 (Dual-Write Consistency Check v1):**
+  - módulo `src/agent_lab/consistency.py`;
+  - enum canônico `ConsistencyIssueType` com 8 categorias discriminadas de inconsistência (`MISSING_AUDIT_EVENT`, `MISSING_WORKFLOW_CONCLUDED`, `MATERIAL_ID_MISMATCH`, `ACTOR_ID_MISMATCH`, `TIMESTAMP_MISMATCH`, `AUDIT_METADATA_MISMATCH`, `DUPLICATE_REVIEW_ID_IN_LIFECYCLE`, `DUPLICATE_REVIEW_ID_IN_AUDIT`);
+  - dataclasses imutáveis `ConsistencyIssue` e `DualWriteConsistencyReport` (com `is_consistent`, `matched_pairs_count`, contagens físicas e issues ordenadas deterministicamente);
+  - função pura `verify_dual_write_consistency` inspecionando sequências em memória de `WorkflowLifecycleEvent` e `AuditEvent` por `review_id`, com comparação semântica timezone-aware de datas, validação defensiva de metadados sem `KeyError` e precedência estrita de duplicidades com isolamento do identificador ambíguo;
+  - ordenação canônica e determinística de issues no relatório independente da ordem de chegada dos eventos de entrada;
+  - adaptador `verify_repositories_consistency` consumindo instâncias dos protocolos `WorkflowLifecycleRepository` e `AuditRepository`, validado em testes de integração ponta a ponta com simulação de interrupção entre gravações e persistência real em arquivos JSONL após restart de processo.
 
 ### 4.3 Limite atual
 
-A versão atual integrada possui:
+A versão atual possui os seguintes limites discriminados entre o baseline integrado e o incremento corrente:
 
-- persistência append-only de abertura e conclusão de ciclo de vida operacional (`WorkflowOpened` e `WorkflowConcluded`);
-- dual-write entre `AuditEvent` e `WorkflowConcluded` não é atômico (escritas independentes em arquivos JSONL distintos sem transação coordenada ou mecanismo de reconciliação automática na v1);
+- na `main` integrada, o dual-write entre `AuditEvent` e `WorkflowConcluded` permanece não-atômico, com escritas append-only independentes em arquivos JSONL distintos sem reconciliação automática;
+- na branch `feat/55-dual-write-consistency-v1`, concluída e aguardando abertura de PR e merge, essa condição passa a ser diagnosticável de forma estritamente somente-leitura pós-restart via `verify_repositories_consistency`;
+- reparo automático, reconciliação ativa em disco e atomicidade transacional (2PC) permanecem fora do escopo;
 - `closed_at` e `review_lead_time` não são persistidos de forma redundante, permanecendo derivados em memória no domínio;
 - múltiplos ciclos de workflow e reabertura após correção permanecem fora do escopo;
 - execução síncrona/monoprocesso;
@@ -173,9 +182,9 @@ A versão atual integrada possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: nenhum incremento funcional aberto — Issue #52 concluída e integrada.
+Incremento atual: Issue #55 (Dual-Write Consistency Check v1) concluída na branch `feat/55-dual-write-consistency-v1`, aguardando abertura de PR e merge.
 
-Próxima âncora arquitetural: a definir somente após novo planejamento humano.
+Próxima âncora arquitetural: a definir após o merge da Issue #55 e novo planejamento humano.
 
 Sequência evolutiva recomendada:
 
@@ -186,6 +195,7 @@ Contrato
   → Workflow temporal
   → Persistência de abertura de workflow (concluída na #47)
   → Persistência de conclusão de workflow (concluída na #52)
+  → Verificação de consistência dual-write (concluída na #55)
   → Integração ERP (futura)
 ```
 
@@ -364,6 +374,29 @@ Responsabilidades:
 - recuperar histórico por `event_id`, `material_id` e listagem completa;
 - falhar de forma *fail-closed* diante de corrupção ou duplicidade.
 
+### 6.8 Verificação de Consistência Dual-Write
+
+```text
+src/agent_lab/consistency.py
+```
+
+Contratos principais:
+
+- `ConsistencyIssueType`: enum canônico com as 8 categorias de inconsistência;
+- `ConsistencyIssue`: diagnóstico estruturado e imutável de uma inconsistência pontual;
+- `DualWriteConsistencyReport`: sumário consolidado com contagens físicas, pares correlacionados 1:1, tupla de issues e propriedade `is_consistent`;
+- `verify_dual_write_consistency`: função pura de inspeção cruzada entre eventos de lifecycle e auditoria por `review_id`;
+- `verify_repositories_consistency`: adaptador somente-leitura para repositórios `WorkflowLifecycleRepository` e `AuditRepository`.
+
+Responsabilidades:
+
+- correlacionar `WorkflowConcluded` e `AuditEvent` (`HUMAN_REVIEW_RECORDED`) unívocos por `review_id`;
+- detectar e isolar identificadores duplicados em qualquer trilha;
+- identificar eventos órfãos de conclusão ou auditoria;
+- validar coerência de `material_id`, `actor_id` (`reviewer_id`) e validar equivalência temporal semântica timezone-aware entre `concluded.review.reviewed_at` e `audit_event.occurred_at`;
+- verificar defensivamente o dicionário de metadados sobrepostos de auditoria;
+- garantir ordenação canônica e determinística no diagnóstico final sem efetuar qualquer escrita ou reparo em disco.
+
 ## 7. Comando canônico de testes e baseline
 
 Use sempre:
@@ -379,11 +412,12 @@ Ran 255 tests
 OK
 ```
 
-Histórico de baselines integrados:
+Histórico de baselines e incrementos verificados:
 - Baseline inicial / release v0.1.0: 206 testes
 - Incremento da Issue #47: +54 testes sobre o baseline anterior de 152
 - Incremento da Issue #52: +49 testes sobre o baseline de entrada de 206
 - Baseline integrado após a Issue #52: 255 testes
+- Incremento da Issue #55: +29 testes sobre o baseline de entrada de 255 (27 testes unitários em `tests/test_dual_write_consistency.py` + 2 testes de integração em `tests/test_dual_write_consistency_integration.py`); baseline na branch: 284 testes
 
 Não assumir `pytest`.
 
@@ -557,7 +591,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 ## 13. Decisões deliberadamente adiadas
 
 - múltiplos ciclos de workflow ou reabertura após solicitação de correção;
-- atomicidade transacional e reconciliação automática entre trilha de auditoria e trilha de lifecycle;
+- atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura estão implementados na branch da Issue #55, aguardando PR/merge; intervenções ativas em disco continuam adiadas);
 - persistência em banco de dados relacional ou transacional;
 - proteção física ou criptográfica contra adulteração do histórico;
 - event sourcing completo;
@@ -654,14 +688,15 @@ MAIN INTEGRADA:
   + auditoria append-only desacoplada.
 - Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview.
 - Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional.
-- Limites atuais: Dual-write AuditEvent/WorkflowConcluded não é atômico (sem reconciliação automática na v1);
+- Limites atuais: Dual-write AuditEvent/WorkflowConcluded não é atômico; a detecção/diagnóstico determinístico somente-leitura está implementada na branch da Issue #55, aguardando PR/merge; reconciliação e reparo automático permanecem fora da v1;
   sem múltiplos ciclos/reopen, locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — Issue #52 concluída e integrada.
+- Issue #55 (Dual-Write Consistency Check v1) concluída na branch feat/55-dual-write-consistency-v1 (284 testes GREEN; aguardando abertura de PR e merge).
+- Módulo `src/agent_lab/consistency.py` implementado com verificação pura e adaptador de repositórios validado em cenários pós-restart.
 
 PRÓXIMA ÂNCORA:
-- Ainda não definida; deve ser escolhida somente após novo planejamento humano.
+- Ainda não definida; deve ser escolhida somente após o merge da Issue #55 e novo planejamento humano.
 
 Comando oficial:
 python -m unittest discover -s tests -v
