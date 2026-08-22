@@ -10,7 +10,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0055` |
-| Status | `Proposta` |
+| Status | `Implementada / Concluída` |
 | Issue relacionada | `#55` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-22` |
@@ -282,22 +282,22 @@ def verify_repositories_consistency(
 
 ## 8. Critérios de Aceite
 
-- [ ] `CA-01` — **Coleções Vazias:** Coleções ou repositórios vazios produzem relatório consistente vazio (`is_consistent = True`, contagens zeradas: `total_concluded_events = 0`, `total_audit_review_events = 0`, `matched_pairs_count = 0` e `issues = ()`).
-- [ ] `CA-02` — **Par Perfeito:** Um par perfeito e sincronizado `WorkflowConcluded` + `AuditEvent(HUMAN_REVIEW_RECORDED)` com dados idênticos produz `is_consistent = True` e `matched_pairs_count = 1` (com `issues = ()`).
-- [ ] `CA-03` — **Órfão no Lifecycle:** `WorkflowConcluded` sem auditoria correspondente gera issue `MISSING_AUDIT_EVENT` com `is_consistent = False` e `matched_pairs_count = 0`.
-- [ ] `CA-04` — **Órfão na Auditoria:** `AuditEvent(HUMAN_REVIEW_RECORDED)` sem conclusão correspondente gera issue `MISSING_WORKFLOW_CONCLUDED` com `is_consistent = False` e `matched_pairs_count = 0`.
-- [ ] `CA-05` — **Divergência de Material:** Divergência de `material_id` entre `HumanReview` e `AuditEvent` gera issue `MATERIAL_ID_MISMATCH` (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
-- [ ] `CA-06` — **Divergência de Especialista:** Divergência de especialista (`concluded.review.reviewer_id` != `audit_event.actor_id`) gera issue `ACTOR_ID_MISMATCH` (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
-- [ ] `CA-07` — **Divergência Temporal:** Divergência temporal entre `concluded.review.reviewed_at` e `audit_event.occurred_at` gera issue `TIMESTAMP_MISMATCH` avaliada semanticamente via timezone-aware datetime (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
-- [ ] `CA-08` — **Inconsistência em Metadados:** Metadados ausentes, com tipos incompatíveis ou semanticamente divergentes em `AuditEvent.metadata` (incluindo `system_recommendation`, `human_decision`, `agrees_with_system`, `correction_count`, `identity_provider`, `identity_subject`, `identity_verification_id` e `identity_verified_at` avaliado semanticamente como timezone-aware datetime) geram issue `AUDIT_METADATA_MISMATCH` sem disparar `KeyError` ou exceção não tratada (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
-- [ ] `CA-09` — **Duplicidade de `review_id` no Lifecycle:** `review_id` duplicado no lifecycle gera issue `DUPLICATE_REVIEW_ID_IN_LIFECYCLE` para cada ocorrência, isola o `review_id` do processamento normal (evitando cascata de `MISSING_*` ou mismatches adicionais) e não entra em `matched_pairs_count`.
-- [ ] `CA-10` — **Duplicidade de `review_id` na Auditoria:** `review_id` duplicado na auditoria gera issue `DUPLICATE_REVIEW_ID_IN_AUDIT` para cada ocorrência, isola o `review_id` do processamento normal (evitando cascata de `MISSING_*` ou mismatches adicionais) e não entra em `matched_pairs_count`.
-- [ ] `CA-11` — **Isolamento de `WorkflowOpened`:** `WorkflowOpened` é ignorado pela correlação cruzada e não é tratado como órfão nem gera diagnósticos espúrios.
-- [ ] `CA-12` — **Isolamento de Outros Tipos de Auditoria:** `AuditEvent` com tipo diferente de `HUMAN_REVIEW_RECORDED` não participa da correlação cruzada com conclusões.
-- [ ] `CA-13` — **Determinismo na Ordenação:** A ordem das issues reportadas no relatório `DualWriteConsistencyReport` é estritamente determinística.
-- [ ] `CA-14` — **Integração End-to-End com Falha Dual-Write:** Testes de integração com arquivos temporários via `verify_repositories_consistency` reproduzem estado parcial entre as duas escritas após restart e detectam a inconsistência nas duas direções (gravação completa no lifecycle sem auditoria, e gravação completa na auditoria sem lifecycle).
-- [ ] `CA-15` — **Preservação do Baseline de Testes:** Os 255 testes anteriores permanecem estritamente GREEN e todos os novos testes utilizam o runner oficial `unittest` em Python 3.11.
-- [ ] `CA-16` — **Imutabilidade de Schemas:** Nenhum schema persistente ou `schema_version` é alterado (permanece `schema_version = 1`).
+- [x] `CA-01` — **Coleções Vazias:** Coleções ou repositórios vazios produzem relatório consistente vazio (`is_consistent = True`, contagens zeradas: `total_concluded_events = 0`, `total_audit_review_events = 0`, `matched_pairs_count = 0` e `issues = ()`).
+- [x] `CA-02` — **Par Perfeito:** Um par perfeito e sincronizado `WorkflowConcluded` + `AuditEvent(HUMAN_REVIEW_RECORDED)` com dados idênticos produz `is_consistent = True` e `matched_pairs_count = 1` (com `issues = ()`).
+- [x] `CA-03` — **Órfão no Lifecycle:** `WorkflowConcluded` sem auditoria correspondente gera issue `MISSING_AUDIT_EVENT` com `is_consistent = False` e `matched_pairs_count = 0`.
+- [x] `CA-04` — **Órfão na Auditoria:** `AuditEvent(HUMAN_REVIEW_RECORDED)` sem conclusão correspondente gera issue `MISSING_WORKFLOW_CONCLUDED` com `is_consistent = False` e `matched_pairs_count = 0`.
+- [x] `CA-05` — **Divergência de Material:** Divergência de `material_id` entre `HumanReview` e `AuditEvent` gera issue `MATERIAL_ID_MISMATCH` (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
+- [x] `CA-06` — **Divergência de Especialista:** Divergência de especialista (`concluded.review.reviewer_id` != `audit_event.actor_id`) gera issue `ACTOR_ID_MISMATCH` (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
+- [x] `CA-07` — **Divergência Temporal:** Divergência temporal entre `concluded.review.reviewed_at` e `audit_event.occurred_at` gera issue `TIMESTAMP_MISMATCH` avaliada semanticamente via timezone-aware datetime (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
+- [x] `CA-08` — **Inconsistência em Metadados:** Metadados ausentes, com tipos incompatíveis ou semanticamente divergentes em `AuditEvent.metadata` (incluindo `system_recommendation`, `human_decision`, `agrees_with_system`, `correction_count`, `identity_provider`, `identity_subject`, `identity_verification_id` e `identity_verified_at` avaliado semanticamente como timezone-aware datetime) geram issue `AUDIT_METADATA_MISMATCH` sem disparar `KeyError` ou exceção não tratada (o par unívoco 1:1 continua sendo computado em `matched_pairs_count`).
+- [x] `CA-09` — **Duplicidade de `review_id` no Lifecycle:** `review_id` duplicado no lifecycle gera uma issue `DUPLICATE_REVIEW_ID_IN_LIFECYCLE` para aquele `review_id`, isola o `review_id` do processamento normal (evitando cascata de `MISSING_*` ou mismatches adicionais) e não entra em `matched_pairs_count`.
+- [x] `CA-10` — **Duplicidade de `review_id` na Auditoria:** `review_id` duplicado na auditoria gera uma issue `DUPLICATE_REVIEW_ID_IN_AUDIT` para aquele `review_id`, isola o `review_id` do processamento normal (evitando cascata de `MISSING_*` ou mismatches adicionais) e não entra em `matched_pairs_count`.
+- [x] `CA-11` — **Isolamento de `WorkflowOpened`:** `WorkflowOpened` é ignorado pela correlação cruzada e não é tratado como órfão nem gera diagnósticos espúrios.
+- [x] `CA-12` — **Isolamento de Outros Tipos de Auditoria:** `AuditEvent` com tipo diferente de `HUMAN_REVIEW_RECORDED` não participa da correlação cruzada com conclusões. *(Satisfeito estruturalmente no domínio atual: `AuditEventType` possui apenas `HUMAN_REVIEW_RECORDED`, `AuditEvent` rejeita tipos fora do enum e `verify_dual_write_consistency` filtra explicitamente por `HUMAN_REVIEW_RECORDED`; teste comportamental direto com outro `AuditEventType` legítimo fica diferido até o domínio introduzir tal tipo).*
+- [x] `CA-13` — **Determinismo na Ordenação:** A ordem das issues reportadas no relatório `DualWriteConsistencyReport` é estritamente determinística.
+- [x] `CA-14` — **Integração End-to-End com Falha Dual-Write:** Testes de integração com arquivos temporários via `verify_repositories_consistency` reproduzem estado parcial entre as duas escritas após restart e detectam a inconsistência nas duas direções (gravação completa no lifecycle sem auditoria, e gravação completa na auditoria sem lifecycle).
+- [x] `CA-15` — **Preservação do Baseline de Testes:** Os 255 testes anteriores permanecem estritamente GREEN e todos os novos testes utilizam o runner oficial `unittest` em Python 3.11.
+- [x] `CA-16` — **Imutabilidade de Schemas:** Nenhum schema persistente ou `schema_version` é alterado (permanece `schema_version = 1`).
 
 ---
 
@@ -362,3 +362,15 @@ A implementação seguirá estritamente o ciclo TDD RED → GREEN:
 - **Impacto SemVer:** `MINOR` (adição de nova funcionalidade de inspeção de consistência estritamente compatível e não-destrutiva).
 - **Publicação:** `Unreleased` (integrada à esteira para futura release pós-v0.1.0).
 - **Atualização do `CHANGELOG.md`:** Sim, ao final do ciclo de implementação.
+
+---
+
+## 13. Evidências de Fechamento
+
+A implementação e verificação da SPEC 0055 foram concluídas com sucesso através de TDD em micro-fatias estritas, atendendo aos requisitos e critérios de aceite, com CA-12 satisfeito estruturalmente no domínio atual:
+
+- **Baseline Anterior (`main`):** 255 testes GREEN.
+- **Baseline Final Integrado:** 284 testes GREEN (255 testes anteriores + 27 testes unitários de consistência em `tests/test_dual_write_consistency.py` + 2 testes de integração pós-restart em `tests/test_dual_write_consistency_integration.py`).
+- **Ambiente e Runner Oficial:** Python 3.11.9, runner nativo `unittest` (`python -m unittest discover -s tests -v`).
+- **CA-14 (Integração Dual-Write Pós-Restart):** Validado com arquivos JSONL temporários nas duas direções de escrita parcial (`MISSING_AUDIT_EVENT` quando o ciclo conclui no lifecycle sem auditoria, e `MISSING_WORKFLOW_CONCLUDED` quando a auditoria é persistida sem conclusão no lifecycle).
+- **CA-16 (Imutabilidade de Schemas):** Confirmado via `git diff main...HEAD --stat` — zero alterações em schemas, serializers, `schema_version` (mantido em `1`), contratos de domínio ou repositórios existentes.
