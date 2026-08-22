@@ -73,15 +73,48 @@ def verify_dual_write_consistency(
     total_audit_reviews = sum(len(evts) for evts in audit_by_review_id.values())
 
     matched_pairs = 0
+    issues: list[ConsistencyIssue] = []
+
     for review_id, concluded_list in concluded_by_review_id.items():
         audit_list = audit_by_review_id.get(review_id, [])
         if len(concluded_list) == 1 and len(audit_list) == 1:
             matched_pairs += 1
+        elif len(concluded_list) == 1 and len(audit_list) == 0:
+            concluded = concluded_list[0]
+            issues.append(
+                ConsistencyIssue(
+                    issue_type=ConsistencyIssueType.MISSING_AUDIT_EVENT,
+                    review_id=review_id,
+                    workflow_id=concluded.workflow_id,
+                    audit_event_id=None,
+                    details=(
+                        f"WorkflowConcluded for review_id '{review_id}' in "
+                        f"workflow '{concluded.workflow_id}' has no corresponding AuditEvent"
+                    ),
+                )
+            )
+
+    for review_id, audit_list in audit_by_review_id.items():
+        if len(audit_list) == 1 and review_id not in concluded_by_review_id:
+            audit_event = audit_list[0]
+            issues.append(
+                ConsistencyIssue(
+                    issue_type=ConsistencyIssueType.MISSING_WORKFLOW_CONCLUDED,
+                    review_id=review_id,
+                    workflow_id=None,
+                    audit_event_id=audit_event.event_id,
+                    details=(
+                        f"AuditEvent '{audit_event.event_id}' for review_id "
+                        f"'{review_id}' has no corresponding WorkflowConcluded"
+                    ),
+                )
+            )
 
     return DualWriteConsistencyReport(
         total_concluded_events=total_concluded,
         total_audit_review_events=total_audit_reviews,
         matched_pairs_count=matched_pairs,
-        issues=(),
+        issues=tuple(issues),
     )
+
 

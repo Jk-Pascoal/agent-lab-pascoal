@@ -151,6 +151,95 @@ class DualWriteConsistencyFunctionTests(unittest.TestCase):
         self.assertEqual(report.issue_count, 0)
         self.assertTrue(report.is_consistent)
 
+    def test_ca03_workflow_concluded_without_audit_produces_missing_audit_event(
+        self,
+    ) -> None:
+        reviewed_at = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+        verified_at = datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc)
+        identity = VerifiedSpecialistIdentity(
+            specialist_id="spec-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.com",
+            verification_id="ver-001",
+            verified_at=verified_at,
+        )
+        result = record_human_review(
+            event_id="aud-evt-001",
+            review_id="rev-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.APPROVE,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=identity,
+            reviewed_at=reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+        concluded = WorkflowConcluded(
+            event_id="wf-evt-001",
+            workflow_id="wf-001",
+            review=result.review,
+        )
+
+        report = verify_dual_write_consistency([concluded], [])
+
+        self.assertEqual(report.total_concluded_events, 1)
+        self.assertEqual(report.total_audit_review_events, 0)
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(len(report.issues), 1)
+
+        issue = report.issues[0]
+        self.assertEqual(
+            issue.issue_type,
+            ConsistencyIssueType.MISSING_AUDIT_EVENT,
+        )
+        self.assertEqual(issue.review_id, result.review.review_id)
+        self.assertEqual(issue.workflow_id, concluded.workflow_id)
+        self.assertIsNone(issue.audit_event_id)
+
+    def test_ca04_audit_event_without_concluded_produces_missing_workflow_concluded(
+        self,
+    ) -> None:
+        reviewed_at = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+        verified_at = datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc)
+        identity = VerifiedSpecialistIdentity(
+            specialist_id="spec-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.com",
+            verification_id="ver-001",
+            verified_at=verified_at,
+        )
+        result = record_human_review(
+            event_id="aud-evt-001",
+            review_id="rev-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.APPROVE,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=identity,
+            reviewed_at=reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+
+        report = verify_dual_write_consistency([], [result.audit_event])
+
+        self.assertEqual(report.total_concluded_events, 0)
+        self.assertEqual(report.total_audit_review_events, 1)
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(len(report.issues), 1)
+
+        issue = report.issues[0]
+        self.assertEqual(
+            issue.issue_type,
+            ConsistencyIssueType.MISSING_WORKFLOW_CONCLUDED,
+        )
+        self.assertEqual(issue.review_id, result.audit_event.review_id)
+        self.assertIsNone(issue.workflow_id)
+        self.assertEqual(issue.audit_event_id, result.audit_event.event_id)
+
 
 if __name__ == "__main__":
     unittest.main()
