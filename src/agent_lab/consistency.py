@@ -79,6 +79,53 @@ def verify_dual_write_consistency(
         audit_list = audit_by_review_id.get(review_id, [])
         if len(concluded_list) == 1 and len(audit_list) == 1:
             matched_pairs += 1
+            concluded = concluded_list[0]
+            audit_event = audit_list[0]
+
+            if concluded.review.material_id != audit_event.material_id:
+                issues.append(
+                    ConsistencyIssue(
+                        issue_type=ConsistencyIssueType.MATERIAL_ID_MISMATCH,
+                        review_id=review_id,
+                        workflow_id=concluded.workflow_id,
+                        audit_event_id=audit_event.event_id,
+                        details=(
+                            f"Material ID mismatch for review_id '{review_id}': "
+                            f"lifecycle has '{concluded.review.material_id}', "
+                            f"audit has '{audit_event.material_id}'"
+                        ),
+                    )
+                )
+
+            if concluded.review.reviewer_id != audit_event.actor_id:
+                issues.append(
+                    ConsistencyIssue(
+                        issue_type=ConsistencyIssueType.ACTOR_ID_MISMATCH,
+                        review_id=review_id,
+                        workflow_id=concluded.workflow_id,
+                        audit_event_id=audit_event.event_id,
+                        details=(
+                            f"Actor ID mismatch for review_id '{review_id}': "
+                            f"lifecycle has '{concluded.review.reviewer_id}', "
+                            f"audit has '{audit_event.actor_id}'"
+                        ),
+                    )
+                )
+
+            if concluded.review.reviewed_at != audit_event.occurred_at:
+                issues.append(
+                    ConsistencyIssue(
+                        issue_type=ConsistencyIssueType.TIMESTAMP_MISMATCH,
+                        review_id=review_id,
+                        workflow_id=concluded.workflow_id,
+                        audit_event_id=audit_event.event_id,
+                        details=(
+                            f"Timestamp mismatch for review_id '{review_id}': "
+                            f"lifecycle reviewed_at '{concluded.review.reviewed_at.isoformat()}', "
+                            f"audit occurred_at '{audit_event.occurred_at.isoformat()}'"
+                        ),
+                    )
+                )
         elif len(concluded_list) == 1 and len(audit_list) == 0:
             concluded = concluded_list[0]
             issues.append(
