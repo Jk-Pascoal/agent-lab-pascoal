@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+from datetime import datetime, timezone
 import unittest
 
+from agent_lab.audit import record_human_review
 from agent_lab.consistency import (
     ConsistencyIssue,
     ConsistencyIssueType,
     DualWriteConsistencyReport,
+    verify_dual_write_consistency,
 )
+from agent_lab.domain import GovernanceDecision
+from agent_lab.human_review import HumanDecision, VerifiedSpecialistIdentity
+from agent_lab.workflow_events import WorkflowConcluded
 
 
 class ConsistencyContractsTests(unittest.TestCase):
@@ -96,5 +102,56 @@ class ConsistencyContractsTests(unittest.TestCase):
             consistent_report.matched_pairs_count = 3  # type: ignore[misc]
 
 
+class DualWriteConsistencyFunctionTests(unittest.TestCase):
+    def test_ca01_empty_collections_produce_empty_consistent_report(self) -> None:
+        report = verify_dual_write_consistency([], [])
+
+        self.assertEqual(report.total_concluded_events, 0)
+        self.assertEqual(report.total_audit_review_events, 0)
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issues, ())
+        self.assertEqual(report.issue_count, 0)
+        self.assertTrue(report.is_consistent)
+
+    def test_ca02_single_perfect_pair_produces_consistent_report_with_matched_pair(
+        self,
+    ) -> None:
+        reviewed_at = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+        verified_at = datetime(2026, 8, 22, 11, 30, tzinfo=timezone.utc)
+        identity = VerifiedSpecialistIdentity(
+            specialist_id="spec-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.com",
+            verification_id="ver-001",
+            verified_at=verified_at,
+        )
+        result = record_human_review(
+            event_id="aud-evt-001",
+            review_id="rev-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.APPROVE,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=identity,
+            reviewed_at=reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+        concluded = WorkflowConcluded(
+            event_id="wf-evt-001",
+            workflow_id="wf-001",
+            review=result.review,
+        )
+
+        report = verify_dual_write_consistency([concluded], [result.audit_event])
+
+        self.assertEqual(report.total_concluded_events, 1)
+        self.assertEqual(report.total_audit_review_events, 1)
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issues, ())
+        self.assertEqual(report.issue_count, 0)
+        self.assertTrue(report.is_consistent)
+
+
 if __name__ == "__main__":
     unittest.main()
+
