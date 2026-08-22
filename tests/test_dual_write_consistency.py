@@ -688,6 +688,157 @@ class DualWriteConsistencyFunctionTests(unittest.TestCase):
                 )
                 self.assertIn("identity_verified_at", report.issues[0].details)
 
+    def test_ca09_duplicate_review_id_in_lifecycle_isolates_and_produces_duplicate_issue(
+        self,
+    ) -> None:
+        concluded_1, audit = self._create_perfect_pair()
+        concluded_2 = WorkflowConcluded(
+            event_id="wf-evt-002",
+            workflow_id="wf-002",
+            review=concluded_1.review,
+        )
+
+        report = verify_dual_write_consistency([concluded_1, concluded_2], [audit])
+
+        self.assertEqual(report.total_concluded_events, 2)
+        self.assertEqual(report.total_audit_review_events, 1)
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(len(report.issues), 1)
+
+        issue = report.issues[0]
+        self.assertEqual(
+            issue.issue_type,
+            ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE,
+        )
+        self.assertEqual(issue.review_id, "rev-001")
+
+    def test_ca10_duplicate_review_id_in_audit_isolates_and_produces_duplicate_issue(
+        self,
+    ) -> None:
+        concluded, audit_1 = self._create_perfect_pair()
+        audit_2 = AuditEvent(
+            event_id="aud-evt-002",
+            event_type=audit_1.event_type,
+            material_id=audit_1.material_id,
+            actor_id=audit_1.actor_id,
+            occurred_at=audit_1.occurred_at,
+            review_id=audit_1.review_id,
+            metadata=audit_1.metadata,
+        )
+
+        report = verify_dual_write_consistency([concluded], [audit_1, audit_2])
+
+        self.assertEqual(report.total_concluded_events, 1)
+        self.assertEqual(report.total_audit_review_events, 2)
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(len(report.issues), 1)
+
+        issue = report.issues[0]
+        self.assertEqual(
+            issue.issue_type,
+            ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_AUDIT,
+        )
+        self.assertEqual(issue.review_id, "rev-001")
+
+    def test_ca09_ca10_duplicates_in_both_histories_produces_both_issues_and_no_pairing(
+        self,
+    ) -> None:
+        concluded_1, audit_1 = self._create_perfect_pair()
+        concluded_2 = WorkflowConcluded(
+            event_id="wf-evt-002",
+            workflow_id="wf-002",
+            review=concluded_1.review,
+        )
+        audit_2 = AuditEvent(
+            event_id="aud-evt-002",
+            event_type=audit_1.event_type,
+            material_id=audit_1.material_id,
+            actor_id=audit_1.actor_id,
+            occurred_at=audit_1.occurred_at,
+            review_id=audit_1.review_id,
+            metadata=audit_1.metadata,
+        )
+
+        report = verify_dual_write_consistency(
+            [concluded_1, concluded_2],
+            [audit_1, audit_2],
+        )
+
+        self.assertEqual(report.total_concluded_events, 2)
+        self.assertEqual(report.total_audit_review_events, 2)
+        self.assertEqual(report.matched_pairs_count, 0)
+        self.assertEqual(report.issue_count, 2)
+        self.assertFalse(report.is_consistent)
+
+        issue_types = {i.issue_type for i in report.issues}
+        self.assertEqual(
+            issue_types,
+            {
+                ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE,
+                ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_AUDIT,
+            },
+        )
+        for issue in report.issues:
+            self.assertEqual(issue.review_id, "rev-001")
+
+    def test_ca09_ca10_duplicate_review_id_does_not_contaminate_healthy_pair(
+        self,
+    ) -> None:
+        # Par 1: ambíguo no lifecycle
+        concluded_1a, audit_1 = self._create_perfect_pair()
+        concluded_1b = WorkflowConcluded(
+            event_id="wf-evt-001b",
+            workflow_id="wf-001b",
+            review=concluded_1a.review,
+        )
+
+        # Par 2: perfeitamente 1:1 e consistente
+        reviewed_at = datetime(2026, 8, 22, 12, 30, tzinfo=timezone.utc)
+        verified_at = datetime(2026, 8, 22, 11, 45, tzinfo=timezone.utc)
+        identity_2 = VerifiedSpecialistIdentity(
+            specialist_id="spec-002",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist2@corp.com",
+            verification_id="ver-002",
+            verified_at=verified_at,
+        )
+        result_2 = record_human_review(
+            event_id="aud-evt-002",
+            review_id="rev-002",
+            material_id="MAT-002",
+            system_recommendation=GovernanceDecision.APPROVE,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=identity_2,
+            reviewed_at=reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+        concluded_2 = WorkflowConcluded(
+            event_id="wf-evt-002",
+            workflow_id="wf-002",
+            review=result_2.review,
+        )
+
+        report = verify_dual_write_consistency(
+            [concluded_1a, concluded_1b, concluded_2],
+            [audit_1, result_2.audit_event],
+        )
+
+        self.assertEqual(report.total_concluded_events, 3)
+        self.assertEqual(report.total_audit_review_events, 2)
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issue_count, 1)
+        self.assertFalse(report.is_consistent)
+        self.assertEqual(
+            report.issues[0].issue_type,
+            ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE,
+        )
+        self.assertEqual(report.issues[0].review_id, "rev-001")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -77,8 +77,50 @@ def verify_dual_write_consistency(
     matched_pairs = 0
     issues: list[ConsistencyIssue] = []
 
-    for review_id, concluded_list in concluded_by_review_id.items():
+    all_review_ids = list(
+        dict.fromkeys(
+            [*concluded_by_review_id.keys(), *audit_by_review_id.keys()]
+        )
+    )
+
+    for review_id in all_review_ids:
+        concluded_list = concluded_by_review_id.get(review_id, [])
         audit_list = audit_by_review_id.get(review_id, [])
+
+        is_lifecycle_duplicate = len(concluded_list) > 1
+        is_audit_duplicate = len(audit_list) > 1
+
+        if is_lifecycle_duplicate:
+            issues.append(
+                ConsistencyIssue(
+                    issue_type=ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_LIFECYCLE,
+                    review_id=review_id,
+                    workflow_id=None,
+                    audit_event_id=None,
+                    details=(
+                        f"Duplicate review_id '{review_id}' in lifecycle: "
+                        f"found {len(concluded_list)} WorkflowConcluded events"
+                    ),
+                )
+            )
+
+        if is_audit_duplicate:
+            issues.append(
+                ConsistencyIssue(
+                    issue_type=ConsistencyIssueType.DUPLICATE_REVIEW_ID_IN_AUDIT,
+                    review_id=review_id,
+                    workflow_id=None,
+                    audit_event_id=None,
+                    details=(
+                        f"Duplicate review_id '{review_id}' in audit: "
+                        f"found {len(audit_list)} AuditEvent records"
+                    ),
+                )
+            )
+
+        if is_lifecycle_duplicate or is_audit_duplicate:
+            continue
+
         if len(concluded_list) == 1 and len(audit_list) == 1:
             matched_pairs += 1
             concluded = concluded_list[0]
@@ -271,9 +313,7 @@ def verify_dual_write_consistency(
                     ),
                 )
             )
-
-    for review_id, audit_list in audit_by_review_id.items():
-        if len(audit_list) == 1 and review_id not in concluded_by_review_id:
+        elif len(concluded_list) == 0 and len(audit_list) == 1:
             audit_event = audit_list[0]
             issues.append(
                 ConsistencyIssue(
