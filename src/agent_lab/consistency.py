@@ -8,10 +8,12 @@ from enum import Enum
 from typing import Any
 
 from agent_lab.audit import AuditEvent, AuditEventType
+from agent_lab.audit_repository import AuditRepository
 from agent_lab.workflow_events import (
     WorkflowConcluded,
     WorkflowLifecycleEvent,
 )
+from agent_lab.workflow_repository import WorkflowLifecycleRepository
 
 
 class ConsistencyIssueType(str, Enum):
@@ -359,6 +361,17 @@ def verify_dual_write_consistency(
         total_audit_review_events=total_audit_reviews,
         matched_pairs_count=matched_pairs,
         issues=sorted_issues,
+    )
+
+
+def verify_repositories_consistency(
+    lifecycle_repo: WorkflowLifecycleRepository,
+    audit_repo: AuditRepository,
+) -> DualWriteConsistencyReport:
+    """Adaptador de repositórios que extrai eventos persistidos e executa a verificação pura."""
+    return verify_dual_write_consistency(
+        lifecycle_repo.list_all_events(),
+        audit_repo.list_all(),
     )
 
 
