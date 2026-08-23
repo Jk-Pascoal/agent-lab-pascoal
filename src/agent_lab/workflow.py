@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 
 from agent_lab.decision import DecisionRecommendation
-from agent_lab.human_review import HumanReview
+from agent_lab.human_review import HumanDecision, HumanReview
 
 
 class WorkflowStatus(str, Enum):
@@ -37,6 +37,8 @@ class GovernanceWorkflow:
     recommendation: DecisionRecommendation
     opened_at: datetime
     review: HumanReview | None = None
+    predecessor_workflow_id: str | None = None
+    triggering_review_id: str | None = None
 
     def __post_init__(self) -> None:
         sanitized_workflow_id = _require_non_blank(
@@ -70,6 +72,28 @@ class GovernanceWorkflow:
                 raise ValueError(
                     "review reviewed_at cannot be earlier than workflow opened_at"
                 )
+
+        if self.predecessor_workflow_id is not None:
+            sanitized_predecessor_workflow_id = _require_non_blank(
+                self.predecessor_workflow_id,
+                "predecessor_workflow_id",
+            )
+            object.__setattr__(
+                self,
+                "predecessor_workflow_id",
+                sanitized_predecessor_workflow_id,
+            )
+
+        if self.triggering_review_id is not None:
+            sanitized_triggering_review_id = _require_non_blank(
+                self.triggering_review_id,
+                "triggering_review_id",
+            )
+            object.__setattr__(
+                self,
+                "triggering_review_id",
+                sanitized_triggering_review_id,
+            )
 
     @property
     def material_id(self) -> str:
@@ -112,4 +136,63 @@ def conclude_governance_workflow(
         recommendation=workflow.recommendation,
         opened_at=workflow.opened_at,
         review=review,
+        predecessor_workflow_id=workflow.predecessor_workflow_id,
+        triggering_review_id=workflow.triggering_review_id,
+    )
+
+
+def open_correction_follow_up(
+    predecessor: GovernanceWorkflow,
+    *,
+    workflow_id: str,
+    recommendation: DecisionRecommendation,
+    opened_at: datetime,
+) -> GovernanceWorkflow:
+    """Open a new governance workflow cycle linked to a prior correction review."""
+    if not isinstance(predecessor, GovernanceWorkflow):
+        raise TypeError("predecessor must be a GovernanceWorkflow")
+    if not isinstance(recommendation, DecisionRecommendation):
+        raise ValueError("recommendation must be a DecisionRecommendation")
+    if predecessor.review is None:
+        raise ValueError(
+            "predecessor must be reviewed before opening a correction follow-up"
+        )
+    if (
+        predecessor.review.human_decision
+        is not HumanDecision.REQUEST_CORRECTION
+    ):
+        raise ValueError(
+            "correction follow-up requires REQUEST_CORRECTION decision"
+        )
+    sanitized_workflow_id = _require_non_blank(
+        workflow_id,
+        "workflow_id",
+    )
+    if sanitized_workflow_id == predecessor.workflow_id:
+        raise ValueError(
+            "correction follow-up workflow_id must differ from predecessor workflow_id"
+        )
+    if recommendation.material_id != predecessor.material_id:
+        raise ValueError(
+            "correction follow-up material_id must match predecessor material_id"
+        )
+    validated_opened_at = _require_aware_datetime(
+        opened_at,
+        "opened_at",
+    )
+    if (
+        predecessor.closed_at is not None
+        and validated_opened_at < predecessor.closed_at
+    ):
+        raise ValueError(
+            "correction follow-up opened_at cannot be before predecessor closed_at"
+        )
+
+    return GovernanceWorkflow(
+        workflow_id=sanitized_workflow_id,
+        recommendation=recommendation,
+        opened_at=validated_opened_at,
+        review=None,
+        predecessor_workflow_id=predecessor.workflow_id,
+        triggering_review_id=predecessor.review.review_id,
     )
