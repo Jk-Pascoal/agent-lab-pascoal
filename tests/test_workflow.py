@@ -678,6 +678,185 @@ class GovernanceWorkflowTests(unittest.TestCase):
             concluded_predecessor.review.review_id,
         )
 
+    def test_conclude_correction_follow_up_preserves_causal_lineage(
+        self,
+    ) -> None:
+        predecessor_opened_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=predecessor_opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        predecessor_reviewed_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            30,
+            0,
+            tzinfo=timezone.utc,
+        )
+        predecessor_review = self.build_review(
+            review_id="rev-001",
+            material_id="MAT-0044",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=predecessor_reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, predecessor_review
+        )
+
+        follow_up_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação para ciclo de follow-up após solicitação de correção.",
+            requires_human_decision=True,
+        )
+        successor = workflow_module.open_correction_follow_up(
+            concluded_predecessor,
+            workflow_id="wf-002",
+            recommendation=follow_up_recommendation,
+            opened_at=follow_up_opened_at,
+        )
+        self.assertEqual(
+            successor.predecessor_workflow_id,
+            concluded_predecessor.workflow_id,
+        )
+        self.assertEqual(
+            successor.triggering_review_id,
+            predecessor_review.review_id,
+        )
+
+        successor_reviewed_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            30,
+            0,
+            tzinfo=timezone.utc,
+        )
+        successor_review = self.build_review(
+            review_id="rev-002",
+            material_id="MAT-0044",
+            system_recommendation=GovernanceDecision.REVIEW,
+            human_decision=HumanDecision.APPROVE,
+            justification="Novo ciclo revisado e aprovado pelo especialista.",
+            corrections=(),
+            reviewed_at=successor_reviewed_at,
+        )
+
+        concluded_successor = workflow_module.conclude_governance_workflow(
+            successor, successor_review
+        )
+
+        self.assertEqual(
+            concluded_successor.status,
+            WorkflowStatus.REVIEWED,
+        )
+        self.assertEqual(
+            concluded_successor.predecessor_workflow_id,
+            successor.predecessor_workflow_id,
+        )
+        self.assertEqual(
+            concluded_successor.triggering_review_id,
+            successor.triggering_review_id,
+        )
+
+    def test_open_correction_follow_up_rejects_predecessor_workflow_id_reuse_with_surrounding_whitespace(
+        self,
+    ) -> None:
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=self.opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=self.reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+        self.assertEqual(
+            concluded_predecessor.status,
+            WorkflowStatus.REVIEWED,
+        )
+
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação após tentativa de reuso com whitespace.",
+            requires_human_decision=True,
+        )
+        follow_up_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        with self.assertRaises(ValueError):
+            workflow_module.open_correction_follow_up(
+                concluded_predecessor,
+                workflow_id="  wf-001  ",
+                recommendation=follow_up_recommendation,
+                opened_at=follow_up_opened_at,
+            )
+
+    def test_governance_workflow_rejects_blank_causal_lineage_ids(
+        self,
+    ) -> None:
+        invalid_cases = (
+            ("predecessor_whitespace", "   ", "rev-001"),
+            ("predecessor_empty", "", "rev-001"),
+            ("triggering_whitespace", "wf-001", "   "),
+            ("triggering_empty", "wf-001", ""),
+        )
+
+        for case_name, pred_id, trig_id in invalid_cases:
+            with self.subTest(case=case_name):
+                with self.assertRaises(ValueError):
+                    self.build_workflow(
+                        predecessor_workflow_id=pred_id,
+                        triggering_review_id=trig_id,
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()

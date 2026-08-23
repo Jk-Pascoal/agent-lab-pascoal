@@ -73,6 +73,28 @@ class GovernanceWorkflow:
                     "review reviewed_at cannot be earlier than workflow opened_at"
                 )
 
+        if self.predecessor_workflow_id is not None:
+            sanitized_predecessor_workflow_id = _require_non_blank(
+                self.predecessor_workflow_id,
+                "predecessor_workflow_id",
+            )
+            object.__setattr__(
+                self,
+                "predecessor_workflow_id",
+                sanitized_predecessor_workflow_id,
+            )
+
+        if self.triggering_review_id is not None:
+            sanitized_triggering_review_id = _require_non_blank(
+                self.triggering_review_id,
+                "triggering_review_id",
+            )
+            object.__setattr__(
+                self,
+                "triggering_review_id",
+                sanitized_triggering_review_id,
+            )
+
     @property
     def material_id(self) -> str:
         return self.recommendation.material_id
@@ -114,6 +136,8 @@ def conclude_governance_workflow(
         recommendation=workflow.recommendation,
         opened_at=workflow.opened_at,
         review=review,
+        predecessor_workflow_id=workflow.predecessor_workflow_id,
+        triggering_review_id=workflow.triggering_review_id,
     )
 
 
@@ -136,7 +160,11 @@ def open_correction_follow_up(
         raise ValueError(
             "correction follow-up requires REQUEST_CORRECTION decision"
         )
-    if workflow_id == predecessor.workflow_id:
+    sanitized_workflow_id = _require_non_blank(
+        workflow_id,
+        "workflow_id",
+    )
+    if sanitized_workflow_id == predecessor.workflow_id:
         raise ValueError(
             "correction follow-up workflow_id must differ from predecessor workflow_id"
         )
@@ -150,7 +178,7 @@ def open_correction_follow_up(
         )
 
     return GovernanceWorkflow(
-        workflow_id=workflow_id,
+        workflow_id=sanitized_workflow_id,
         recommendation=recommendation,
         opened_at=opened_at,
         review=None,

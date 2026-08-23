@@ -333,14 +333,23 @@ Por tratar-se de alteração puramente em código de domínio síncrono e sem mo
 
 ## 17. Evidências de fechamento
 
-A implementação da SPEC 0058 foi construída incrementalmente por micro-TDD, com ciclos RED → GREEN para as invariantes funcionais e um teste positivo final de boundary para proteger a igualdade temporal permitida pelo contrato:
+A implementação da SPEC 0058 foi construída incrementalmente por micro-TDD, com 9 ciclos RED → GREEN para as invariantes funcionais e 1 teste positivo de boundary para proteger a igualdade temporal permitida pelo contrato (totalizando 10 novos métodos de teste):
 
 - **Baseline de entrada (`main`):** 284 testes GREEN.
-- **Baseline final da branch:** 291 testes GREEN.
-- **Delta:** +7 testes.
+- **Baseline final da branch:** 294 testes GREEN.
+- **Delta:** +10 testes.
 - **Comando oficial:** `python -m unittest discover -s tests`
-- **Resultado:** `Ran 291 tests in 0.523s — OK` (0 failures, 0 errors, 0 skipped).
+- **Resultado:** `Ran 294 tests in 0.544s — OK` (0 failures, 0 errors, 0 skipped).
 - **Quality gate:** `git diff --check` limpo.
+
+### Achados da auditoria pré-merge
+
+A revisão humana do PR #59 identificou três lacunas de robustez não capturadas pela suíte inicial da Issue #58:
+1. **Perda de lineage na conclusão:** `conclude_governance_workflow()` instanciava novo workflow sem propagar `predecessor_workflow_id` e `triggering_review_id`;
+2. **Bypass de unicidade por whitespace:** `open_correction_follow_up()` comparava `workflow_id` bruto antes da normalização com `strip()`, permitindo reuso acidental do ID do predecessor;
+3. **Ausência de validação em IDs de lineage:** `GovernanceWorkflow.__post_init__` não validava se `predecessor_workflow_id` e `triggering_review_id` eram vazios ou whitespace quando fornecidos diretamente.
+
+Cada achado foi formalizado em teste micro-TDD RED antes de sua respectiva correção e validação GREEN.
 
 ### Testes introduzidos pela Issue #58 (`tests/test_workflow.py`)
 
@@ -350,21 +359,25 @@ A implementação da SPEC 0058 foi construída incrementalmente por micro-TDD, c
 4. `test_open_correction_follow_up_rejects_predecessor_workflow_id_reuse` — Rejeição de reutilização do `workflow_id` do predecessor;
 5. `test_open_correction_follow_up_rejects_material_id_mismatch` — Rejeição de descontinuidade do objeto de governança (`material_id` divergente);
 6. `test_open_correction_follow_up_rejects_opened_at_before_predecessor_closed_at` — Rejeição de timestamps cronologicamente anteriores ao fechamento do predecessor;
-7. `test_open_correction_follow_up_allows_opened_at_equal_to_predecessor_closed_at` — Validação positiva de boundary para `opened_at == predecessor.closed_at`.
+7. `test_open_correction_follow_up_allows_opened_at_equal_to_predecessor_closed_at` — Validação positiva de boundary para `opened_at == predecessor.closed_at`;
+8. `test_conclude_correction_follow_up_preserves_causal_lineage` — Garante que `predecessor_workflow_id` e `triggering_review_id` sobrevivem à transição do successor para `REVIEWED`;
+9. `test_open_correction_follow_up_rejects_predecessor_workflow_id_reuse_with_surrounding_whitespace` — Garante identidade distinta após normalização de `workflow_id`;
+10. `test_governance_workflow_rejects_blank_causal_lineage_ids` — Garante rejeição de IDs de lineage vazios ou compostos somente por whitespace quando presentes.
 
 ### Resumo da cobertura funcional
 
-Os 7 novos métodos de teste cobrem coletivamente o contrato de sucessão causal e as invariantes da SPEC:
+Os 10 novos métodos de teste cobrem coletivamente o contrato de sucessão causal e as invariantes da SPEC:
 - Predecessor precisa estar revisado (`WorkflowStatus.REVIEWED`);
 - Decisão humana precisa ser `HumanDecision.REQUEST_CORRECTION`;
 - `APPROVE` e `REJECT` não originam correction follow-up;
 - Predecessor permanece imutável e inalterado;
 - Successor usa novo `workflow_id` (`successor.workflow_id != predecessor.workflow_id`);
+- O `workflow_id` do successor é sanitizado antes da comparação com o predecessor, impedindo reutilização de identidade por whitespace externo;
 - Successor mantém o mesmo `material_id` (`successor.material_id == predecessor.material_id`);
 - `successor.opened_at >= predecessor.closed_at` (com igualdade temporal permitida);
 - Successor nasce com `review = None` e status `WorkflowStatus.PENDING_HUMAN_REVIEW`;
-- `predecessor_workflow_id` preserva vínculo com o predecessor;
-- `triggering_review_id` preserva vínculo com a review causadora.
+- `predecessor_workflow_id` e `triggering_review_id` preservam vínculo causal na abertura e são preservados após `conclude_governance_workflow()`;
+- `predecessor_workflow_id` e `triggering_review_id`, quando presentes, são strings não-vazias e são sanitizados.
 
 ### Preservação fora de escopo
 
