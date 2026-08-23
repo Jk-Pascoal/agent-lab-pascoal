@@ -333,13 +333,13 @@ Por tratar-se de alteração puramente em código de domínio síncrono e sem mo
 
 ## 17. Evidências de fechamento
 
-A implementação da SPEC 0058 foi construída incrementalmente por micro-TDD, com 9 ciclos RED → GREEN para as invariantes funcionais e 1 teste positivo de boundary para proteger a igualdade temporal permitida pelo contrato (totalizando 10 novos métodos de teste):
+A implementação da SPEC 0058 foi construída incrementalmente por micro-TDD, com 12 ciclos RED → GREEN para as invariantes funcionais e 1 teste positivo de boundary para proteger a igualdade temporal permitida pelo contrato (totalizando 13 novos métodos de teste):
 
 - **Baseline de entrada (`main`):** 284 testes GREEN.
-- **Baseline final da branch:** 294 testes GREEN.
-- **Delta:** +10 testes.
+- **Baseline final da branch:** 297 testes GREEN.
+- **Delta:** +13 testes.
 - **Comando oficial:** `python -m unittest discover -s tests`
-- **Resultado:** `Ran 294 tests in 0.544s — OK` (0 failures, 0 errors, 0 skipped).
+- **Resultado:** `Ran 297 tests in 0.526s — OK` (0 failures, 0 errors, 0 skipped).
 - **Quality gate:** `git diff --check` limpo.
 
 ### Achados da auditoria pré-merge
@@ -350,6 +350,15 @@ A revisão humana do PR #59 identificou três lacunas de robustez não capturada
 3. **Ausência de validação em IDs de lineage:** `GovernanceWorkflow.__post_init__` não validava se `predecessor_workflow_id` e `triggering_review_id` eram vazios ou whitespace quando fornecidos diretamente.
 
 Cada achado foi formalizado em teste micro-TDD RED antes de sua respectiva correção e validação GREEN.
+
+### Achados adicionais da auditoria final
+
+A auditoria final exploratória identificou três lacunas adicionais de validação defensiva e integridade de tipos:
+4. **Validação temporal tardia de `opened_at`:** Um datetime naive chegava à comparação relacional com `predecessor.closed_at`, provocando `TypeError` nativo não-tratado antes da validação de domínio; correção: `_require_aware_datetime()` passou a validar `opened_at` antes da comparação temporal;
+5. **Ausência de validação explícita do tipo de `predecessor`:** Passagem de argumento não-`GovernanceWorkflow` provocava `AttributeError` ao tentar acessar `.review`; correção: guarda explícita `isinstance(predecessor, GovernanceWorkflow)` levantando `TypeError` defensivo;
+6. **Ausência de validação explícita do tipo de `recommendation`:** Passagem de argumento não-`DecisionRecommendation` provocava `AttributeError` ao tentar acessar `.material_id`; correção: guarda explícita `isinstance(recommendation, DecisionRecommendation)` levantando `ValueError` defensivo, consistente com `GovernanceWorkflow.__post_init__`.
+
+Os três casos foram capturados inicialmente via testes RED e validados GREEN após suas correções pontuais.
 
 ### Testes introduzidos pela Issue #58 (`tests/test_workflow.py`)
 
@@ -362,11 +371,14 @@ Cada achado foi formalizado em teste micro-TDD RED antes de sua respectiva corre
 7. `test_open_correction_follow_up_allows_opened_at_equal_to_predecessor_closed_at` — Validação positiva de boundary para `opened_at == predecessor.closed_at`;
 8. `test_conclude_correction_follow_up_preserves_causal_lineage` — Garante que `predecessor_workflow_id` e `triggering_review_id` sobrevivem à transição do successor para `REVIEWED`;
 9. `test_open_correction_follow_up_rejects_predecessor_workflow_id_reuse_with_surrounding_whitespace` — Garante identidade distinta após normalização de `workflow_id`;
-10. `test_governance_workflow_rejects_blank_causal_lineage_ids` — Garante rejeição de IDs de lineage vazios ou compostos somente por whitespace quando presentes.
+10. `test_governance_workflow_rejects_blank_causal_lineage_ids` — Garante rejeição de IDs de lineage vazios ou compostos somente por whitespace quando presentes;
+11. `test_open_correction_follow_up_rejects_naive_opened_at` — Garante rejeição determinística com `ValueError` de timestamp sem timezone antes da comparação cronológica;
+12. `test_open_correction_follow_up_rejects_invalid_predecessor_type` — Garante rejeição explícita com `TypeError` quando `predecessor` não é `GovernanceWorkflow`;
+13. `test_open_correction_follow_up_rejects_invalid_recommendation_type` — Garante rejeição explícita com `ValueError` quando `recommendation` não é `DecisionRecommendation`.
 
 ### Resumo da cobertura funcional
 
-Os 10 novos métodos de teste cobrem coletivamente o contrato de sucessão causal e as invariantes da SPEC:
+Os 13 novos métodos de teste cobrem coletivamente o contrato de sucessão causal e as invariantes da SPEC:
 - Predecessor precisa estar revisado (`WorkflowStatus.REVIEWED`);
 - Decisão humana precisa ser `HumanDecision.REQUEST_CORRECTION`;
 - `APPROVE` e `REJECT` não originam correction follow-up;
@@ -375,6 +387,9 @@ Os 10 novos métodos de teste cobrem coletivamente o contrato de sucessão causa
 - O `workflow_id` do successor é sanitizado antes da comparação com o predecessor, impedindo reutilização de identidade por whitespace externo;
 - Successor mantém o mesmo `material_id` (`successor.material_id == predecessor.material_id`);
 - `successor.opened_at >= predecessor.closed_at` (com igualdade temporal permitida);
+- `opened_at` é validado como datetime timezone-aware antes de qualquer comparação cronológica;
+- `predecessor` precisa ser instância de `GovernanceWorkflow`, com rejeição defensiva via `TypeError`;
+- `recommendation` precisa ser instância de `DecisionRecommendation`, com rejeição defensiva via `ValueError`;
 - Successor nasce com `review = None` e status `WorkflowStatus.PENDING_HUMAN_REVIEW`;
 - `predecessor_workflow_id` e `triggering_review_id` preservam vínculo causal na abertura e são preservados após `conclude_governance_workflow()`;
 - `predecessor_workflow_id` e `triggering_review_id`, quando presentes, são strings não-vazias e são sanitizados.

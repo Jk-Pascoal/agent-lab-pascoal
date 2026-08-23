@@ -149,6 +149,10 @@ def open_correction_follow_up(
     opened_at: datetime,
 ) -> GovernanceWorkflow:
     """Open a new governance workflow cycle linked to a prior correction review."""
+    if not isinstance(predecessor, GovernanceWorkflow):
+        raise TypeError("predecessor must be a GovernanceWorkflow")
+    if not isinstance(recommendation, DecisionRecommendation):
+        raise ValueError("recommendation must be a DecisionRecommendation")
     if predecessor.review is None:
         raise ValueError(
             "predecessor must be reviewed before opening a correction follow-up"
@@ -172,7 +176,14 @@ def open_correction_follow_up(
         raise ValueError(
             "correction follow-up material_id must match predecessor material_id"
         )
-    if predecessor.closed_at is not None and opened_at < predecessor.closed_at:
+    validated_opened_at = _require_aware_datetime(
+        opened_at,
+        "opened_at",
+    )
+    if (
+        predecessor.closed_at is not None
+        and validated_opened_at < predecessor.closed_at
+    ):
         raise ValueError(
             "correction follow-up opened_at cannot be before predecessor closed_at"
         )
@@ -180,7 +191,7 @@ def open_correction_follow_up(
     return GovernanceWorkflow(
         workflow_id=sanitized_workflow_id,
         recommendation=recommendation,
-        opened_at=opened_at,
+        opened_at=validated_opened_at,
         review=None,
         predecessor_workflow_id=predecessor.workflow_id,
         triggering_review_id=predecessor.review.review_id,

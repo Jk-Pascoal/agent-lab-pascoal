@@ -857,6 +857,103 @@ class GovernanceWorkflowTests(unittest.TestCase):
                         triggering_review_id=trig_id,
                     )
 
+    def test_open_correction_follow_up_rejects_naive_opened_at(
+        self,
+    ) -> None:
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=self.opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=self.reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+        self.assertEqual(
+            concluded_predecessor.status,
+            WorkflowStatus.REVIEWED,
+        )
+
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação para teste de datetime naive.",
+            requires_human_decision=True,
+        )
+        naive_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+        )
+
+        with self.assertRaises(ValueError):
+            workflow_module.open_correction_follow_up(
+                concluded_predecessor,
+                workflow_id="wf-002",
+                recommendation=follow_up_recommendation,
+                opened_at=naive_opened_at,
+            )
+
+    def test_open_correction_follow_up_rejects_invalid_predecessor_type(
+        self,
+    ) -> None:
+        with self.assertRaises(TypeError):
+            workflow_module.open_correction_follow_up(
+                "not-a-workflow",
+                workflow_id="wf-002",
+                recommendation=self.recommendation,
+                opened_at=self.opened_at,
+            )
+
+    def test_open_correction_follow_up_rejects_invalid_recommendation_type(
+        self,
+    ) -> None:
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=self.opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=self.reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+        self.assertEqual(
+            concluded_predecessor.status,
+            WorkflowStatus.REVIEWED,
+        )
+
+        with self.assertRaises(ValueError):
+            workflow_module.open_correction_follow_up(
+                concluded_predecessor,
+                workflow_id="wf-002",
+                recommendation="not-a-recommendation",
+                opened_at=self.opened_at,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
