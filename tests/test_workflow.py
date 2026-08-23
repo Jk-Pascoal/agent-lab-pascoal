@@ -8,6 +8,7 @@ from agent_lab import workflow as workflow_module
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
 from agent_lab.human_review import (
+    CorrectionRequest,
     HumanDecision,
     HumanReview,
     VerifiedSpecialistIdentity,
@@ -230,6 +231,452 @@ class GovernanceWorkflowTests(unittest.TestCase):
             workflow_module.conclude_governance_workflow(
                 concluded, second_review
             )
+
+    def test_open_correction_follow_up_creates_pending_successor_linked_to_predecessor(
+        self,
+    ) -> None:
+        predecessor_opened_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=predecessor_opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        predecessor_reviewed_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            30,
+            0,
+            tzinfo=timezone.utc,
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=predecessor_reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+
+        follow_up_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação após submissão de correções.",
+            requires_human_decision=True,
+        )
+
+        successor = workflow_module.open_correction_follow_up(
+            concluded_predecessor,
+            workflow_id="wf-002",
+            recommendation=follow_up_recommendation,
+            opened_at=follow_up_opened_at,
+        )
+
+        self.assertEqual(successor.workflow_id, "wf-002")
+        self.assertNotEqual(
+            successor.workflow_id, concluded_predecessor.workflow_id
+        )
+        self.assertEqual(
+            successor.material_id, concluded_predecessor.material_id
+        )
+        self.assertEqual(
+            successor.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+        self.assertIsNone(successor.review)
+        self.assertEqual(
+            successor.predecessor_workflow_id,
+            concluded_predecessor.workflow_id,
+        )
+        self.assertEqual(
+            successor.triggering_review_id, review.review_id
+        )
+
+        # Predecessor permanece inalterado
+        self.assertEqual(concluded_predecessor.workflow_id, "wf-001")
+        self.assertEqual(
+            concluded_predecessor.status, WorkflowStatus.REVIEWED
+        )
+        self.assertEqual(concluded_predecessor.review, review)
+
+    def test_open_correction_follow_up_rejects_pending_predecessor(
+        self,
+    ) -> None:
+        pending_predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=self.opened_at,
+        )
+        self.assertEqual(
+            pending_predecessor.status,
+            WorkflowStatus.PENDING_HUMAN_REVIEW,
+        )
+
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação para follow-up.",
+            requires_human_decision=True,
+        )
+        follow_up_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        with self.assertRaises(ValueError):
+            workflow_module.open_correction_follow_up(
+                pending_predecessor,
+                workflow_id="wf-002",
+                recommendation=follow_up_recommendation,
+                opened_at=follow_up_opened_at,
+            )
+
+    def test_open_correction_follow_up_rejects_non_correction_decisions(
+        self,
+    ) -> None:
+        decisions_to_test = (
+            (HumanDecision.APPROVE, None),
+            (HumanDecision.REJECT, "Material rejeitado pelo especialista."),
+        )
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação após tentativa de follow-up.",
+            requires_human_decision=True,
+        )
+        follow_up_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        for decision, justification in decisions_to_test:
+            with self.subTest(decision=decision):
+                predecessor = self.build_workflow(
+                    workflow_id="wf-001",
+                    opened_at=self.opened_at,
+                )
+                review = self.build_review(
+                    review_id="rev-001",
+                    human_decision=decision,
+                    justification=justification,
+                    corrections=(),
+                    reviewed_at=self.reviewed_at,
+                )
+                concluded_predecessor = (
+                    workflow_module.conclude_governance_workflow(
+                        predecessor, review
+                    )
+                )
+                self.assertEqual(
+                    concluded_predecessor.status,
+                    WorkflowStatus.REVIEWED,
+                )
+
+                with self.assertRaises(ValueError):
+                    workflow_module.open_correction_follow_up(
+                        concluded_predecessor,
+                        workflow_id="wf-002",
+                        recommendation=follow_up_recommendation,
+                        opened_at=follow_up_opened_at,
+                    )
+
+    def test_open_correction_follow_up_rejects_predecessor_workflow_id_reuse(
+        self,
+    ) -> None:
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=self.opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=self.reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+        self.assertEqual(
+            concluded_predecessor.status,
+            WorkflowStatus.REVIEWED,
+        )
+
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação após tentativa de reuso de ID.",
+            requires_human_decision=True,
+        )
+        follow_up_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        with self.assertRaises(ValueError):
+            workflow_module.open_correction_follow_up(
+                concluded_predecessor,
+                workflow_id=concluded_predecessor.workflow_id,
+                recommendation=follow_up_recommendation,
+                opened_at=follow_up_opened_at,
+            )
+
+    def test_open_correction_follow_up_rejects_material_id_mismatch(
+        self,
+    ) -> None:
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=self.opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            material_id="MAT-0044",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=self.reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+        self.assertEqual(
+            concluded_predecessor.status,
+            WorkflowStatus.REVIEWED,
+        )
+        self.assertEqual(concluded_predecessor.material_id, "MAT-0044")
+
+        different_material_recommendation = DecisionRecommendation(
+            material_id="MAT-9999",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação com material_id divergente.",
+            requires_human_decision=True,
+        )
+        follow_up_opened_at = datetime(
+            2026,
+            8,
+            18,
+            11,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        with self.assertRaises(ValueError):
+            workflow_module.open_correction_follow_up(
+                concluded_predecessor,
+                workflow_id="wf-002",
+                recommendation=different_material_recommendation,
+                opened_at=follow_up_opened_at,
+            )
+
+    def test_open_correction_follow_up_rejects_opened_at_before_predecessor_closed_at(
+        self,
+    ) -> None:
+        predecessor_opened_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=predecessor_opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        predecessor_reviewed_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            30,
+            0,
+            tzinfo=timezone.utc,
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            material_id="MAT-0044",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=predecessor_reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+        self.assertEqual(
+            concluded_predecessor.status,
+            WorkflowStatus.REVIEWED,
+        )
+        self.assertEqual(
+            concluded_predecessor.closed_at,
+            predecessor_reviewed_at,
+        )
+
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação com timestamp inválido.",
+            requires_human_decision=True,
+        )
+        earlier_opened_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            29,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        with self.assertRaises(ValueError):
+            workflow_module.open_correction_follow_up(
+                concluded_predecessor,
+                workflow_id="wf-002",
+                recommendation=follow_up_recommendation,
+                opened_at=earlier_opened_at,
+            )
+
+    def test_open_correction_follow_up_allows_opened_at_equal_to_predecessor_closed_at(
+        self,
+    ) -> None:
+        predecessor_opened_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        predecessor = self.build_workflow(
+            workflow_id="wf-001",
+            opened_at=predecessor_opened_at,
+        )
+        correction = CorrectionRequest(
+            field_name="description",
+            reason="Descrição incompleta",
+            suggested_value="PARAFUSO SEXTAVADO M8X25 INOX A2",
+        )
+        predecessor_reviewed_at = datetime(
+            2026,
+            8,
+            18,
+            10,
+            30,
+            0,
+            tzinfo=timezone.utc,
+        )
+        review = self.build_review(
+            review_id="rev-001",
+            material_id="MAT-0044",
+            human_decision=HumanDecision.REQUEST_CORRECTION,
+            justification="Necessário ajuste na descrição cadastrada.",
+            corrections=(correction,),
+            reviewed_at=predecessor_reviewed_at,
+        )
+        concluded_predecessor = workflow_module.conclude_governance_workflow(
+            predecessor, review
+        )
+        self.assertEqual(
+            concluded_predecessor.status,
+            WorkflowStatus.REVIEWED,
+        )
+        self.assertEqual(
+            concluded_predecessor.closed_at,
+            datetime(2026, 8, 18, 10, 30, 0, tzinfo=timezone.utc),
+        )
+
+        follow_up_recommendation = DecisionRecommendation(
+            material_id="MAT-0044",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Nova recomendação com timestamp idêntico ao encerramento.",
+            requires_human_decision=True,
+        )
+
+        successor = workflow_module.open_correction_follow_up(
+            concluded_predecessor,
+            workflow_id="wf-002",
+            recommendation=follow_up_recommendation,
+            opened_at=concluded_predecessor.closed_at,
+        )
+
+        self.assertEqual(
+            successor.opened_at,
+            concluded_predecessor.closed_at,
+        )
+        self.assertEqual(
+            successor.status,
+            WorkflowStatus.PENDING_HUMAN_REVIEW,
+        )
+        self.assertEqual(
+            successor.predecessor_workflow_id,
+            concluded_predecessor.workflow_id,
+        )
+        self.assertEqual(
+            successor.triggering_review_id,
+            concluded_predecessor.review.review_id,
+        )
 
 
 if __name__ == "__main__":
