@@ -20,6 +20,8 @@ def rehydrate_pending_workflow(event: WorkflowOpened) -> GovernanceWorkflow:
         recommendation=event.recommendation,
         opened_at=event.opened_at,
         review=None,
+        predecessor_workflow_id=event.predecessor_workflow_id,
+        triggering_review_id=event.triggering_review_id,
     )
 
 
@@ -81,4 +83,7 @@ def rehydrate_workflow(
         recommendation=opened.recommendation,
         opened_at=opened.opened_at,
         review=concluded.review,
+        predecessor_workflow_id=opened.predecessor_workflow_id,
+        triggering_review_id=opened.triggering_review_id,
     )
+
