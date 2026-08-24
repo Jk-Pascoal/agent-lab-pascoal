@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-22
-- **Baseline integrado na main:** 284 testes aprovados
-- **Última entrega funcional integrada na main:** Dual-Write Consistency Check v1
-- **Última Issue funcional concluída na main:** #55
-- **Último PR funcional integrado na main:** #56
-- **Último merge funcional:** `1253fbe` — Merge pull request #56
-- **Última SPEC integrada:** `docs/specs/0055_dual_write_consistency_v1.md`
+- **Estado registrado em:** 2026-08-23
+- **Baseline integrado na main:** 297 testes aprovados
+- **Última entrega funcional integrada na main:** Correction Follow-up Workflow Contract v1
+- **Última Issue funcional concluída na main:** #58
+- **Último PR funcional integrado na main:** #59
+- **Último merge funcional:** `f3ea053` — Merge pull request #59
+- **Última SPEC integrada:** `docs/specs/0058_correction_follow_up_workflow_contract_v1.md`
 - **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
@@ -39,7 +39,7 @@ O Agent Lab Pascoal é um sistema experimental de engenharia para governança de
 - evidências auditáveis;
 - recomendações de decisão;
 - revisão humana obrigatória;
-- ciclo de vida temporal de governança com persistência append-only de abertura e conclusão e projeção determinística após restart para PENDING_HUMAN_REVIEW ou REVIEWED;
+- ciclo de vida temporal de governança com persistência append-only de abertura e conclusão, projeção determinística após restart para PENDING_HUMAN_REVIEW ou REVIEWED, e suporte em memória a novos ciclos sucessores de correção (`open_correction_follow_up`) com vínculo causal explícito e predecessor preservado como histórico imutável;
 - trilha de auditoria append-only desacoplada;
 - verificação determinística e somente-leitura de consistência cruzada entre as trilhas de lifecycle e auditoria (`verify_dual_write_consistency` e `verify_repositories_consistency`).
 
@@ -162,7 +162,20 @@ O sistema já representa e valida:
   - dataclasses imutáveis `ConsistencyIssue` e `DualWriteConsistencyReport` (com `is_consistent`, `matched_pairs_count`, contagens físicas e issues ordenadas deterministicamente);
   - função pura `verify_dual_write_consistency` inspecionando sequências em memória de `WorkflowLifecycleEvent` e `AuditEvent` por `review_id`, com comparação semântica timezone-aware de datas, validação defensiva de metadados sem `KeyError` e precedência estrita de duplicidades com isolamento do identificador ambíguo;
   - ordenação canônica e determinística de issues no relatório independente da ordem de chegada dos eventos de entrada;
-  - adaptador `verify_repositories_consistency` consumindo instâncias dos protocolos `WorkflowLifecycleRepository` e `AuditRepository`, validado em testes de integração ponta a ponta com simulação de interrupção entre gravações e persistência real em arquivos JSONL após restart de processo.
+  - adaptador `verify_repositories_consistency` consumindo instâncias dos protocolos `WorkflowLifecycleRepository` e `AuditRepository`, validado em testes de integração ponta a ponta com simulação de interrupção entre gravações e persistência real em arquivos JSONL após restart de processo;
+- **Incremento integrado da Issue #58 (Correction Follow-up Workflow Contract v1):**
+  - `GovernanceWorkflow` passa a suportar identificadores opcionais de lineage causal: `predecessor_workflow_id: str | None` e `triggering_review_id: str | None`;
+  - identificadores de lineage, quando fornecidos, são validados como strings não-vazias, sanitizados via `strip()` e gravados de forma imutável;
+  - função pura de domínio `open_correction_follow_up(...)` originando um novo ciclo de workflow em estado `PENDING_HUMAN_REVIEW` a partir de um predecessor concluído exclusivamente com `HumanDecision.REQUEST_CORRECTION`;
+  - validação defensiva de tipos: `predecessor` deve ser instância de `GovernanceWorkflow` (rejeição com `TypeError`) e `recommendation` deve ser `DecisionRecommendation` (rejeição com `ValueError`);
+  - predecessor precisa estar revisado (`WorkflowStatus.REVIEWED`), e deliberações `APPROVE` ou `REJECT` são rejeitadas;
+  - successor deve possuir `workflow_id` distinto após sanitização (impedindo reaproveitamento de identidade por whitespace externo);
+  - successor preserva obrigatoriamente o mesmo `material_id` do predecessor;
+  - `opened_at` do successor deve ser timezone-aware e cronologicamente maior ou igual ao fechamento do predecessor (`successor.opened_at >= predecessor.closed_at`), com igualdade no boundary temporal explicitamente suportada;
+  - successor nasce com `review = None` e em `PENDING_HUMAN_REVIEW`;
+  - predecessor permanece estritamente imutável e inalterado (sem reabertura ou mutação);
+  - lineage causal (`predecessor_workflow_id` e `triggering_review_id`) é preservada deterministicamente após a transição para `REVIEWED` via `conclude_governance_workflow(...)`;
+  - contrato implementado puramente em memória no domínio, sem persistência da lineage causal em disco e sem introdução de semântica `CORRECTION_APPLIED`.
 
 ### 4.3 Limite atual
 
@@ -172,7 +185,10 @@ A versão atual integrada possui:
 - dual-write entre `AuditEvent` e `WorkflowConcluded` continua não-atômico (escritas append-only independentes em arquivos JSONL distintos), agora diagnosticável de forma estritamente somente-leitura pós-restart via `verify_repositories_consistency`;
 - reparo automático, reconciliação ativa em disco e atomicidade transacional (2PC) permanecem fora do escopo;
 - `closed_at` e `review_lead_time` não são persistidos de forma redundante, permanecendo derivados em memória no domínio;
-- múltiplos ciclos de workflow e reabertura após correção permanecem fora do escopo;
+- múltiplos ciclos sucessivos de governança após `REQUEST_CORRECTION` agora podem ser representados em memória por novos `GovernanceWorkflow`, causalmente vinculados ao predecessor;
+- reabertura ou mutação do mesmo `workflow_id` continua estritamente proibida;
+- persistência de `predecessor_workflow_id` e `triggering_review_id`, projeção/reidratação dessa lineage em disco e continuidade causal após restart de processo permanecem fora do escopo;
+- aplicação efetiva das correções ao material (`CORRECTION_APPLIED`) continua fora do escopo;
 - execução síncrona/monoprocesso;
 - ausência de locking multiprocesso;
 - ausência de autenticação e autorização real (RBAC);
@@ -182,7 +198,7 @@ A versão atual integrada possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: nenhum incremento funcional aberto — Issue #55 concluída e integrada.
+Incremento atual: nenhum incremento funcional aberto — Issue #58 concluída e integrada.
 
 Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
@@ -196,6 +212,7 @@ Contrato
   → Persistência de abertura de workflow (concluída na #47)
   → Persistência de conclusão de workflow (concluída na #52)
   → Verificação de consistência dual-write (concluída na #55)
+  → Contrato de correction follow-up com novo ciclo causal (concluído na #58)
   → Integração ERP (futura)
 ```
 
@@ -221,6 +238,10 @@ Estas regras não devem ser alteradas incidentalmente:
 16. A recomendação do sistema permanece imutável e atemporal; o tempo pertence ao ciclo de vida (`GovernanceWorkflow`).
 17. Um workflow não pode ser concluído mais de uma vez e a transição deve ser pura e determinística.
 18. O repositório de ciclo de vida é append-only e opera sob o princípio `Repository != Projection`.
+19. Um workflow concluído não é reaberto; um novo ciclo pós-correção exige novo `workflow_id`.
+20. Um correction follow-up só pode nascer de predecessor revisado com `HumanDecision.REQUEST_CORRECTION`.
+21. O novo ciclo deve preservar o mesmo `material_id` e não pode começar antes do fechamento do predecessor (`opened_at >= closed_at`).
+22. Vínculo causal entre ciclos não equivale à afirmação ou garantia de que as correções foram aplicadas.
 
 Qualquer mudança nessas regras exige:
 
@@ -296,15 +317,18 @@ Contratos principais:
 
 - `WorkflowStatus`;
 - `GovernanceWorkflow`;
-- `conclude_governance_workflow`.
+- `conclude_governance_workflow`;
+- `open_correction_follow_up`.
 
 Responsabilidades:
 
 - representar o ciclo de vida temporal da governança em memória;
-- abrir ciclos em estado `PENDING_HUMAN_REVIEW` com timestamp `opened_at` timezone-aware;
+- suportar identificadores opcionais de lineage causal `predecessor_workflow_id` e `triggering_review_id`, com validação e sanitização estritas;
+- abrir ciclos iniciais em estado `PENDING_HUMAN_REVIEW` com timestamp `opened_at` timezone-aware;
+- abrir novos ciclos de follow-up via `open_correction_follow_up` a partir de predecessor concluído exclusivamente com `REQUEST_CORRECTION`, sem reabertura ou mutação do predecessor;
 - derivar `material_id`, `status`, `closed_at` e `review_lead_time` sem duplicação de estado;
-- executar a transição canônica pura para `REVIEWED` ao receber deliberação de `HumanReview`;
-- validar consistência de material, coerência do parecer e invariantes cronológicas (`opened_at <= reviewed_at`);
+- executar a transição canônica pura para `REVIEWED` ao receber deliberação de `HumanReview`, preservando a lineage causal existente;
+- validar consistência de material, coerência do parecer, tipos defensivos e invariantes cronológicas (`opened_at <= reviewed_at`, `successor.opened_at >= predecessor.closed_at`);
 - manter o objeto estritamente imutável.
 
 ### 6.5 Ciclo de Vida: Eventos, Projeção, Serialização e Repositório
@@ -408,7 +432,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 284 tests
+Ran 297 tests
 OK
 ```
 
@@ -419,6 +443,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #52: 255 testes
 - Incremento da Issue #55: +29 testes sobre o baseline de entrada de 255 (27 testes unitários em `tests/test_dual_write_consistency.py` + 2 testes de integração em `tests/test_dual_write_consistency_integration.py`)
 - Baseline integrado após a Issue #55: 284 testes
+- Incremento da Issue #58: +13 testes sobre o baseline de entrada de 284
+- Baseline integrado após a Issue #58: 297 testes
 
 Não assumir `pytest`.
 
@@ -591,7 +617,10 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 
 ## 13. Decisões deliberadamente adiadas
 
-- múltiplos ciclos de workflow ou reabertura após solicitação de correção;
+- reabertura ou mutação do mesmo workflow após `REQUEST_CORRECTION` continua adiada/proibida no contrato atual (cada ciclo pós-correção é um novo workflow imutável);
+- persistência e reidratação em disco da lineage causal de correction follow-up (`predecessor_workflow_id` / `triggering_review_id`) continuam adiadas;
+- aplicação automática das `CorrectionRequest` ao material (`CORRECTION_APPLIED`) continua adiada;
+- versionamento do material e reexecução automática de regras/LLM após correção continuam adiados;
 - atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura foram integrados na Issue #55; intervenções ativas em disco continuam adiadas);
 - persistência em banco de dados relacional ou transacional;
 - proteção física ou criptográfica contra adulteração do histórico;
@@ -678,23 +707,24 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 284 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #55 | Dual-Write Consistency Check v1 | PR #56 (merge 1253fbe).
-- Última SPEC integrada: docs/specs/0055_dual_write_consistency_v1.md.
-- Último PR funcional integrado: PR #56.
-- Último merge funcional: 1253fbe.
+- Baseline integrado na main: 297 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #58 | Correction Follow-up Workflow Contract v1 | PR #59 (merge f3ea053).
+- Última SPEC integrada: docs/specs/0058_correction_follow_up_workflow_contract_v1.md.
+- Último PR funcional integrado: PR #59.
+- Último merge funcional: f3ea053.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened e WorkflowConcluded
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts)
   + auditoria append-only desacoplada
-  + verificação determinística e somente-leitura de consistência dual-write pós-restart (verify_dual_write_consistency / verify_repositories_consistency).
+  + verificação determinística e somente-leitura de consistência dual-write pós-restart (verify_dual_write_consistency / verify_repositories_consistency)
+  + correction follow-up em memória por novo ciclo causal após REQUEST_CORRECTION.
 - Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview.
 - Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional.
-- Limites atuais: Dual-write AuditEvent/WorkflowConcluded não é atômico (detecção/diagnóstico somente-leitura integrado na #55; sem reconciliação/reparo automático na v1);
-  sem múltiplos ciclos/reopen, locking multiprocesso, RBAC real, filas, SLAs ou ERP.
+- Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
+  correction follow-up causal existe em memória por novo workflow; sem reabertura ou mutação do mesmo workflow; sem persistência/reidratação da lineage causal do follow-up; sem aplicação automática das correções; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — Issue #55 concluída e integrada.
+- Nenhum incremento funcional aberto — Issue #58 concluída e integrada.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.
