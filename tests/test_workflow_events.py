@@ -168,6 +168,67 @@ class WorkflowEventsTests(unittest.TestCase):
         with self.assertRaises(FrozenInstanceError):
             event.event_id = "evt-conc-002"
 
+    def test_creates_valid_workflow_opened_with_lineage(self) -> None:
+        event = self.build_event(
+            workflow_id="wf-mat-001-02",
+            predecessor_workflow_id=" wf-mat-001-01 ",
+            triggering_review_id=" rev-001 ",
+        )
+
+        self.assertEqual(event.workflow_id, "wf-mat-001-02")
+        self.assertEqual(event.predecessor_workflow_id, "wf-mat-001-01")
+        self.assertEqual(event.triggering_review_id, "rev-001")
+
+    def test_creates_valid_workflow_opened_root_has_none_lineage(self) -> None:
+        event = self.build_event()
+
+        self.assertIsNone(event.predecessor_workflow_id)
+        self.assertIsNone(event.triggering_review_id)
+
+    def test_workflow_opened_rejects_predecessor_without_triggering_review(
+        self,
+    ) -> None:
+        with self.assertRaises(ValueError):
+            self.build_event(
+                predecessor_workflow_id="wf-mat-001-01",
+                triggering_review_id=None,
+            )
+
+    def test_workflow_opened_rejects_triggering_review_without_predecessor(
+        self,
+    ) -> None:
+        with self.assertRaises(ValueError):
+            self.build_event(
+                predecessor_workflow_id=None,
+                triggering_review_id="rev-001",
+            )
+
+    def test_workflow_opened_rejects_self_referential_lineage(self) -> None:
+        with self.assertRaises(ValueError):
+            self.build_event(
+                workflow_id="wf-mat-001-01",
+                predecessor_workflow_id="wf-mat-001-01",
+                triggering_review_id="rev-001",
+            )
+
+    def test_workflow_opened_rejects_blank_causal_lineage_ids(self) -> None:
+        blank_cases = ["", "   "]
+        for blank_val in blank_cases:
+            with self.subTest(blank_predecessor=blank_val):
+                with self.assertRaises(ValueError):
+                    self.build_event(
+                        predecessor_workflow_id=blank_val,
+                        triggering_review_id="rev-001",
+                    )
+
+            with self.subTest(blank_triggering_review=blank_val):
+                with self.assertRaises(ValueError):
+                    self.build_event(
+                        predecessor_workflow_id="wf-mat-001-01",
+                        triggering_review_id=blank_val,
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
+
