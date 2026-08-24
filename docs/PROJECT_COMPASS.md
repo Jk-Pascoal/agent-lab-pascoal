@@ -13,14 +13,13 @@
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
 - **Estado registrado em:** 2026-08-24
-- **Baseline integrado na main:** 297 testes aprovados
-- **Última entrega funcional integrada na main:** Correction Follow-up Workflow Contract v1
-- **Última Issue funcional concluída na main:** #58
-- **Último PR funcional integrado na main:** #59
-- **Último merge funcional:** `f3ea053` — Merge pull request #59
-- **Última SPEC integrada:** `docs/specs/0058_correction_follow_up_workflow_contract_v1.md`
-- **Incremento funcional atual:** Correction Follow-up Lineage Persistence v1 — Issue #61 — implementação concluída na branch, baseline 320/320 GREEN, aguardando integração via PR
-- **SPEC do incremento na branch:** `docs/specs/0061_correction_follow_up_lineage_persistence_v1.md`
+- **Baseline integrado na main:** 320 testes aprovados
+- **Última entrega funcional integrada na main:** Correction Follow-up Lineage Persistence v1
+- **Última Issue funcional concluída na main:** #61
+- **Último PR funcional integrado na main:** #62
+- **Último merge funcional:** `bfeaf7a` — Merge pull request #62
+- **Última SPEC integrada:** `docs/specs/0061_correction_follow_up_lineage_persistence_v1.md`
+- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -177,7 +176,7 @@ O sistema já representa e valida:
   - predecessor permanece estritamente imutável e inalterado (sem reabertura ou mutação);
   - lineage causal (`predecessor_workflow_id` e `triggering_review_id`) é preservada deterministicamente após a transição para `REVIEWED` via `conclude_governance_workflow(...)`;
   - contrato implementado puramente em memória no domínio, sem persistência da lineage causal em disco e sem introdução de semântica `CORRECTION_APPLIED`;
-- **Incremento implementado na branch da Issue #61 (Correction Follow-up Lineage Persistence v1 — aguardando PR/merge):**
+- **Incremento integrado da Issue #61 (Correction Follow-up Lineage Persistence v1):**
   - hardening de invariantes de lineage causal em `GovernanceWorkflow`: pareamento atômico (`predecessor_workflow_id` e `triggering_review_id` ambos `None` ou ambos preenchidos com strings válidas) e anti-auto-referência (`predecessor_workflow_id != workflow_id`);
   - `WorkflowOpened` passa a suportar identificadores opcionais de lineage causal `predecessor_workflow_id: str | None` e `triggering_review_id: str | None`, com validações idênticas de pareamento atômico, sanitização e anti-auto-referência;
   - serialização versionada com envelope discriminado: root `WorkflowOpened` serializa canonicamente em `schema_version = 1` sem chaves de lineage e sem `event_type`; follow-up `WorkflowOpened` serializa em `schema_version = 2` com `predecessor_workflow_id` e `triggering_review_id`, sem `event_type`;
@@ -199,8 +198,10 @@ A versão atual integrada na `main` possui:
 - `closed_at` e `review_lead_time` não são persistidos de forma redundante, permanecendo derivados em memória no domínio;
 - múltiplos ciclos sucessivos de governança após `REQUEST_CORRECTION` podem ser representados por novos `GovernanceWorkflow`, causalmente vinculados ao predecessor;
 - reabertura ou mutação do mesmo `workflow_id` continua estritamente proibida;
-- na branch da Issue #61, persistence e rehydration da lineage causal estão implementadas e validadas (baseline 320 testes GREEN), permanecendo aguardando integração na main via PR;
-- aplicação efetiva das correções ao material (`CORRECTION_APPLIED`) e versionamento de material continuam fora do escopo;
+- persistência e reidratação em disco da linhagem causal de correction follow-up (`predecessor_workflow_id` e `triggering_review_id`) estão integradas e validadas;
+- sucessores em `PENDING_HUMAN_REVIEW` e `REVIEWED` preservam seus identificadores causais após reinicialização;
+- predecessor permanece estritamente imutável e inalterado, e nenhuma reconstrução de grafo de predecessores ocorre durante a projeção;
+- aplicação efetiva das correções ao material (`CORRECTION_APPLIED`), mutação ou versionamento de material e reexecução automática de regras/LLM continuam fora do escopo;
 - execução síncrona/monoprocesso;
 - ausência de locking multiprocesso;
 - ausência de autenticação e autorização real (RBAC);
@@ -210,9 +211,9 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: Issue #61 — implementação concluída na branch, aguardando PR/CI/merge.
+Incremento atual: nenhum incremento funcional aberto — Issue #61 concluída e integrada.
 
-Próxima âncora arquitetural: a definir somente após a integração da Issue #61 na branch main e novo planejamento humano.
+Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
 Sequência evolutiva recomendada:
 
@@ -359,8 +360,8 @@ Contratos principais:
 - `WorkflowLifecycleEvent`: TypeAlias unindo `WorkflowOpened | WorkflowConcluded`;
 - `rehydrate_pending_workflow`: projeção pura reconstruindo `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW`;
 - `rehydrate_workflow`: projeção pura reconstruindo `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` ou `REVIEWED` a partir do histórico;
-- `workflow_opened_to_record` / `workflow_opened_from_record`: serialização versionada de abertura (`schema_version = 1`);
-- `workflow_concluded_to_record` / `workflow_concluded_from_record`: serialização versionada de conclusão com `HumanReview` completo;
+- `workflow_opened_to_record` / `workflow_opened_from_record`: serialização versionada de abertura com suporte a `schema_version = 1` (abertura raiz sem chaves de lineage e sem `event_type`) e `schema_version = 2` (correction follow-up com `predecessor_workflow_id` e `triggering_review_id`, sem `event_type`);
+- `workflow_concluded_to_record` / `workflow_concluded_from_record`: serialização versionada de conclusão (`schema_version = 1`) com `HumanReview` completo;
 - `workflow_event_to_record` / `workflow_event_from_record`: dispatcher polimórfico de ciclo de vida com fail-closed estrito;
 - `WorkflowLifecycleRepository` (Protocol) / `JsonlWorkflowLifecycleRepository`: repositório append-only em JSONL com escrita durável (`os.fsync`), leitura *fail-closed* e operações de persistência e consulta (`append_opened`, `append_concluded`, `get_opened_by_id`, `get_opened_by_workflow_id`, `list_opened_by_material`, `list_all_opened`, `get_events_by_workflow_id`, `list_all_events`);
 - `WorkflowPersistenceError`, `DuplicateWorkflowEventError`, `WorkflowAlreadyOpenedError`, `WorkflowAlreadyConcludedError`, `WorkflowNotOpenedError`, `WorkflowCorruptionError`.
@@ -444,7 +445,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 297 tests
+Ran 320 tests
 OK
 ```
 
@@ -457,6 +458,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #55: 284 testes
 - Incremento da Issue #58: +13 testes sobre o baseline de entrada de 284
 - Baseline integrado após a Issue #58: 297 testes
+- Incremento da Issue #61: +23 testes sobre o baseline de entrada de 297
+- Baseline integrado após a Issue #61: 320 testes
 
 Não assumir `pytest`.
 
@@ -630,7 +633,6 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 ## 13. Decisões deliberadamente adiadas
 
 - reabertura ou mutação do mesmo workflow após `REQUEST_CORRECTION` continua adiada/proibida no contrato atual (cada ciclo pós-correção é um novo workflow imutável);
-- persistência e reidratação em disco da lineage causal de correction follow-up (`predecessor_workflow_id` / `triggering_review_id`) deixaram de ser uma decisão adiada na branch da Issue #61: estão implementadas e validadas com baseline 320/320 GREEN, aguardando integração via PR/CI/merge; até o merge, a `main` permanece sem esse comportamento;
 - aplicação automática das `CorrectionRequest` ao material (`CORRECTION_APPLIED`) continua adiada;
 - versionamento do material e reexecução automática de regras/LLM após correção continuam adiados;
 - atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura foram integrados na Issue #55; intervenções ativas em disco continuam adiadas);
@@ -719,27 +721,27 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 297 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #58 | Correction Follow-up Workflow Contract v1 | PR #59 (merge f3ea053).
-- Última SPEC integrada: docs/specs/0058_correction_follow_up_workflow_contract_v1.md.
-- Último PR funcional integrado: PR #59.
-- Último merge funcional: f3ea053.
+- Baseline integrado na main: 320 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #61 | Correction Follow-up Lineage Persistence v1 | PR #62 (merge bfeaf7a).
+- Última SPEC integrada: docs/specs/0061_correction_follow_up_lineage_persistence_v1.md.
+- Último PR funcional integrado: PR #62.
+- Último merge funcional: bfeaf7a.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
-  + decisão humana + workflow temporal + persistência append-only de WorkflowOpened e WorkflowConcluded
-  + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts)
+  + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
+  + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
   + auditoria append-only desacoplada
   + verificação determinística e somente-leitura de consistência dual-write pós-restart (verify_dual_write_consistency / verify_repositories_consistency)
-  + correction follow-up em memória por novo ciclo causal após REQUEST_CORRECTION.
+  + correction follow-up causal com persistência de WorkflowOpened v2 e reidratação de lineage em PENDING_HUMAN_REVIEW e REVIEWED pós-restart.
 - Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview.
 - Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
-  correction follow-up causal existe em memória por novo workflow; sem reabertura ou mutação do mesmo workflow; sem persistência/reidratação da lineage causal do follow-up; sem aplicação automática das correções; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
+  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem versionamento/mutação do material; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Issue #61 — Correction Follow-up Lineage Persistence v1 — implementação concluída na branch feat/61-correction-follow-up-lineage-persistence-v1 (baseline 320/320 GREEN), aguardando PR/CI/merge.
+- Nenhum incremento funcional aberto — Issue #61 concluída e integrada.
 
 PRÓXIMA ÂNCORA:
-- Ainda não definida; próxima Issue funcional será escolhida somente após integração da Issue #61 na main e novo planejamento humano.
+- Ainda não definida; deve ser escolhida somente após novo planejamento humano.
 
 Comando oficial:
 python -m unittest discover -s tests -v
