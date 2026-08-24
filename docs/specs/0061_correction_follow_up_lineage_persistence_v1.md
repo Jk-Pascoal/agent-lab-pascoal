@@ -9,7 +9,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0061` |
-| Status | `Aprovada para Implementação` |
+| Status | `Implementada e Validada Localmente — Aguardando Integração via PR` |
 | Issue relacionada | `#61` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-24` |
@@ -700,20 +700,20 @@ git status -sb
 
 ## 15. Critérios de aceite
 
-- [ ] Hardening de `GovernanceWorkflow` rejeita instanciações com lineage parcial ou auto-referencial (`predecessor_workflow_id == workflow_id`);
-- [ ] `WorkflowOpened` suporta opcionalmente `predecessor_workflow_id` e `triggering_review_id` com sanitização e pareamento atômico estrito;
-- [ ] Abertura inicial raiz sem lineage continua serializando com `schema_version = 1` e sem as chaves de lineage (estrutura canônica v1);
-- [ ] Correction follow-up é serializado com `schema_version = 2` e exige ambas as chaves de lineage;
-- [ ] Desserialização de registros v1 exige ausência de chaves de lineage (*fail-closed*);
-- [ ] Desserialização de registros v2 exige presença válida de ambas as chaves de lineage (*fail-closed*);
-- [ ] Desserialização rejeita qualquer versão diferente de `1` e `2` (*fail-closed*);
-- [ ] Correction follow-up persistido preserva `predecessor_workflow_id` e `triggering_review_id` após múltiplos restarts;
-- [ ] Successor reidratado em `PENDING_HUMAN_REVIEW` preserva lineage causal;
-- [ ] Successor concluído e reidratado em `REVIEWED` preserva lineage causal;
-- [ ] Round-trip de serialização preserva os identificadores causais exatamente para v1 e v2;
-- [ ] Predecessor permanece imutável e inalterado;
-- [ ] Nenhuma semântica de `CORRECTION_APPLIED` é introduzida;
-- [ ] Suíte completa de testes aprovada e GREEN em Python 3.11 / `unittest`.
+- [x] Hardening de `GovernanceWorkflow` rejeita instanciações com lineage parcial ou auto-referencial (`predecessor_workflow_id == workflow_id`);
+- [x] `WorkflowOpened` suporta opcionalmente `predecessor_workflow_id` e `triggering_review_id` com sanitização e pareamento atômico estrito;
+- [x] Abertura inicial raiz sem lineage continua serializando com `schema_version = 1` e sem as chaves de lineage (preservação da estrutura canônica dos root openings v1);
+- [x] Correction follow-up é serializado com `schema_version = 2` e exige ambas as chaves de lineage;
+- [x] Desserialização de registros v1 exige ausência de chaves de lineage (*fail-closed*);
+- [x] Desserialização de registros v2 exige presença válida de ambas as chaves de lineage (*fail-closed*);
+- [x] Desserialização rejeita qualquer versão diferente de `1` e `2` (*fail-closed*);
+- [x] Correction follow-up persistido preserva `predecessor_workflow_id` e `triggering_review_id` após múltiplos restarts;
+- [x] Successor reidratado em `PENDING_HUMAN_REVIEW` preserva lineage causal;
+- [x] Successor concluído e reidratado em `REVIEWED` preserva lineage causal;
+- [x] Round-trip preserva a estrutura canônica dos root openings v1 sem lineage e preserva exatamente os identificadores causais nos correction follow-ups v2;
+- [x] Predecessor permanece imutável e inalterado;
+- [x] Nenhuma semântica de `CORRECTION_APPLIED` é introduzida;
+- [x] Suíte completa de testes aprovada e GREEN em Python 3.11 / `unittest`.
 
 ---
 
@@ -725,3 +725,53 @@ git status -sb
 | 2026-08-24 | Adotar `schema_version = 2` para aberturas com lineage e manter `schema_version = 1` para aberturas raiz | Garantir comportamento fail-closed onde leitores antigos rejeitam registros v2 por versão não suportada em vez de ignorar a lineage silenciosamente. | `Jk-Pascoal` |
 | 2026-08-24 | Omitir chaves de lineage em aberturas raiz no serializador e rejeitar lineage em registros v1 | Preservar a estrutura serializada canônica v1 e eliminar representações não-canônicas (*fail-closed*). | `Jk-Pascoal` |
 | 2026-08-24 | Isolar a projeção do successor sem navegação em profundidade no predecessor | Respeitar o princípio `Repository != Projection` e manter a reidratação pura, desacoplada e performática. | `Jk-Pascoal` |
+
+---
+
+## 17. Fechamento de Implementação e Evidências das Fatias
+
+- **Status:** Implementação concluída e validada localmente na branch `feat/61-correction-follow-up-lineage-persistence-v1` — aguardando integração via PR na `main`.
+- **Baseline verificado na branch:** 320 testes GREEN em Python 3.11 / `unittest` (297 herdados da `main` + 23 novos testes do incremento).
+- **Commits atômicos das fatias:**
+  - `c82191d feat: harden workflow lineage invariants` (Fatia 1: Domínio)
+  - `0d6a20e feat: add workflow opened lineage contract` (Fatia 2: Evento)
+  - `c1a796f feat: persist workflow opened lineage with schema v2` (Fatia 3: Serialização)
+  - `2cb3de0 feat: preserve workflow lineage during rehydration` (Fatia 4: Projeção)
+  - `f5c12cd test: verify correction follow-up lineage across restarts` (Fatia 5: Integração)
+
+### Resultados implementados e verificados
+
+1. **`GovernanceWorkflow` (`src/agent_lab/workflow.py`):**
+   - Pareamento atômico estrito: `predecessor_workflow_id` e `triggering_review_id` devem ser ambos `None` ou ambos strings não-vazias;
+   - Sanitização de whitespace via `strip()`;
+   - Rejeição de auto-referência (`predecessor_workflow_id != workflow_id`) com `ValueError`.
+2. **`WorkflowOpened` (`src/agent_lab/workflow_events.py`):**
+   - Campos de lineage opcionais (`predecessor_workflow_id: str | None = None`, `triggering_review_id: str | None = None`);
+   - Mesmas validações defensivas de pareamento atômico, sanitização e anti-auto-referência.
+3. **Serialização e Desserialização Versionada (`src/agent_lab/workflow_serialization.py`):**
+   - Root `WorkflowOpened` serializa em `schema_version = 1` omitindo chaves de lineage e sem `event_type` (preservação da estrutura serializada canônica dos root openings v1);
+   - Correction follow-up `WorkflowOpened` serializa em `schema_version = 2` com `"predecessor_workflow_id"` e `"triggering_review_id"`, sem `event_type`;
+   - Leitura de registros v1 contendo qualquer chave de lineage (inclusive `None`) falha fechado com `ValueError`;
+   - Leitura de registros v2 exige ambas as chaves de lineage preenchidas e válidas (*fail-closed*);
+   - `workflow_opened_from_record` rejeita qualquer `schema_version` diferente de `1` e `2` com `ValueError`;
+   - `WorkflowConcluded` permanece exclusivamente em `schema_version = 1`;
+   - Compatibilidade de leitura com registros v1 legados mantida no dispatcher polimórfico.
+4. **Projeção Determinística (`src/agent_lab/workflow_projection.py`):**
+   - `rehydrate_pending_workflow` e `rehydrate_workflow` propagam fielmente `predecessor_workflow_id` e `triggering_review_id` para `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` e `REVIEWED`;
+   - Princípio `Repository != Projection` estritamente preservado: nenhum predecessor é reconstruído em memória nem consultado no repositório durante a projeção.
+5. **Teste Vertical de Aceitação (`tests/test_correction_follow_up_lineage_persistence_integration.py`):**
+   - Predecessor `WF-001` concluído com `REQUEST_CORRECTION`;
+   - Sucessor `WF-002` criado via `open_correction_follow_up` e persistido em `schema_version = 2`;
+   - **Restart 1:** Nova instância do repositório reidrata `WF-002` em `PENDING_HUMAN_REVIEW` com lineage intacta;
+   - Conclusão de `WF-002` com `APPROVE` via `conclude_governance_workflow` e persistência de `WorkflowConcluded`;
+   - **Restart 2:** Nova instância do repositório reidrata `WF-002` em `REVIEWED` com a mesma lineage causal, `closed_at` e `review_lead_time` derivados;
+   - Predecessor `WF-001` permanece imutável e inalterado ao longo de todo o processo.
+
+### Limites e Não-Escopo Preservados
+
+- Nenhuma semântica `CORRECTION_APPLIED` introduzida;
+- Nenhuma mutação ou versionamento do cadastro de materiais;
+- Nenhuma reconstrução de grafo de predecessores em memória;
+- Nenhuma mudança para banco relacional, 2PC, locking multiprocesso, filas, SLA ou RBAC;
+- Downgrade para leitor legado após a existência de registros v2 é operacionalmente incompatível e falha explicitamente (*fail-closed*), prevenindo perda silenciosa de lineage.
+
