@@ -96,6 +96,20 @@ class WorkflowProjectionTests(unittest.TestCase):
             workflow_id="wf-mat-001-01",
             review=self.review,
         )
+        self.follow_up_event = WorkflowOpened(
+            event_id="evt-open-002",
+            workflow_id="wf-mat-001-02",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            predecessor_workflow_id="wf-mat-001-01",
+            triggering_review_id="rev-wf-mat-001-01",
+        )
+        self.follow_up_concluded_event = WorkflowConcluded(
+            event_id="evt-conc-002",
+            workflow_id="wf-mat-001-02",
+            review=self.review,
+        )
+
 
     def test_rehydrates_valid_workflow_opened_to_governance_workflow(self) -> None:
         workflow = rehydrate_pending_workflow(self.event)
@@ -213,6 +227,65 @@ class WorkflowProjectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             rehydrate_workflow((self.event, "not-an-event"))  # type: ignore[arg-type]
 
+    def test_rehydrate_pending_workflow_root_has_none_lineage(self) -> None:
+        workflow = rehydrate_pending_workflow(self.event)
+
+        self.assertIsNone(workflow.predecessor_workflow_id)
+        self.assertIsNone(workflow.triggering_review_id)
+
+    def test_rehydrate_pending_workflow_preserves_follow_up_lineage(
+        self,
+    ) -> None:
+        workflow = rehydrate_pending_workflow(self.follow_up_event)
+
+        self.assertEqual(workflow.workflow_id, "wf-mat-001-02")
+        self.assertEqual(
+            workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+        self.assertEqual(
+            workflow.predecessor_workflow_id, "wf-mat-001-01"
+        )
+        self.assertEqual(
+            workflow.triggering_review_id, "rev-wf-mat-001-01"
+        )
+
+    def test_rehydrate_workflow_single_event_preserves_follow_up_lineage(
+        self,
+    ) -> None:
+        workflow = rehydrate_workflow((self.follow_up_event,))
+
+        self.assertEqual(workflow.workflow_id, "wf-mat-001-02")
+        self.assertEqual(
+            workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+        self.assertEqual(
+            workflow.predecessor_workflow_id, "wf-mat-001-01"
+        )
+        self.assertEqual(
+            workflow.triggering_review_id, "rev-wf-mat-001-01"
+        )
+
+    def test_rehydrate_workflow_reviewed_preserves_follow_up_lineage(
+        self,
+    ) -> None:
+        workflow = rehydrate_workflow(
+            (
+                self.follow_up_event,
+                self.follow_up_concluded_event,
+            )
+        )
+
+        self.assertEqual(workflow.workflow_id, "wf-mat-001-02")
+        self.assertEqual(workflow.status, WorkflowStatus.REVIEWED)
+        self.assertEqual(
+            workflow.predecessor_workflow_id, "wf-mat-001-01"
+        )
+        self.assertEqual(
+            workflow.triggering_review_id, "rev-wf-mat-001-01"
+        )
+        self.assertEqual(workflow.review, self.follow_up_concluded_event.review)
+
 
 if __name__ == "__main__":
     unittest.main()
+

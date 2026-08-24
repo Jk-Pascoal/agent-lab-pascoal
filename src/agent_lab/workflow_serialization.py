@@ -20,6 +20,7 @@ from agent_lab.workflow_events import (
 )
 
 SCHEMA_VERSION_V1 = 1
+SCHEMA_VERSION_V2 = 2
 EVENT_TYPE_WORKFLOW_CONCLUDED = "WORKFLOW_CONCLUDED"
 
 
@@ -260,11 +261,22 @@ def workflow_opened_to_record(event: WorkflowOpened) -> dict[str, object]:
         "evidence": evidence_list,
     }
 
+    if event.predecessor_workflow_id is None:
+        return {
+            "schema_version": SCHEMA_VERSION_V1,
+            "event_id": event.event_id,
+            "workflow_id": event.workflow_id,
+            "opened_at": event.opened_at.isoformat(),
+            "recommendation": rec_dict,
+        }
+
     return {
-        "schema_version": SCHEMA_VERSION_V1,
+        "schema_version": SCHEMA_VERSION_V2,
         "event_id": event.event_id,
         "workflow_id": event.workflow_id,
         "opened_at": event.opened_at.isoformat(),
+        "predecessor_workflow_id": event.predecessor_workflow_id,
+        "triggering_review_id": event.triggering_review_id,
         "recommendation": rec_dict,
     }
 
@@ -285,9 +297,9 @@ def workflow_opened_from_record(
         raise ValueError(
             f"schema_version must be an int, got {type(schema_version).__name__}"
         )
-    if schema_version != SCHEMA_VERSION_V1:
+    if schema_version not in (SCHEMA_VERSION_V1, SCHEMA_VERSION_V2):
         raise ValueError(
-            f"Unsupported schema_version: {schema_version}, expected {SCHEMA_VERSION_V1}"
+            f"Unsupported schema_version: {schema_version}, expected {SCHEMA_VERSION_V1} or {SCHEMA_VERSION_V2}"
         )
 
     event_id = _require_str(record, "event_id")
@@ -308,11 +320,29 @@ def workflow_opened_from_record(
         raise ValueError("Missing required field 'recommendation'")
     recommendation = _parse_recommendation(record["recommendation"])
 
+    if schema_version == SCHEMA_VERSION_V1:
+        if (
+            "predecessor_workflow_id" in record
+            or "triggering_review_id" in record
+        ):
+            raise ValueError(
+                "Lineage fields are not permitted in schema_version 1"
+            )
+        predecessor_workflow_id = None
+        triggering_review_id = None
+    else:
+        predecessor_workflow_id = _require_str(
+            record, "predecessor_workflow_id"
+        )
+        triggering_review_id = _require_str(record, "triggering_review_id")
+
     return WorkflowOpened(
         event_id=event_id,
         workflow_id=workflow_id,
         recommendation=recommendation,
         opened_at=opened_at,
+        predecessor_workflow_id=predecessor_workflow_id,
+        triggering_review_id=triggering_review_id,
     )
 
 

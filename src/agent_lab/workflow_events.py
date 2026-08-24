@@ -30,6 +30,8 @@ class WorkflowOpened:
     workflow_id: str
     recommendation: DecisionRecommendation
     opened_at: datetime
+    predecessor_workflow_id: str | None = None
+    triggering_review_id: str | None = None
 
     def __post_init__(self) -> None:
         sanitized_event_id = _require_non_blank(self.event_id, "event_id")
@@ -44,6 +46,34 @@ class WorkflowOpened:
             raise ValueError("recommendation must be a DecisionRecommendation")
 
         _require_aware_datetime(self.opened_at, "opened_at")
+
+        has_pred = self.predecessor_workflow_id is not None
+        has_trig = self.triggering_review_id is not None
+
+        if has_pred != has_trig:
+            raise ValueError(
+                "predecessor_workflow_id and triggering_review_id must both be provided or both be None"
+            )
+
+        if has_pred:
+            sanitized_pred = _require_non_blank(
+                self.predecessor_workflow_id, "predecessor_workflow_id"
+            )
+            if sanitized_pred == sanitized_workflow_id:
+                raise ValueError(
+                    "predecessor_workflow_id must differ from workflow_id"
+                )
+            object.__setattr__(
+                self, "predecessor_workflow_id", sanitized_pred
+            )
+
+        if has_trig:
+            sanitized_trig = _require_non_blank(
+                self.triggering_review_id, "triggering_review_id"
+            )
+            object.__setattr__(
+                self, "triggering_review_id", sanitized_trig
+            )
 
 
 @dataclass(frozen=True, slots=True)
