@@ -9,7 +9,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0061` |
-| Status | `Implementada e Validada Localmente — Aguardando Integração via PR` |
+| Status | `Implementada, Validada e Integrada na main` |
 | Issue relacionada | `#61` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-24` |
@@ -730,8 +730,9 @@ git status -sb
 
 ## 17. Fechamento de Implementação e Evidências das Fatias
 
-- **Status:** Implementação concluída e validada localmente na branch `feat/61-correction-follow-up-lineage-persistence-v1` — aguardando integração via PR na `main`.
-- **Baseline verificado na branch:** 320 testes GREEN em Python 3.11 / `unittest` (297 herdados da `main` + 23 novos testes do incremento).
+- **Status:** Implementação concluída, validada e integrada na branch `main` via PR #62 (merge commit `bfeaf7aeedb4835dd133af827bece9694cd4cf55`).
+- **Issue:** #61 concluída.
+- **Baseline integrado na main:** 320 testes GREEN em Python 3.11 / `unittest` (297 herdados da `main` + 23 novos testes do incremento).
 - **Commits atômicos das fatias:**
   - `c82191d feat: harden workflow lineage invariants` (Fatia 1: Domínio)
   - `0d6a20e feat: add workflow opened lineage contract` (Fatia 2: Evento)
