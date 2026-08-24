@@ -954,6 +954,35 @@ class GovernanceWorkflowTests(unittest.TestCase):
                 opened_at=self.opened_at,
             )
 
+    def test_governance_workflow_rejects_predecessor_without_triggering_review(
+        self,
+    ) -> None:
+        with self.assertRaises(ValueError):
+            self.build_workflow(
+                predecessor_workflow_id="wf-001",
+                triggering_review_id=None,
+            )
+
+    def test_governance_workflow_rejects_triggering_review_without_predecessor(
+        self,
+    ) -> None:
+        with self.assertRaises(ValueError):
+            self.build_workflow(
+                predecessor_workflow_id=None,
+                triggering_review_id="rev-001",
+            )
+
+    def test_governance_workflow_rejects_self_referential_lineage(
+        self,
+    ) -> None:
+        with self.assertRaises(ValueError):
+            self.build_workflow(
+                workflow_id="wf-001",
+                predecessor_workflow_id="wf-001",
+                triggering_review_id="rev-001",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
+

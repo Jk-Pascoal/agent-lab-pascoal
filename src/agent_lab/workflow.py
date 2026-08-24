@@ -73,18 +73,30 @@ class GovernanceWorkflow:
                     "review reviewed_at cannot be earlier than workflow opened_at"
                 )
 
-        if self.predecessor_workflow_id is not None:
+        has_pred = self.predecessor_workflow_id is not None
+        has_trig = self.triggering_review_id is not None
+
+        if has_pred != has_trig:
+            raise ValueError(
+                "predecessor_workflow_id and triggering_review_id must both be provided or both be None"
+            )
+
+        if has_pred:
             sanitized_predecessor_workflow_id = _require_non_blank(
                 self.predecessor_workflow_id,
                 "predecessor_workflow_id",
             )
+            if sanitized_predecessor_workflow_id == sanitized_workflow_id:
+                raise ValueError(
+                    "predecessor_workflow_id must differ from workflow_id"
+                )
             object.__setattr__(
                 self,
                 "predecessor_workflow_id",
                 sanitized_predecessor_workflow_id,
             )
 
-        if self.triggering_review_id is not None:
+        if has_trig:
             sanitized_triggering_review_id = _require_non_blank(
                 self.triggering_review_id,
                 "triggering_review_id",
