@@ -13,6 +13,7 @@ from agent_lab.human_review import (
     VerifiedSpecialistIdentity,
 )
 from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
+from agent_lab import workflow_serialization
 from agent_lab.workflow_serialization import (
     SCHEMA_VERSION_V1,
     workflow_concluded_from_record,
@@ -22,6 +23,7 @@ from agent_lab.workflow_serialization import (
     workflow_opened_from_record,
     workflow_opened_to_record,
 )
+
 
 
 class WorkflowSerializationTests(unittest.TestCase):
@@ -63,6 +65,14 @@ class WorkflowSerializationTests(unittest.TestCase):
             workflow_id="wf-mat-001-01",
             recommendation=self.recommendation,
             opened_at=self.opened_at,
+        )
+        self.follow_up_event = WorkflowOpened(
+            event_id="evt-open-002",
+            workflow_id="wf-mat-001-02",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            predecessor_workflow_id="wf-mat-001-01",
+            triggering_review_id="rev-mat-001-001",
         )
 
         self.verified_at = datetime(
@@ -585,7 +595,7 @@ class WorkflowSerializationTests(unittest.TestCase):
 
         # Unsupported schema_version number
         record_wrong_version = dict(valid_record)
-        record_wrong_version["schema_version"] = 2
+        record_wrong_version["schema_version"] = 3
         with self.assertRaises(ValueError):
             workflow_opened_from_record(record_wrong_version)
 
@@ -832,6 +842,202 @@ class WorkflowSerializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             workflow_opened_from_record(record)
 
+    def test_schema_version_v2_constant_is_two(self) -> None:
+        self.assertTrue(
+            hasattr(workflow_serialization, "SCHEMA_VERSION_V2"),
+            "SCHEMA_VERSION_V2 constant must be defined in workflow_serialization",
+        )
+        self.assertEqual(workflow_serialization.SCHEMA_VERSION_V2, 2)
+
+    def test_root_workflow_opened_serialization_preserves_canonical_v1_format_without_lineage_keys(
+        self,
+    ) -> None:
+        record = workflow_opened_to_record(self.event)
+        self.assertEqual(record["schema_version"], 1)
+        self.assertNotIn("predecessor_workflow_id", record)
+        self.assertNotIn("triggering_review_id", record)
+        self.assertNotIn("event_type", record)
+
+    def test_follow_up_workflow_opened_serialization_produces_v2_record_with_lineage(
+        self,
+    ) -> None:
+        record = workflow_opened_to_record(self.follow_up_event)
+        self.assertEqual(record["schema_version"], 2)
+        self.assertEqual(
+            record["predecessor_workflow_id"], "wf-mat-001-01"
+        )
+        self.assertEqual(
+            record["triggering_review_id"], "rev-mat-001-001"
+        )
+        self.assertNotIn("event_type", record)
+
+    def test_round_trip_root_v1_preserves_none_lineage(self) -> None:
+        record = workflow_opened_to_record(self.event)
+        restored = workflow_opened_from_record(record)
+        self.assertEqual(restored, self.event)
+        self.assertIsNone(restored.predecessor_workflow_id)
+        self.assertIsNone(restored.triggering_review_id)
+
+    def test_round_trip_follow_up_v2_preserves_lineage(self) -> None:
+        record = workflow_opened_to_record(self.follow_up_event)
+        restored = workflow_opened_from_record(record)
+        self.assertEqual(restored, self.follow_up_event)
+        self.assertEqual(
+            restored.predecessor_workflow_id, "wf-mat-001-01"
+        )
+        self.assertEqual(
+            restored.triggering_review_id, "rev-mat-001-001"
+        )
+
+    def test_from_record_rejects_lineage_fields_in_schema_version_1(
+        self,
+    ) -> None:
+        valid_v1 = workflow_opened_to_record(self.event)
+
+        cases = [
+            {"predecessor_workflow_id": "wf-mat-001-01"},
+            {"triggering_review_id": "rev-mat-001-001"},
+            {
+                "predecessor_workflow_id": "wf-mat-001-01",
+                "triggering_review_id": "rev-mat-001-001",
+            },
+            {"predecessor_workflow_id": None},
+            {"triggering_review_id": None},
+            {
+                "predecessor_workflow_id": None,
+                "triggering_review_id": None,
+            },
+        ]
+        for extra_lineage in cases:
+            with self.subTest(extra_lineage=extra_lineage):
+                record = dict(valid_v1)
+                record.update(extra_lineage)
+                with self.assertRaises(ValueError):
+                    workflow_opened_from_record(record)
+
+    def test_from_record_v2_rejects_missing_partial_null_or_invalid_lineage_fields(
+        self,
+    ) -> None:
+        valid_v2 = {
+            "schema_version": 2,
+            "event_id": "evt-open-002",
+            "workflow_id": "wf-mat-001-02",
+            "opened_at": "2026-08-19T08:30:00+00:00",
+            "predecessor_workflow_id": "wf-mat-001-01",
+            "triggering_review_id": "rev-mat-001-001",
+            "recommendation": {
+                "material_id": "MAT-001",
+                "decision": "REVIEW",
+                "rationale": "Recomendação REVIEW: 2 evidência(s) requer(em) análise humana.",
+                "requires_human_decision": True,
+                "evidence": [
+                    {
+                        "material_id": "MAT-001",
+                        "source": "RULE",
+                        "issue_type": "MISSING_CRITICAL_FIELD",
+                        "observation": "Campo obrigatório não informado.",
+                        "severity": "WARNING",
+                    }
+                ],
+            },
+        }
+
+        # 1. Missing predecessor_workflow_id
+        rec_missing_pred = dict(valid_v2)
+        del rec_missing_pred["predecessor_workflow_id"]
+        with self.assertRaises(ValueError):
+            workflow_opened_from_record(rec_missing_pred)
+
+        # 2. Missing triggering_review_id
+        rec_missing_trig = dict(valid_v2)
+        del rec_missing_trig["triggering_review_id"]
+        with self.assertRaises(ValueError):
+            workflow_opened_from_record(rec_missing_trig)
+
+        # 3. Missing both lineage fields in v2
+        rec_missing_both = dict(valid_v2)
+        del rec_missing_both["predecessor_workflow_id"]
+        del rec_missing_both["triggering_review_id"]
+        with self.assertRaises(ValueError):
+            workflow_opened_from_record(rec_missing_both)
+
+        # 4. Explicit nulls
+        for null_field in ("predecessor_workflow_id", "triggering_review_id"):
+            with self.subTest(null_field=null_field):
+                rec_null = dict(valid_v2)
+                rec_null[null_field] = None
+                with self.assertRaises(ValueError):
+                    workflow_opened_from_record(rec_null)
+
+        # 5. Non-string types
+        for bad_type in (123, True, ["wf-001"], {"id": "wf-001"}):
+            with self.subTest(bad_type_pred=bad_type):
+                rec_bad = dict(valid_v2)
+                rec_bad["predecessor_workflow_id"] = bad_type
+                with self.assertRaises(ValueError):
+                    workflow_opened_from_record(rec_bad)
+
+            with self.subTest(bad_type_trig=bad_type):
+                rec_bad = dict(valid_v2)
+                rec_bad["triggering_review_id"] = bad_type
+                with self.assertRaises(ValueError):
+                    workflow_opened_from_record(rec_bad)
+
+        # 6. Blank/whitespace strings
+        for blank_str in ("", "   "):
+            with self.subTest(blank_pred=blank_str):
+                rec_blank = dict(valid_v2)
+                rec_blank["predecessor_workflow_id"] = blank_str
+                with self.assertRaises(ValueError):
+                    workflow_opened_from_record(rec_blank)
+
+            with self.subTest(blank_trig=blank_str):
+                rec_blank = dict(valid_v2)
+                rec_blank["triggering_review_id"] = blank_str
+                with self.assertRaises(ValueError):
+                    workflow_opened_from_record(rec_blank)
+
+    def test_from_record_v2_rejects_self_referential_lineage(self) -> None:
+        record = {
+            "schema_version": 2,
+            "event_id": "evt-open-002",
+            "workflow_id": "wf-mat-001-01",
+            "opened_at": "2026-08-19T08:30:00+00:00",
+            "predecessor_workflow_id": "wf-mat-001-01",
+            "triggering_review_id": "rev-mat-001-001",
+            "recommendation": {
+                "material_id": "MAT-001",
+                "decision": "REVIEW",
+                "rationale": "Recomendação REVIEW",
+                "requires_human_decision": True,
+                "evidence": [],
+            },
+        }
+        with self.assertRaises(ValueError):
+            workflow_opened_from_record(record)
+
+    def test_dispatcher_with_follow_up_workflow_opened(self) -> None:
+        record = workflow_event_to_record(self.follow_up_event)
+        self.assertEqual(record["schema_version"], 2)
+        self.assertEqual(
+            record["predecessor_workflow_id"], "wf-mat-001-01"
+        )
+        self.assertEqual(
+            record["triggering_review_id"], "rev-mat-001-001"
+        )
+        self.assertNotIn("event_type", record)
+
+        restored = workflow_event_from_record(record)
+        self.assertIsInstance(restored, WorkflowOpened)
+        self.assertEqual(restored, self.follow_up_event)
+        self.assertEqual(
+            restored.predecessor_workflow_id, "wf-mat-001-01"
+        )
+        self.assertEqual(
+            restored.triggering_review_id, "rev-mat-001-001"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
+
