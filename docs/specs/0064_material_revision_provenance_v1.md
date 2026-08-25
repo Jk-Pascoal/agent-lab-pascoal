@@ -8,7 +8,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0064` |
-| Status | `Aprovada` |
+| Status | `Implementada, Validada e Integrada na main` |
 | Issue relacionada | `#64` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-25` |
@@ -462,18 +462,18 @@ Como o incremento é estritamente isolado em módulo de domínio puro sem persis
 
 ## 15. Critérios de aceite
 
-- [ ] Módulo `src/agent_lab/material_revision.py` implementado conforme especificação;
-- [ ] Testes unitários em `tests/test_material_revision.py` criados e aprovados cobrindo validade estrutural e validade de transição;
-- [ ] Suíte completa de testes aprovada a partir do baseline pré-incremento de 320 testes via `python -m unittest discover -s tests -v`;
-- [ ] Imutabilidade de `MaterialRecord` e `MaterialRevision` comprovada por testes;
-- [ ] `material_id` derivado exclusivamente de `record.material_id`;
-- [ ] Rejeição de `record.material_id` vazio/whitespace sem mutação do registro bruto;
-- [ ] Rejeição de `source_review_id` sem `predecessor_revision_id`;
-- [ ] `create_successor_revision` valida compatibilidade exata de `material_id` e monotonicidade temporal (`revised_at >= predecessor.revised_at`);
-- [ ] Nenhum contrato existente (`DecisionRecommendation`, `EvidenceCollection`, `GovernanceWorkflow`, `AuditEvent`, `WorkflowOpened`, `WorkflowConcluded`) modificado;
-- [ ] Gates de qualidade executados sem pendências;
-- [ ] Responsabilidade humana e distinção ontológica preservadas;
-- [ ] SPEC integrada em `docs/specs/0064_material_revision_provenance_v1.md`.
+- [x] Módulo `src/agent_lab/material_revision.py` implementado conforme especificação;
+- [x] Testes unitários em `tests/test_material_revision.py` criados e aprovados cobrindo validade estrutural e validade de transição;
+- [x] Suíte completa de testes aprovada a partir do baseline pré-incremento de 320 testes via `python -m unittest discover -s tests -v`;
+- [x] Imutabilidade de `MaterialRecord` e `MaterialRevision` comprovada por testes;
+- [x] `material_id` derivado exclusivamente de `record.material_id`;
+- [x] Rejeição de `record.material_id` vazio/whitespace sem mutação do registro bruto;
+- [x] Rejeição de `source_review_id` sem `predecessor_revision_id`;
+- [x] `create_successor_revision` valida compatibilidade exata de `material_id` e monotonicidade temporal (`revised_at >= predecessor.revised_at`);
+- [x] Nenhum contrato existente (`DecisionRecommendation`, `EvidenceCollection`, `GovernanceWorkflow`, `AuditEvent`, `WorkflowOpened`, `WorkflowConcluded`) modificado;
+- [x] Gates de qualidade executados sem pendências;
+- [x] Responsabilidade humana e distinção ontológica preservadas;
+- [x] SPEC integrada em `docs/specs/0064_material_revision_provenance_v1.md`.
 
 ---
 
@@ -497,3 +497,25 @@ Como o incremento é estritamente isolado em módulo de domínio puro sem persis
 | 2026-08-25 | Taxonomia de erros alinhada (`TypeError` para predecessor, `ValueError` para invariantes) | Manter consistência com `workflow.py` e `human_review.py` | Jk-Pascoal |
 | 2026-08-25 | Não alteração de `DecisionRecommendation` nesta v1 | Isolar o contrato de revisão cadastral antes de conectá-lo ao pipeline avaliador | Jk-Pascoal |
 | 2026-08-25 | SPEC-0064 aprovada para implementação | Revisão humana concluiu que contrato, invariantes, limites e estratégia TDD estão suficientemente definidos para iniciar RED | Jk-Pascoal |
+
+---
+
+## 18. Fechamento de Implementação e Evidências das Fatias
+
+- **Status:** Implementação concluída, validada e integrada na branch `main` via PR #65 (merge commit `41c68a0833663d5d08510a443277053d76d72e97`).
+- **Issue:** #64 funcionalmente concluída e integrada na main; fechamento formal pendente da integração deste closeout documental.
+- **PR:** #65
+- **Merge commit:** `41c68a0833663d5d08510a443277053d76d72e97`
+- **Commit funcional:** `88c897f`
+- **Commit documental inicial:** `8cbb273`
+- **Baseline de entrada:** 320 testes
+- **Novos testes:** 27
+- **Baseline integrado:** 347 testes
+
+### Evidências e Limites de Domínio
+
+1. **`MaterialRevision` imutável:** Implementada como representação factual pura em memória com proveniência declarada.
+2. **`create_successor_revision` pura:** Implementada com validação estrita de tipos, identidade exata de `material_id` e monotonicidade temporal declarada.
+3. **Distinção ontológica inegociável:** `CorrectionRequest ≠ MaterialRevision`. Nenhuma transformação automática (`apply_corrections`, patching) entre intenção normativa e fato cadastral.
+4. **Semântica declarada de `source_review_id`:** Associação contextual que não comprova causalidade física, existência de deliberação no repositório, deliberação `REQUEST_CORRECTION` ou cumprimento de correções.
+5. **Fora do escopo preservado:** Inexistência de persistência/repositório JSONL de `MaterialRevision`, sem `revision_number`/`diff` persistidos, sem alterações em `GovernanceWorkflow` ou `DecisionRecommendation`, e sem integrações com ERP ou LLM.

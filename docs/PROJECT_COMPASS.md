@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-24
-- **Baseline integrado na main:** 320 testes aprovados
-- **Última entrega funcional integrada na main:** Correction Follow-up Lineage Persistence v1
-- **Última Issue funcional concluída na main:** #61
-- **Último PR funcional integrado na main:** #62
-- **Último merge funcional:** `bfeaf7a` — Merge pull request #62
-- **Última SPEC integrada:** `docs/specs/0061_correction_follow_up_lineage_persistence_v1.md`
+- **Estado registrado em:** 2026-08-25
+- **Baseline integrado na main:** 347 testes aprovados
+- **Última entrega funcional integrada na main:** Material Revision Provenance v1
+- **Última Issue funcional concluída na main:** #64
+- **Último PR funcional integrado na main:** #65
+- **Último merge funcional:** `41c68a0` — Merge pull request #65
+- **Última SPEC integrada:** `docs/specs/0064_material_revision_provenance_v1.md`
 - **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
@@ -186,7 +186,24 @@ O sistema já representa e valida:
   - projeção determinística (`rehydrate_pending_workflow` e `rehydrate_workflow`) preserva fielmente `predecessor_workflow_id` e `triggering_review_id` tanto para workflows em `PENDING_HUMAN_REVIEW` quanto em `REVIEWED`;
   - princípio `Repository != Projection` estritamente mantido: nenhum predecessor é reconstruído em memória, nenhum grafo é carregado e nenhuma consulta ao repositório ocorre durante a projeção pura;
   - predecessor permanece estritamente imutável e inalterado;
-  - teste vertical de integração validando continuidade causal e reidratação de follow-up através de dois restarts simulados por novas instâncias do repositório sobre o mesmo JSONL persistido.
+  - teste vertical de integração validando continuidade causal e reidratação de follow-up através de dois restarts simulados por novas instâncias do repositório sobre o mesmo JSONL persistido;
+- **Incremento integrado da Issue #64 (Material Revision Provenance v1):**
+  - módulo `src/agent_lab/material_revision.py`;
+  - dataclass congelado `MaterialRevision` imutável (`frozen=True`, `slots=True`) com `revision_id`, `record: MaterialRecord`, `revised_at: datetime`, `predecessor_revision_id: str | None = None` e `source_review_id: str | None = None`;
+  - propriedade `material_id` derivada exclusivamente de `record.material_id` (fonte única da verdade), preservando os campos brutos do `MaterialRecord` sem mutação ou normalização factual;
+  - `revision_id`, `predecessor_revision_id` e `source_review_id` validados e armazenados sanitizados via `strip()`;
+  - `revised_at` obrigatório e explicitamente timezone-aware (`tzinfo` e `utcoffset()` validados sem fallback para `datetime.now()`);
+  - suporte formal a Root Revision (`predecessor=None`, `source_review=None`), Derived Revision (`predecessor_revision_id` presente) e Review-Associated Derived Revision (`predecessor_revision_id` e `source_review_id` presentes);
+  - validação de proveniência estrutural: `source_review_id` exige obrigatoriamente a presença de `predecessor_revision_id`;
+  - anti-auto-referência estrutural: `predecessor_revision_id != revision_id` após sanitização;
+  - função pura `create_successor_revision(predecessor, *, revision_id, record, revised_at, source_review_id=None) -> MaterialRevision` para vincular revisões sucessivas do mesmo material;
+  - taxonomia formal de erros: `TypeError` para predecessor não-`MaterialRevision`; `ValueError` para todas as violações estruturais e de sucessão;
+  - compatibilidade exata de `material_id`: `record.material_id == predecessor.material_id` por comparação textual exata (sem `strip()` ou coerção);
+  - monotonicidade temporal declarada: `successor.revised_at >= predecessor.revised_at`, com suporte explícito a igualdade cronológica no boundary (`successor.revised_at == predecessor.revised_at`);
+  - vínculo determinístico de linhagem: `predecessor_revision_id = predecessor.revision_id`;
+  - preservação estrita de objetos anteriores: `predecessor`, `predecessor.record` e novo `record` permanecem 100% inalterados;
+  - `source_review_id` tratado estritamente como proveniência/contexto declarado, sem consultas a repositórios externos e sem alegações causais;
+  - distinção ontológica fundamental: `CorrectionRequest` (intenção/prescrição humana) $\neq$ `MaterialRevision` (estado factual cadastral), sem transformação automática entre intenção e fato.
 
 ### 4.3 Limite atual
 
@@ -201,7 +218,8 @@ A versão atual integrada na `main` possui:
 - persistência e reidratação em disco da linhagem causal de correction follow-up (`predecessor_workflow_id` e `triggering_review_id`) estão integradas e validadas;
 - sucessores em `PENDING_HUMAN_REVIEW` e `REVIEWED` preservam seus identificadores causais após reinicialização;
 - predecessor permanece estritamente imutável e inalterado, e nenhuma reconstrução de grafo de predecessores ocorre durante a projeção;
-- aplicação efetiva das correções ao material (`CORRECTION_APPLIED`), mutação ou versionamento de material e reexecução automática de regras/LLM continuam fora do escopo;
+- proveniência factual e identidade de revisão em memória estão integradas (`MaterialRevision` e `create_successor_revision`); persistência de `MaterialRevision` em disco, repositório de revisões e sua conexão ao pipeline de evidências e recomendações permanecem fronteiras futuras;
+- aplicação automática das correções ao material (`CORRECTION_APPLIED`), mutação automática de `MaterialRecord` e reexecução automática de regras/LLM continuam fora do escopo;
 - execução síncrona/monoprocesso;
 - ausência de locking multiprocesso;
 - ausência de autenticação e autorização real (RBAC);
@@ -211,9 +229,9 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: nenhum incremento funcional aberto — Issue #61 concluída e integrada.
+Incremento atual: nenhum incremento funcional aberto — Issue #64 concluída funcionalmente e integrada; closeout documental em andamento.
 
-Próxima âncora arquitetural: a definir somente após novo planejamento humano.
+Próxima âncora arquitetural: a definir somente após conclusão deste closeout e novo planejamento humano.
 
 Sequência evolutiva recomendada:
 
@@ -226,7 +244,9 @@ Contrato
   → Persistência de conclusão de workflow (concluída na #52)
   → Verificação de consistência dual-write (concluída na #55)
   → Contrato de correction follow-up com novo ciclo causal (concluído na #58)
-  → Integração ERP (futura)
+  → Persistência de correction follow-up com schema v2 (concluída na #61)
+  → Contrato de proveniência de revisões de material (concluído na #64)
+  → Avaliação de revisões sucessivas / Integração ERP (futuras)
 ```
 
 ## 5. Invariantes constitucionais
@@ -242,19 +262,22 @@ Estas regras não devem ser alteradas incidentalmente:
 7. Reprovação exige justificativa.
 8. Solicitação de correção exige justificativa e correção estruturada.
 9. Aprovação não pode conter correções pendentes.
-10. Timestamps de abertura de workflow, revisão e auditoria devem conter timezone.
+10. Timestamps de abertura de workflow, revisão, auditoria e revisão de material devem conter timezone.
 11. A integração com ERP não deve executar apenas com base em recomendação automática.
 12. O histórico não deve ser reconstruído somente a partir do estado final.
 13. Concordância humano–IA não equivale automaticamente à verdade.
 14. Casos objetivos devem ser resolvidos por regras antes de recorrer à LLM.
 15. A LLM deve operar com contratos de saída estruturados e validados.
-16. A recomendação do sistema permanece imutável e atemporal; o tempo pertence ao ciclo de vida (`GovernanceWorkflow`).
+16. A recomendação do sistema permanece imutável e atemporal; o tempo pertence ao ciclo de vida (`GovernanceWorkflow`) e à revisão factual (`MaterialRevision`).
 17. Um workflow não pode ser concluído mais de uma vez e a transição deve ser pura e determinística.
 18. O repositório de ciclo de vida é append-only e opera sob o princípio `Repository != Projection`.
 19. Um workflow concluído não é reaberto; um novo ciclo pós-correção exige novo `workflow_id`.
 20. Um correction follow-up só pode nascer de predecessor revisado com `HumanDecision.REQUEST_CORRECTION`.
-21. O novo ciclo deve preservar o mesmo `material_id` e não pode começar antes do fechamento do predecessor (`opened_at >= closed_at`).
-22. Vínculo causal entre ciclos não equivale à afirmação ou garantia de que as correções foram aplicadas.
+21. O novo ciclo de workflow deve preservar o mesmo `material_id` e não pode começar antes do fechamento do predecessor (`opened_at >= closed_at`).
+22. Vínculo causal entre ciclos de workflow não equivale à afirmação ou garantia de que as correções foram aplicadas.
+23. `CorrectionRequest` (prescrição normativa humana) $\neq$ `MaterialRevision` (fato cadastral). Não existe transformação automática entre prescrição e estado factual.
+24. A revisão sucessora de material deve pertencer com identidade exata ao mesmo material do predecessor e não pode declarar timestamp anterior ao predecessor (`revised_at >= predecessor.revised_at`).
+25. `source_review_id` expressa proveniência declarada e não constitui prova de causalidade física, existência da review no repositório ou cumprimento de correções.
 
 Qualquer mudança nessas regras exige:
 
@@ -434,6 +457,30 @@ Responsabilidades:
 - verificar defensivamente o dicionário de metadados sobrepostos de auditoria;
 - garantir ordenação canônica e determinística no diagnóstico final sem efetuar qualquer escrita ou reparo em disco.
 
+### 6.9 Proveniência de Revisões de Material
+
+```text
+src/agent_lab/material_revision.py
+```
+
+Contratos principais:
+
+- `MaterialRevision`: representação factual imutável de um snapshot cadastral revisionado;
+- `create_successor_revision`: função pura para criação de revisão sucessora com integridade de linhagem e temporalidade.
+
+Responsabilidades:
+
+- encapsular `revision_id`, `record: MaterialRecord`, `revised_at: datetime`, `predecessor_revision_id` e `source_review_id`;
+- derivar `material_id` diretamente de `record.material_id` (fonte única da verdade);
+- validar e sanitizar identificadores de contrato via `strip()` sem normalizar dados brutos do `MaterialRecord`;
+- garantir imutabilidade estrita (`frozen=True`, `slots=True`);
+- validar obrigatoriedade de `revised_at` timezone-aware;
+- assegurar anti-auto-referência estrutural;
+- vincular deterministicamente o predecessor na transição de sucessão (`predecessor_revision_id = predecessor.revision_id`);
+- validar identidade exata de `material_id` entre predecessor e sucessor;
+- validar monotonicidade temporal declarada (`successor.revised_at >= predecessor.revised_at`);
+- manter a distinção ontológica estrita entre intenção humana (`CorrectionRequest`) e fato cadastral (`MaterialRevision`).
+
 ## 7. Comando canônico de testes e baseline
 
 Use sempre:
@@ -445,7 +492,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 320 tests
+Ran 347 tests
 OK
 ```
 
@@ -460,6 +507,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #58: 297 testes
 - Incremento da Issue #61: +23 testes sobre o baseline de entrada de 297
 - Baseline integrado após a Issue #61: 320 testes
+- Incremento da Issue #64: +27 testes sobre o baseline de entrada de 320 (testes unitários em `tests/test_material_revision.py`)
+- Baseline integrado após a Issue #64: 347 testes
 
 Não assumir `pytest`.
 
@@ -633,8 +682,9 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 ## 13. Decisões deliberadamente adiadas
 
 - reabertura ou mutação do mesmo workflow após `REQUEST_CORRECTION` continua adiada/proibida no contrato atual (cada ciclo pós-correção é um novo workflow imutável);
-- aplicação automática das `CorrectionRequest` ao material (`CORRECTION_APPLIED`) continua adiada;
-- versionamento do material e reexecução automática de regras/LLM após correção continuam adiados;
+- aplicação automática das `CorrectionRequest` ao material (`CORRECTION_APPLIED`) e mutação automática de `MaterialRecord` continuam adiadas;
+- persistência em disco/JSONL de `MaterialRevision`, repositório de revisões e campos `diff`/`changed_fields` persistidos continuam adiados (a representação pura em memória e a sucessão de revisões foram integradas na Issue #64);
+- conexão de `MaterialRevision` ao pipeline de evidências (`EvidenceCollection`) e recomendações (`DecisionRecommendation`), e reexecução automática de regras/LLM após revisão continuam adiadas;
 - atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura foram integrados na Issue #55; intervenções ativas em disco continuam adiadas);
 - persistência em banco de dados relacional ou transacional;
 - proteção física ou criptográfica contra adulteração do histórico;
@@ -721,24 +771,25 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 320 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #61 | Correction Follow-up Lineage Persistence v1 | PR #62 (merge bfeaf7a).
-- Última SPEC integrada: docs/specs/0061_correction_follow_up_lineage_persistence_v1.md.
-- Último PR funcional integrado: PR #62.
-- Último merge funcional: bfeaf7a.
+- Baseline integrado na main: 347 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #64 | Material Revision Provenance v1 | PR #65 (merge 41c68a0).
+- Última SPEC integrada: docs/specs/0064_material_revision_provenance_v1.md.
+- Último PR funcional integrado: PR #65.
+- Último merge funcional: 41c68a0.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
   + auditoria append-only desacoplada
   + verificação determinística e somente-leitura de consistência dual-write pós-restart (verify_dual_write_consistency / verify_repositories_consistency)
-  + correction follow-up causal com persistência de WorkflowOpened v2 e reidratação de lineage em PENDING_HUMAN_REVIEW e REVIEWED pós-restart.
-- Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview.
-- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional.
+  + correction follow-up causal com persistência de WorkflowOpened v2 e reidratação de lineage em PENDING_HUMAN_REVIEW e REVIEWED pós-restart
+  + MaterialRevision factual e imutável com identidade temporal explícita, predecessor_revision_id, source_review_id declarativo, create_successor_revision pura, identidade exata de material_id e monotonicidade temporal.
+- Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
-  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem versionamento/mutação do material; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
+  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem persistência em disco de MaterialRevision; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — Issue #61 concluída e integrada.
+- Nenhum incremento funcional aberto — Issue #64 concluída funcionalmente e integrada; closeout documental em andamento.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.
