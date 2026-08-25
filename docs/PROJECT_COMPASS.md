@@ -229,9 +229,9 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: nenhum incremento funcional aberto — Issue #64 concluída funcionalmente e integrada; closeout documental em andamento.
+Incremento atual: nenhum incremento funcional aberto — Issue #64 concluída, integrada e formalmente encerrada.
 
-Próxima âncora arquitetural: a definir somente após conclusão deste closeout e novo planejamento humano.
+Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
 Sequência evolutiva recomendada:
 
@@ -789,7 +789,7 @@ MAIN INTEGRADA:
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem persistência em disco de MaterialRevision; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — Issue #64 concluída funcionalmente e integrada; closeout documental em andamento.
+- Nenhum incremento funcional aberto — Issue #64 concluída, integrada e formalmente encerrada.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.

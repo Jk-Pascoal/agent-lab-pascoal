@@ -503,9 +503,11 @@ Como o incremento é estritamente isolado em módulo de domínio puro sem persis
 ## 18. Fechamento de Implementação e Evidências das Fatias
 
 - **Status:** Implementação concluída, validada e integrada na branch `main` via PR #65 (merge commit `41c68a0833663d5d08510a443277053d76d72e97`).
-- **Issue:** #64 funcionalmente concluída e integrada na main; fechamento formal pendente da integração deste closeout documental.
-- **PR:** #65
-- **Merge commit:** `41c68a0833663d5d08510a443277053d76d72e97`
+- **Issue:** #64 concluída, integrada e formalmente encerrada após o closeout documental.
+- **PR funcional:** #65
+- **Merge funcional:** `41c68a0833663d5d08510a443277053d76d72e97`
+- **PR de closeout documental:** #66
+- **Merge do closeout documental:** `fcfaebcfef093121ff860491591909c4911e8e6e`
 - **Commit funcional:** `88c897f`
 - **Commit documental inicial:** `8cbb273`
 - **Baseline de entrada:** 320 testes
