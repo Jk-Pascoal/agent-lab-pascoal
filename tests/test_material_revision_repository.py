@@ -11,6 +11,7 @@ from agent_lab.material_revision import MaterialRevision
 from agent_lab.material_revision_repository import (
     DuplicateMaterialRevisionError,
     JsonlMaterialRevisionRepository,
+    MaterialRevisionCorruptionError,
     MaterialRevisionRepository,
 )
 from agent_lab.material_revision_serialization import material_revision_to_record
@@ -191,6 +192,70 @@ class JsonlMaterialRevisionRepositoryTests(unittest.TestCase):
         self.assertEqual(self.repository.list_all(), (self.rev1, self.rev2))
         lines = self.file_path.read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 2)
+
+    def test_read_rejects_malformed_json_with_line_number(self) -> None:
+        line1 = json.dumps(material_revision_to_record(self.rev1))
+        content = f"{line1}\n{{\"schema_version\":\n"
+        self.file_path.write_text(content, encoding="utf-8")
+
+        with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+            self.repository.list_all()
+
+        self.assertEqual(ctx.exception.line_number, 2)
+
+    def test_read_rejects_invalid_payload_schema_with_line_number(self) -> None:
+        line1 = json.dumps(material_revision_to_record(self.rev1))
+        content = f"{line1}\n{{\"schema_version\": 999}}\n"
+        self.file_path.write_text(content, encoding="utf-8")
+
+        with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+            self.repository.list_all()
+
+        self.assertEqual(ctx.exception.line_number, 2)
+
+    def test_read_rejects_empty_line_with_line_number(self) -> None:
+        line1 = json.dumps(material_revision_to_record(self.rev1))
+        line3 = json.dumps(material_revision_to_record(self.rev2))
+        content = f"{line1}\n   \n{line3}\n"
+        self.file_path.write_text(content, encoding="utf-8")
+
+        with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+            self.repository.list_all()
+
+        self.assertEqual(ctx.exception.line_number, 2)
+
+    def test_all_read_paths_fail_closed_on_corrupted_file(self) -> None:
+        line2 = json.dumps(material_revision_to_record(self.rev1))
+        content = f"{{\"corrupted\": true}}\n{line2}\n"
+        self.file_path.write_text(content, encoding="utf-8")
+
+        with self.subTest(method="list_all"):
+            with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+                self.repository.list_all()
+            self.assertEqual(ctx.exception.line_number, 1)
+
+        with self.subTest(method="list_by_material"):
+            with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+                self.repository.list_by_material("MAT-001")
+            self.assertEqual(ctx.exception.line_number, 1)
+
+        with self.subTest(method="get_by_id"):
+            with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+                self.repository.get_by_id("REV-001")
+            self.assertEqual(ctx.exception.line_number, 1)
+
+    def test_append_on_corrupted_file_fails_without_modifying_file(self) -> None:
+        initial_content = "{\"schema_version\": 1, \"bad_json\":\n"
+        self.file_path.write_text(initial_content, encoding="utf-8")
+
+        with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+            self.repository.append(self.rev1)
+
+        self.assertEqual(ctx.exception.line_number, 1)
+        self.assertEqual(
+            self.file_path.read_text(encoding="utf-8"),
+            initial_content,
+        )
 
 
 if __name__ == "__main__":

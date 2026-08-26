@@ -20,6 +20,14 @@ class DuplicateMaterialRevisionError(MaterialRevisionPersistenceError):
     """Raised when attempting to append a MaterialRevision with an existing revision_id."""
 
 
+class MaterialRevisionCorruptionError(MaterialRevisionPersistenceError):
+    """Raised when a material revision record or file is corrupted or structurally invalid."""
+
+    def __init__(self, message: str, *, line_number: int) -> None:
+        super().__init__(message)
+        self.line_number = line_number
+
+
 @runtime_checkable
 class MaterialRevisionRepository(Protocol):
     """Abstract protocol for append-only material revision persistence."""
@@ -49,17 +57,33 @@ class JsonlMaterialRevisionRepository:
         if not self._path.exists():
             return []
 
-        with open(self._path, "r", encoding="utf-8") as file:
-            lines = file.readlines()
-
         revisions: list[MaterialRevision] = []
-        for raw_line in lines:
-            line = raw_line.strip()
-            if not line:
-                continue
-            record = json.loads(line)
-            revision = material_revision_from_record(record)
-            revisions.append(revision)
+        with open(self._path, "r", encoding="utf-8") as file:
+            for line_number, raw_line in enumerate(file, start=1):
+                line = raw_line.strip()
+                if not line:
+                    raise MaterialRevisionCorruptionError(
+                        f"Empty line detected at line {line_number} in {self._path}",
+                        line_number=line_number,
+                    )
+
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise MaterialRevisionCorruptionError(
+                        f"Malformed JSON at line {line_number} in {self._path}: {exc}",
+                        line_number=line_number,
+                    ) from exc
+
+                try:
+                    revision = material_revision_from_record(record)
+                except ValueError as exc:
+                    raise MaterialRevisionCorruptionError(
+                        f"Invalid material revision record at line {line_number}: {exc}",
+                        line_number=line_number,
+                    ) from exc
+
+                revisions.append(revision)
 
         return revisions
 
