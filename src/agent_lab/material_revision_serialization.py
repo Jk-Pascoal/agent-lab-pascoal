@@ -37,7 +37,28 @@ def material_revision_to_record(
 def material_revision_from_record(
     record: Mapping[str, Any],
 ) -> MaterialRevision:
+    if not isinstance(record, Mapping):
+        raise ValueError("Record must be a Mapping")
+
+    if "schema_version" not in record:
+        raise ValueError("schema_version is required")
+
+    schema_version = record["schema_version"]
+    if type(schema_version) is not int or schema_version != SCHEMA_VERSION_V1:
+        raise ValueError(
+            f"Unsupported or invalid schema_version: {schema_version!r}"
+        )
+
+    if "revision_id" not in record:
+        raise ValueError("revision_id is required")
+
+    if "record" not in record:
+        raise ValueError("record is required")
+
     raw_record = record["record"]
+    if not isinstance(raw_record, Mapping):
+        raise ValueError("record must be a Mapping")
+
     material_record = MaterialRecord(
         material_id=raw_record["material_id"],
         description_short=raw_record["description_short"],

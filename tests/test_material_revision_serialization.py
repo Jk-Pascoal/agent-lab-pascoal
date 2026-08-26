@@ -217,6 +217,48 @@ class MaterialRevisionSerializationTests(unittest.TestCase):
 
         self.assertEqual(restored, self.review_associated_revision)
 
+    def test_from_record_rejects_missing_schema_version(self) -> None:
+        payload = {
+            k: v
+            for k, v in self.canonical_root_payload.items()
+            if k != "schema_version"
+        }
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_from_record_rejects_unknown_schema_version(self) -> None:
+        payload = {**self.canonical_root_payload, "schema_version": 2}
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_from_record_rejects_string_schema_version(self) -> None:
+        payload = {**self.canonical_root_payload, "schema_version": "1"}
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_from_record_rejects_boolean_schema_version(self) -> None:
+        payload = {**self.canonical_root_payload, "schema_version": True}
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_from_record_rejects_non_mapping_envelope(self) -> None:
+        with self.assertRaises(ValueError):
+            material_revision_from_record([])  # type: ignore[arg-type]
+
+    def test_from_record_rejects_non_mapping_record_field(self) -> None:
+        payload = {**self.canonical_root_payload, "record": 123}
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_from_record_rejects_missing_top_level_revision_id(self) -> None:
+        payload = {
+            k: v
+            for k, v in self.canonical_root_payload.items()
+            if k != "revision_id"
+        }
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
 
 if __name__ == "__main__":
     unittest.main()
