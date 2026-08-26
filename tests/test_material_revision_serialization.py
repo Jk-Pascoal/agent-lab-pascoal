@@ -329,6 +329,78 @@ class MaterialRevisionSerializationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     material_revision_to_record(revision)
 
+    def test_from_record_rejects_missing_material_record_fields(self) -> None:
+        field_names = (
+            "material_id",
+            "description_short",
+            "long_description",
+            "unit",
+            "manufacturer",
+            "manufacturer_part_number",
+            "material_group",
+            "status",
+        )
+        base_record_dict = self.canonical_root_payload["record"]
+        self.assertIsInstance(base_record_dict, dict)
+
+        for field_name in field_names:
+            with self.subTest(field=field_name):
+                raw_record = {
+                    k: v for k, v in base_record_dict.items() if k != field_name
+                }
+                payload = {
+                    **self.canonical_root_payload,
+                    "record": raw_record,
+                }
+                with self.assertRaises(ValueError):
+                    material_revision_from_record(payload)
+
+    def test_from_record_rejects_missing_top_level_envelope_fields(self) -> None:
+        fields = (
+            "revised_at",
+            "predecessor_revision_id",
+            "source_review_id",
+        )
+        for field_name in fields:
+            with self.subTest(field=field_name):
+                payload = {
+                    k: v
+                    for k, v in self.canonical_root_payload.items()
+                    if k != field_name
+                }
+                with self.assertRaises(ValueError):
+                    material_revision_from_record(payload)
+
+    def test_from_record_rejects_non_string_revised_at(self) -> None:
+        payload = {**self.canonical_root_payload, "revised_at": 123}
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_from_record_rejects_invalid_iso_revised_at(self) -> None:
+        payload = {**self.canonical_root_payload, "revised_at": "not-a-datetime"}
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_from_record_rejects_naive_revised_at(self) -> None:
+        payload = {
+            **self.canonical_root_payload,
+            "revised_at": "2026-08-26T10:00:00",
+        }
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_to_record_rejects_naive_revised_at(self) -> None:
+        naive_dt = datetime(2026, 8, 26, 10, 0, 0)
+        revision = object.__new__(MaterialRevision)
+        object.__setattr__(revision, "revision_id", "REV-001")
+        object.__setattr__(revision, "record", self.record)
+        object.__setattr__(revision, "revised_at", naive_dt)
+        object.__setattr__(revision, "predecessor_revision_id", None)
+        object.__setattr__(revision, "source_review_id", None)
+
+        with self.assertRaises(ValueError):
+            material_revision_to_record(revision)
+
 
 if __name__ == "__main__":
     unittest.main()
