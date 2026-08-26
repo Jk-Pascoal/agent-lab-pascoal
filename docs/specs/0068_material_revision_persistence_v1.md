@@ -8,7 +8,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0068` |
-| Status | `Planejada / Em implementação` |
+| Status | `Implementada e Validada / Pronta para PR` |
 | Issue relacionada | `#68` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-26` |
@@ -296,18 +296,18 @@ Regressão Geral       — python -m unittest discover -s tests -v (347 + novos 
 
 ## 12. Critérios de aceite
 
-- [ ] Suíte existente de 347 testes preservada 100% GREEN;
-- [ ] Novos testes implementados exclusivamente via `unittest` em Python 3.11;
-- [ ] Round-trip completo de Root Revision, Derived Revision e Review-Associated Revision;
-- [ ] Todos os 8 campos de `MaterialRecord` preservados de forma exata e não-modificada, com rejeição estrita de tipos não-string sem coerção silenciosa;
-- [ ] `revised_at` timezone-aware preservado com equivalência semântica e offset temporal;
-- [ ] `schema_version = 1` obrigatório e validado; ausência de versão ou versões desconhecidas rejeitadas;
-- [ ] `JsonlMaterialRevisionRepository` executando escrita append-only com `flush` e `os.fsync`;
-- [ ] Rejeição estrita de `revision_id` duplicado com `DuplicateMaterialRevisionError`;
-- [ ] Leitura *fail-closed* reportando `line_number` em caso de corrupção ou incompatibilidade de dados;
-- [ ] Consultas `get_by_id`, `list_by_material` e `list_all` operando fielmente, retornando tuplas imutáveis e preservando a ordem física de append;
-- [ ] Teste de integração comprovando sobrevivência de revisões após múltiplos restarts simulados por novas instâncias do repositório sobre o mesmo arquivo JSONL;
-- [ ] Nenhuma semântica de aplicação automática de correções e nenhuma validação cruzada de `source_review_id`.
+- [x] Suíte existente de 347 testes preservada 100% GREEN;
+- [x] Novos testes implementados exclusivamente via `unittest` em Python 3.11;
+- [x] Round-trip completo de Root Revision, Derived Revision e Review-Associated Revision;
+- [x] Todos os 8 campos de `MaterialRecord` preservados de forma exata e não-modificada, com rejeição estrita de tipos não-string sem coerção silenciosa;
+- [x] `revised_at` timezone-aware preservado com equivalência semântica e offset temporal;
+- [x] `schema_version = 1` obrigatório e validado; ausência de versão ou versões desconhecidas rejeitadas;
+- [x] `JsonlMaterialRevisionRepository` executando escrita append-only com `flush` e `os.fsync`;
+- [x] Rejeição estrita de `revision_id` duplicado com `DuplicateMaterialRevisionError`;
+- [x] Leitura *fail-closed* reportando `line_number` em caso de corrupção ou incompatibilidade de dados;
+- [x] Consultas `get_by_id`, `list_by_material` e `list_all` operando fielmente, retornando tuplas imutáveis e preservando a ordem física de append;
+- [x] Teste de integração comprovando sobrevivência de revisões após múltiplos restarts simulados por novas instâncias do repositório sobre o mesmo arquivo JSONL;
+- [x] Nenhuma semântica de aplicação automática de correções e nenhuma validação cruzada de `source_review_id`.
 
 ---
 
