@@ -13,13 +13,13 @@
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
 - **Estado registrado em:** 2026-08-26
-- **Baseline integrado na main:** 347 testes aprovados (397 testes na branch atual)
-- **Última entrega funcional integrada na main:** Material Revision Provenance v1
-- **Última Issue funcional concluída na main:** #64
-- **Último PR funcional integrado na main:** #65
-- **Último merge funcional:** `41c68a0` — Merge pull request #65
-- **Última SPEC integrada:** `docs/specs/0064_material_revision_provenance_v1.md`
-- **Incremento funcional atual:** Material Revision Persistence v1 — Issue #68 — implementação concluída / pronta para PR
+- **Baseline integrado na main:** 397 testes aprovados
+- **Última entrega funcional integrada na main:** Material Revision Persistence v1
+- **Última Issue funcional concluída na main:** #68
+- **Último PR funcional integrado na main:** #69
+- **Último merge funcional:** `9f0f003` — Merge pull request #69
+- **Última SPEC integrada:** `docs/specs/0068_material_revision_persistence_v1.md`
+- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -204,7 +204,7 @@ O sistema já representa e valida:
   - preservação estrita de objetos anteriores: `predecessor`, `predecessor.record` e novo `record` permanecem 100% inalterados;
   - `source_review_id` tratado estritamente como proveniência/contexto declarado, sem consultas a repositórios externos e sem alegações causais;
   - distinção ontológica fundamental: `CorrectionRequest` (intenção/prescrição humana) $\neq$ `MaterialRevision` (estado factual cadastral), sem transformação automática entre intenção e fato;
-- **Incremento da Issue #68 (Material Revision Persistence v1 — concluído na branch atual / pronta para PR):**
+- **Incremento da Issue #68 (Material Revision Persistence v1 — integrada na main):**
   - módulo `src/agent_lab/material_revision_serialization.py`: serialização canônica versionada com `schema_version = 1` explícito (`material_revision_to_record` / `material_revision_from_record`), round-trip de Root Revision, Derived Revision e Review-Associated Revision, preservação estrita dos 8 campos de `MaterialRecord` com validação de tipos string sem coerção silenciosa (`str()`) ou normalização factual, e validação temporal de `revised_at` timezone-aware em formato ISO 8601;
   - módulo `src/agent_lab/material_revision_repository.py`: protocolo `MaterialRevisionRepository` e repositório append-only `JsonlMaterialRevisionRepository` com durabilidade física explícita (`flush` + `os.fsync`), consulta pontual via `get_by_id`, retorno de tuplas imutáveis em `list_by_material` e `list_all`, e preservação estrita da ordem física de append (sem ordenação por timestamp `revised_at`);
   - hierarquia de exceções: `MaterialRevisionPersistenceError`, `DuplicateMaterialRevisionError` (bloqueio de unicidade estrita por `revision_id` antes da escrita) e `MaterialRevisionCorruptionError` (leitura *fail-closed* acusando `line_number` físico 1-based para linhas vazias, JSON malformado e violações de schema);
@@ -223,7 +223,7 @@ A versão atual integrada na `main` possui:
 - persistência e reidratação em disco da linhagem causal de correction follow-up (`predecessor_workflow_id` e `triggering_review_id`) estão integradas e validadas;
 - sucessores em `PENDING_HUMAN_REVIEW` e `REVIEWED` preservam seus identificadores causais após reinicialização;
 - predecessor permanece estritamente imutável e inalterado, e nenhuma reconstrução de grafo de predecessores ocorre durante a projeção;
-- persistência append-only em disco de `MaterialRevision` concluída na branch atual via `JsonlMaterialRevisionRepository` com durabilidade e leitura fail-closed; conexão de `MaterialRevision` ao pipeline de evidências e recomendações permanece fronteira futura;
+- persistência append-only em disco de `MaterialRevision` integrada na main via `JsonlMaterialRevisionRepository` com durabilidade e leitura fail-closed; conexão de `MaterialRevision` ao pipeline de evidências e recomendações permanece fronteira futura;
 - aplicação automática das correções ao material (`CORRECTION_APPLIED`), mutação automática de `MaterialRecord` e reexecução automática de regras/LLM continuam fora do escopo;
 - execução síncrona/monoprocesso;
 - ausência de locking multiprocesso;
@@ -234,7 +234,7 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: Material Revision Persistence v1 (Issue #68) — implementação e validação concluídas na branch / pronta para PR.
+Incremento atual: nenhum incremento funcional aberto — Issue #68 concluída, integrada e formalmente encerrada.
 
 Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
@@ -523,13 +523,6 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 347 tests
-OK
-```
-
-Baseline na branch atual (Issue #68):
-
-```text
 Ran 397 tests
 OK
 ```
@@ -547,7 +540,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #61: 320 testes
 - Incremento da Issue #64: +27 testes sobre o baseline de entrada de 320 (testes unitários em `tests/test_material_revision.py`)
 - Baseline integrado após a Issue #64: 347 testes
-- Incremento da Issue #68 (na branch atual): +50 testes sobre o baseline de entrada de 347 (31 testes unitários em `tests/test_material_revision_serialization.py` + 19 testes em `tests/test_material_revision_repository.py`) -> Baseline atual na branch: 397 testes
+- Incremento da Issue #68: +50 testes sobre o baseline de entrada de 347 (31 testes unitários em `tests/test_material_revision_serialization.py` + 19 testes em `tests/test_material_revision_repository.py`)
+- Baseline integrado após a Issue #68: 397 testes
 
 Não assumir `pytest`.
 
@@ -722,7 +716,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 
 - reabertura ou mutação do mesmo workflow após `REQUEST_CORRECTION` continua adiada/proibida no contrato atual (cada ciclo pós-correção é um novo workflow imutável);
 - aplicação automática das `CorrectionRequest` ao material (`CORRECTION_APPLIED`) e mutação automática de `MaterialRecord` continuam adiadas;
-- campos `diff`/`changed_fields` persistidos, projeção/grafo de revisões e ordenação temporal de revisões continuam adiados (a persistência JSONL append-only de `MaterialRevision` foi concluída na Issue #68 na branch atual);
+- campos `diff`/`changed_fields` persistidos, projeção/grafo de revisões e ordenação temporal de revisões continuam adiados (a persistência JSONL append-only de `MaterialRevision` foi integrada na Issue #68);
 - conexão de `MaterialRevision` ao pipeline de evidências (`EvidenceCollection`) e recomendações (`DecisionRecommendation`), e reexecução automática de regras/LLM após revisão continuam adiadas;
 - atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura foram integrados na Issue #55; intervenções ativas em disco continuam adiadas);
 - persistência em banco de dados relacional ou transacional;
@@ -810,28 +804,29 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 347 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #64 | Material Revision Provenance v1 | PR #65 (merge 41c68a0).
-- Última SPEC integrada: docs/specs/0064_material_revision_provenance_v1.md.
-- Último PR funcional integrado: PR #65.
-- Último merge funcional: 41c68a0.
+- Baseline integrado na main: 397 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #68 | Material Revision Persistence v1 | PR #69 (merge 9f0f003).
+- Última SPEC integrada: docs/specs/0068_material_revision_persistence_v1.md.
+- Último PR funcional integrado: PR #69.
+- Último merge funcional: 9f0f003.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
   + auditoria append-only desacoplada
   + verificação determinística e somente-leitura de consistência dual-write pós-restart (verify_dual_write_consistency / verify_repositories_consistency)
   + correction follow-up causal com persistência de WorkflowOpened v2 e reidratação de lineage em PENDING_HUMAN_REVIEW e REVIEWED pós-restart
-  + MaterialRevision factual e imutável com identidade temporal explícita, predecessor_revision_id, source_review_id declarativo, create_successor_revision pura, identidade exata de material_id e monotonicidade temporal.
+  + MaterialRevision factual e imutável com identidade temporal explícita, predecessor_revision_id, source_review_id declarativo, create_successor_revision pura, identidade exata de material_id e monotonicidade temporal
+  + persistência append-only de MaterialRevision em JSONL com schema_version=1 canônico, JsonlMaterialRevisionRepository durável (flush + fsync), unicidade de revision_id e diagnóstico fail-closed de corrupção com line_number 1-based.
 - Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
 - Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
-  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); persistência append-only de MaterialRevision concluída na branch atual; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
+  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); persistência append-only de MaterialRevision integrada na main; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Material Revision Persistence v1 — Issue #68 — implementação concluída e validada na branch / pronta para PR (397 testes verdes).
+- Nenhum incremento funcional aberto — Issue #68 concluída, integrada e formalmente encerrada.
 
 PRÓXIMA ÂNCORA:
-- Fechamento documental, PR e merge da Issue #68; próxima âncora a definir após integração.
+- Ainda não definida; deve ser escolhida somente após novo planejamento humano.
 
 Comando oficial:
 python -m unittest discover -s tests -v
