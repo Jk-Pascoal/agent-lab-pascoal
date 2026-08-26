@@ -9,6 +9,24 @@ from agent_lab.material_revision import MaterialRevision
 
 SCHEMA_VERSION_V1 = 1
 
+_MATERIAL_RECORD_FIELDS = (
+    "material_id",
+    "description_short",
+    "long_description",
+    "unit",
+    "manufacturer",
+    "manufacturer_part_number",
+    "material_group",
+    "status",
+)
+
+
+def _validate_material_record_string_fields(record_data: Mapping[str, Any]) -> None:
+    for field_name in _MATERIAL_RECORD_FIELDS:
+        val = record_data[field_name]
+        if not isinstance(val, str):
+            raise ValueError(f"{field_name} must be a string, got {type(val).__name__}")
+
 
 def material_revision_to_record(
     revision: MaterialRevision,
@@ -23,6 +41,7 @@ def material_revision_to_record(
         "material_group": revision.record.material_group,
         "status": revision.record.status,
     }
+    _validate_material_record_string_fields(record_dict)
 
     return {
         "schema_version": SCHEMA_VERSION_V1,
@@ -58,6 +77,8 @@ def material_revision_from_record(
     raw_record = record["record"]
     if not isinstance(raw_record, Mapping):
         raise ValueError("record must be a Mapping")
+
+    _validate_material_record_string_fields(raw_record)
 
     material_record = MaterialRecord(
         material_id=raw_record["material_id"],

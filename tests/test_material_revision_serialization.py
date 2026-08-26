@@ -259,6 +259,76 @@ class MaterialRevisionSerializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             material_revision_from_record(payload)
 
+    def test_from_record_rejects_non_string_material_record_fields(self) -> None:
+        field_names = (
+            "material_id",
+            "description_short",
+            "long_description",
+            "unit",
+            "manufacturer",
+            "manufacturer_part_number",
+            "material_group",
+            "status",
+        )
+        base_record_dict = self.canonical_root_payload["record"]
+        self.assertIsInstance(base_record_dict, dict)
+
+        for field_name in field_names:
+            with self.subTest(field=field_name):
+                raw_record = dict(base_record_dict)
+                raw_record[field_name] = 123
+                payload = {
+                    **self.canonical_root_payload,
+                    "record": raw_record,
+                }
+                with self.assertRaises(ValueError):
+                    material_revision_from_record(payload)
+
+    def test_to_record_rejects_non_string_material_record_fields(self) -> None:
+        field_names = (
+            "material_id",
+            "description_short",
+            "long_description",
+            "unit",
+            "manufacturer",
+            "manufacturer_part_number",
+            "material_group",
+            "status",
+        )
+        for field_name in field_names:
+            with self.subTest(field=field_name):
+                kwargs: dict[str, object] = {
+                    "material_id": "MAT-001",
+                    "description_short": "PARAFUSO SEXTAVADO M8",
+                    "long_description": "PARAFUSO SEXTAVADO M8 X 25MM ACO INOX",
+                    "unit": "UN",
+                    "manufacturer": "ACME",
+                    "manufacturer_part_number": "ACM-825",
+                    "material_group": "FIXADORES",
+                    "status": "ACTIVE",
+                }
+                kwargs[field_name] = 123
+                if field_name == "material_id":
+                    record = MaterialRecord(**kwargs)  # type: ignore[arg-type]
+                    revision = object.__new__(MaterialRevision)
+                    object.__setattr__(revision, "revision_id", "REV-001")
+                    object.__setattr__(revision, "record", record)
+                    object.__setattr__(revision, "revised_at", self.revised_at)
+                    object.__setattr__(revision, "predecessor_revision_id", None)
+                    object.__setattr__(revision, "source_review_id", None)
+                else:
+                    record = MaterialRecord(**kwargs)  # type: ignore[arg-type]
+                    revision = MaterialRevision(
+                        revision_id="REV-001",
+                        record=record,
+                        revised_at=self.revised_at,
+                        predecessor_revision_id=None,
+                        source_review_id=None,
+                    )
+
+                with self.assertRaises(ValueError):
+                    material_revision_to_record(revision)
+
 
 if __name__ == "__main__":
     unittest.main()
