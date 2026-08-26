@@ -8,7 +8,7 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0068` |
-| Status | `Implementada e Validada / Pronta para PR` |
+| Status | `Implementada, Validada e Integrada na main` |
 | Issue relacionada | `#68` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-26` |
