@@ -47,11 +47,40 @@ def _parse_revised_at(raw_revised_at: Any) -> datetime:
     return dt
 
 
+def _validate_provenance_fields(
+    predecessor_revision_id: Any,
+    source_review_id: Any,
+) -> None:
+    if predecessor_revision_id is not None and not isinstance(
+        predecessor_revision_id, str
+    ):
+        raise ValueError(
+            "predecessor_revision_id must be a string or None, "
+            f"got {type(predecessor_revision_id).__name__}"
+        )
+
+    if source_review_id is not None and not isinstance(source_review_id, str):
+        raise ValueError(
+            "source_review_id must be a string or None, "
+            f"got {type(source_review_id).__name__}"
+        )
+
+    if source_review_id is not None and predecessor_revision_id is None:
+        raise ValueError(
+            "source_review_id cannot be set when predecessor_revision_id is None"
+        )
+
+
 def material_revision_to_record(
     revision: MaterialRevision,
 ) -> dict[str, object]:
     if revision.revised_at.tzinfo is None or revision.revised_at.utcoffset() is None:
         raise ValueError("revised_at must be timezone-aware")
+
+    _validate_provenance_fields(
+        revision.predecessor_revision_id,
+        revision.source_review_id,
+    )
 
     record_dict: dict[str, object] = {
         "material_id": revision.record.material_id,
@@ -112,6 +141,10 @@ def material_revision_from_record(
     _validate_material_record_string_fields(raw_record)
     revised_at = _parse_revised_at(record["revised_at"])
 
+    predecessor_revision_id = record["predecessor_revision_id"]
+    source_review_id = record["source_review_id"]
+    _validate_provenance_fields(predecessor_revision_id, source_review_id)
+
     material_record = MaterialRecord(
         material_id=raw_record["material_id"],
         description_short=raw_record["description_short"],
@@ -127,6 +160,6 @@ def material_revision_from_record(
         revision_id=record["revision_id"],
         record=material_record,
         revised_at=revised_at,
-        predecessor_revision_id=record["predecessor_revision_id"],
-        source_review_id=record["source_review_id"],
+        predecessor_revision_id=predecessor_revision_id,
+        source_review_id=source_review_id,
     )

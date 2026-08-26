@@ -401,6 +401,76 @@ class MaterialRevisionSerializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             material_revision_to_record(revision)
 
+    def test_from_record_rejects_invalid_predecessor_revision_id_types(self) -> None:
+        invalid_values = (123, True, [], {})
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                payload = {
+                    **self.canonical_root_payload,
+                    "predecessor_revision_id": invalid_value,
+                }
+                with self.assertRaises(ValueError):
+                    material_revision_from_record(payload)
+
+    def test_from_record_rejects_invalid_source_review_id_types(self) -> None:
+        invalid_values = (123, True, [], {})
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                payload = {
+                    **self.canonical_derived_payload,
+                    "source_review_id": invalid_value,
+                }
+                with self.assertRaises(ValueError):
+                    material_revision_from_record(payload)
+
+    def test_from_record_rejects_source_review_id_without_predecessor(self) -> None:
+        payload = {
+            **self.canonical_root_payload,
+            "predecessor_revision_id": None,
+            "source_review_id": "REVIEW-001",
+        }
+        with self.assertRaises(ValueError):
+            material_revision_from_record(payload)
+
+    def test_to_record_rejects_invalid_predecessor_revision_id_types(self) -> None:
+        invalid_values = (123, True, [], {})
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                revision = object.__new__(MaterialRevision)
+                object.__setattr__(revision, "revision_id", "REV-002")
+                object.__setattr__(revision, "record", self.record)
+                object.__setattr__(revision, "revised_at", self.revised_at)
+                object.__setattr__(revision, "predecessor_revision_id", invalid_value)
+                object.__setattr__(revision, "source_review_id", None)
+
+                with self.assertRaises(ValueError):
+                    material_revision_to_record(revision)
+
+    def test_to_record_rejects_invalid_source_review_id_types(self) -> None:
+        invalid_values = (123, True, [], {})
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                revision = object.__new__(MaterialRevision)
+                object.__setattr__(revision, "revision_id", "REV-003")
+                object.__setattr__(revision, "record", self.record)
+                object.__setattr__(revision, "revised_at", self.revised_at)
+                object.__setattr__(revision, "predecessor_revision_id", "REV-001")
+                object.__setattr__(revision, "source_review_id", invalid_value)
+
+                with self.assertRaises(ValueError):
+                    material_revision_to_record(revision)
+
+    def test_to_record_rejects_source_review_id_without_predecessor(self) -> None:
+        revision = object.__new__(MaterialRevision)
+        object.__setattr__(revision, "revision_id", "REV-004")
+        object.__setattr__(revision, "record", self.record)
+        object.__setattr__(revision, "revised_at", self.revised_at)
+        object.__setattr__(revision, "predecessor_revision_id", None)
+        object.__setattr__(revision, "source_review_id", "REVIEW-001")
+
+        with self.assertRaises(ValueError):
+            material_revision_to_record(revision)
+
 
 if __name__ == "__main__":
     unittest.main()
