@@ -257,6 +257,93 @@ class JsonlMaterialRevisionRepositoryTests(unittest.TestCase):
             initial_content,
         )
 
+    def test_new_instance_recovers_all_persisted_revisions(self) -> None:
+        repo_a = JsonlMaterialRevisionRepository(self.file_path)
+        repo_a.append(self.rev1)
+        repo_a.append(self.rev2)
+
+        repo_b = JsonlMaterialRevisionRepository(self.file_path)
+        reconstructed = repo_b.list_all()
+
+        self.assertEqual(reconstructed, (self.rev1, self.rev2))
+
+    def test_new_instance_get_by_id_recovers_provenance_and_full_record(
+        self,
+    ) -> None:
+        repo_a = JsonlMaterialRevisionRepository(self.file_path)
+        repo_a.append(self.rev1)
+        repo_a.append(self.rev3)
+
+        repo_b = JsonlMaterialRevisionRepository(self.file_path)
+        retrieved = repo_b.get_by_id("REV-003")
+
+        self.assertIsNotNone(retrieved)
+        self.assertEqual(retrieved, self.rev3)
+        self.assertEqual(retrieved.predecessor_revision_id, "REV-001")
+        self.assertEqual(retrieved.source_review_id, "REVIEW-001")
+        self.assertEqual(retrieved.record, self.record_mat1)
+        self.assertEqual(retrieved.revised_at, self.rev3.revised_at)
+
+    def test_new_instance_list_by_material_filters_and_preserves_physical_order(
+        self,
+    ) -> None:
+        repo_a = JsonlMaterialRevisionRepository(self.file_path)
+        repo_a.append(self.rev1)
+        repo_a.append(self.rev2)
+        repo_a.append(self.rev3)
+
+        repo_b = JsonlMaterialRevisionRepository(self.file_path)
+
+        self.assertEqual(
+            repo_b.list_by_material("MAT-001"),
+            (self.rev1, self.rev3),
+        )
+        self.assertEqual(
+            repo_b.list_by_material("MAT-002"),
+            (self.rev2,),
+        )
+        self.assertEqual(repo_b.list_by_material("MAT-999"), ())
+
+    def test_new_instance_continues_append_without_truncating_or_overwriting(
+        self,
+    ) -> None:
+        repo_a = JsonlMaterialRevisionRepository(self.file_path)
+        repo_a.append(self.rev1)
+
+        repo_b = JsonlMaterialRevisionRepository(self.file_path)
+        repo_b.append(self.rev2)
+
+        repo_c = JsonlMaterialRevisionRepository(self.file_path)
+        self.assertEqual(repo_c.list_all(), (self.rev1, self.rev2))
+
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
+
+    def test_new_instance_enforces_duplicate_revision_id_from_persisted_file(
+        self,
+    ) -> None:
+        repo_a = JsonlMaterialRevisionRepository(self.file_path)
+        repo_a.append(self.rev1)
+
+        repo_b = JsonlMaterialRevisionRepository(self.file_path)
+        with self.assertRaises(DuplicateMaterialRevisionError):
+            repo_b.append(self.rev1)
+
+        self.assertEqual(repo_b.list_all(), (self.rev1,))
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+
+    def test_new_instance_detects_corruption_fail_closed(self) -> None:
+        line1 = json.dumps(material_revision_to_record(self.rev1))
+        content = f"{line1}\n{{\"schema_version\":\n"
+        self.file_path.write_text(content, encoding="utf-8")
+
+        repo_b = JsonlMaterialRevisionRepository(self.file_path)
+        with self.assertRaises(MaterialRevisionCorruptionError) as ctx:
+            repo_b.list_all()
+
+        self.assertEqual(ctx.exception.line_number, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
