@@ -9,6 +9,7 @@ import unittest
 from agent_lab.domain import MaterialRecord
 from agent_lab.material_revision import MaterialRevision
 from agent_lab.material_revision_repository import (
+    DuplicateMaterialRevisionError,
     JsonlMaterialRevisionRepository,
     MaterialRevisionRepository,
 )
@@ -148,6 +149,48 @@ class JsonlMaterialRevisionRepositoryTests(unittest.TestCase):
         persisted_record = json.loads(lines[0])
         expected_record = material_revision_to_record(self.rev3)
         self.assertEqual(persisted_record, expected_record)
+
+    def test_append_rejects_duplicate_revision_id_with_same_content(
+        self,
+    ) -> None:
+        self.repository.append(self.rev1)
+
+        with self.assertRaises(DuplicateMaterialRevisionError):
+            self.repository.append(self.rev1)
+
+        self.assertEqual(self.repository.list_all(), (self.rev1,))
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+
+    def test_append_rejects_duplicate_revision_id_with_different_content(
+        self,
+    ) -> None:
+        self.repository.append(self.rev1)
+
+        rev_diff = MaterialRevision(
+            revision_id="REV-001",
+            record=self.record_mat2,
+            revised_at=datetime(2026, 8, 26, 14, 0, 0, tzinfo=self.tz),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        with self.assertRaises(DuplicateMaterialRevisionError):
+            self.repository.append(rev_diff)
+
+        self.assertEqual(self.repository.list_all(), (self.rev1,))
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+        persisted = json.loads(lines[0])
+        self.assertEqual(persisted["record"]["material_id"], "MAT-001")
+
+    def test_append_allows_distinct_revision_ids(self) -> None:
+        self.repository.append(self.rev1)
+        self.repository.append(self.rev2)
+
+        self.assertEqual(self.repository.list_all(), (self.rev1, self.rev2))
+        lines = self.file_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,14 @@ from agent_lab.material_revision_serialization import (
 )
 
 
+class MaterialRevisionPersistenceError(Exception):
+    """Base error for material revision persistence operations."""
+
+
+class DuplicateMaterialRevisionError(MaterialRevisionPersistenceError):
+    """Raised when attempting to append a MaterialRevision with an existing revision_id."""
+
+
 @runtime_checkable
 class MaterialRevisionRepository(Protocol):
     """Abstract protocol for append-only material revision persistence."""
@@ -56,6 +64,11 @@ class JsonlMaterialRevisionRepository:
         return revisions
 
     def append(self, revision: MaterialRevision) -> None:
+        if self.get_by_id(revision.revision_id) is not None:
+            raise DuplicateMaterialRevisionError(
+                f"MaterialRevision with revision_id '{revision.revision_id}' already exists in {self._path}"
+            )
+
         self._path.parent.mkdir(parents=True, exist_ok=True)
         record = material_revision_to_record(revision)
         line = json.dumps(record)
