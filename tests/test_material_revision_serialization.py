@@ -10,7 +10,7 @@ from agent_lab.material_revision_serialization import (
 )
 
 
-class MaterialRevisionSerializationRootTests(unittest.TestCase):
+class MaterialRevisionSerializationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.revised_at = datetime(
             2026,
@@ -54,6 +54,31 @@ class MaterialRevisionSerializationRootTests(unittest.TestCase):
             "revised_at": "2026-08-26T10:00:00-03:00",
             "predecessor_revision_id": None,
             "source_review_id": None,
+        }
+        self.derived_revision = MaterialRevision(
+            revision_id="REV-002",
+            record=self.record,
+            revised_at=self.revised_at,
+            predecessor_revision_id="REV-001",
+            source_review_id=None,
+        )
+        self.canonical_derived_payload = {
+            **self.canonical_root_payload,
+            "revision_id": "REV-002",
+            "predecessor_revision_id": "REV-001",
+        }
+        self.review_associated_revision = MaterialRevision(
+            revision_id="REV-003",
+            record=self.record,
+            revised_at=self.revised_at,
+            predecessor_revision_id="REV-002",
+            source_review_id="REVIEW-001",
+        )
+        self.canonical_review_associated_payload = {
+            **self.canonical_root_payload,
+            "revision_id": "REV-003",
+            "predecessor_revision_id": "REV-002",
+            "source_review_id": "REVIEW-001",
         }
 
     def test_schema_version_constant_is_one(self) -> None:
@@ -141,6 +166,56 @@ class MaterialRevisionSerializationRootTests(unittest.TestCase):
         self.assertIsNone(restored.predecessor_revision_id)
         self.assertIsNone(restored.source_review_id)
         self.assertEqual(restored.material_id, self.root_revision.material_id)
+
+    def test_material_revision_to_record_derived_revision(self) -> None:
+        payload = material_revision_to_record(self.derived_revision)
+
+        self.assertEqual(payload["schema_version"], 1)
+        self.assertEqual(payload["revision_id"], "REV-002")
+        self.assertEqual(payload["predecessor_revision_id"], "REV-001")
+        self.assertIsNone(payload["source_review_id"])
+        self.assertEqual(payload["record"], self.canonical_root_payload["record"])
+
+    def test_material_revision_from_record_derived_revision(self) -> None:
+        restored = material_revision_from_record(self.canonical_derived_payload)
+
+        self.assertEqual(restored.revision_id, "REV-002")
+        self.assertEqual(restored.predecessor_revision_id, "REV-001")
+        self.assertIsNone(restored.source_review_id)
+        self.assertEqual(restored.record, self.record)
+        self.assertEqual(restored.revised_at, self.revised_at)
+
+    def test_round_trip_derived_revision(self) -> None:
+        payload = material_revision_to_record(self.derived_revision)
+        restored = material_revision_from_record(payload)
+
+        self.assertEqual(restored, self.derived_revision)
+
+    def test_material_revision_to_record_review_associated_revision(self) -> None:
+        payload = material_revision_to_record(self.review_associated_revision)
+
+        self.assertEqual(payload["schema_version"], 1)
+        self.assertEqual(payload["revision_id"], "REV-003")
+        self.assertEqual(payload["predecessor_revision_id"], "REV-002")
+        self.assertEqual(payload["source_review_id"], "REVIEW-001")
+        self.assertEqual(payload["record"], self.canonical_root_payload["record"])
+
+    def test_material_revision_from_record_review_associated_revision(self) -> None:
+        restored = material_revision_from_record(
+            self.canonical_review_associated_payload
+        )
+
+        self.assertEqual(restored.revision_id, "REV-003")
+        self.assertEqual(restored.predecessor_revision_id, "REV-002")
+        self.assertEqual(restored.source_review_id, "REVIEW-001")
+        self.assertEqual(restored.record, self.record)
+        self.assertEqual(restored.revised_at, self.revised_at)
+
+    def test_round_trip_review_associated_revision(self) -> None:
+        payload = material_revision_to_record(self.review_associated_revision)
+        restored = material_revision_from_record(payload)
+
+        self.assertEqual(restored, self.review_associated_revision)
 
 
 if __name__ == "__main__":
