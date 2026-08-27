@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import unittest
+
+from agent_lab.domain import MaterialRecord
+from agent_lab.material_revision import MaterialRevision, create_successor_revision
+from agent_lab.material_revision_projection import (
+    MaterialRevisionLineage,
+    project_material_revision_lineage,
+)
+
+
+class MaterialRevisionProjectionTests(unittest.TestCase):
+    def test_project_simple_linear_lineage(self) -> None:
+        record1 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v1",
+        )
+        rev1 = MaterialRevision(
+            revision_id="REV-001",
+            record=record1,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        record2 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v2",
+        )
+        rev2 = create_successor_revision(
+            rev1,
+            revision_id="REV-002",
+            record=record2,
+            revised_at=datetime(2026, 8, 27, 11, 0, 0, tzinfo=timezone.utc),
+            source_review_id=None,
+        )
+
+        record3 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v3",
+        )
+        rev3 = create_successor_revision(
+            rev2,
+            revision_id="REV-003",
+            record=record3,
+            revised_at=datetime(2026, 8, 27, 12, 0, 0, tzinfo=timezone.utc),
+            source_review_id="REVIEW-001",
+        )
+
+        lineage = project_material_revision_lineage([rev1, rev2, rev3])
+
+        self.assertIsInstance(lineage, MaterialRevisionLineage)
+        self.assertEqual(lineage.material_id, "MAT-001")
+        self.assertEqual(lineage.revisions, (rev1, rev2, rev3))
+        self.assertEqual(lineage.root_revision_ids, ("REV-001",))
+        self.assertEqual(lineage.head_revision_ids, ("REV-003",))
+        self.assertEqual(lineage.orphan_revision_ids, ())
+        self.assertEqual(lineage.fork_predecessor_ids, ())
+        self.assertEqual(lineage.cycle_revision_ids, ())
+        self.assertFalse(lineage.is_empty)
+        self.assertTrue(lineage.is_linear)
+        self.assertFalse(lineage.has_orphans)
+        self.assertFalse(lineage.has_forks)
+        self.assertFalse(lineage.has_multiple_roots)
+        self.assertFalse(lineage.has_cycles)
+        self.assertFalse(lineage.has_ambiguities)
+
+
+if __name__ == "__main__":
+    unittest.main()
