@@ -69,11 +69,25 @@ def project_material_revision_lineage(
             f"material revisions must belong to a single material_id, got: {sorted_ids}"
         )
 
+    revision_id_counts: dict[str, int] = {}
+    for r in canonical_revisions:
+        revision_id_counts[r.revision_id] = revision_id_counts.get(r.revision_id, 0) + 1
+
+    duplicate_ids = tuple(
+        sorted(
+            rev_id
+            for rev_id, count in revision_id_counts.items()
+            if count > 1
+        )
+    )
+    if duplicate_ids:
+        raise ValueError(
+            f"duplicate revision_id values are not allowed: {duplicate_ids}"
+        )
+
     material_id = canonical_revisions[0].material_id
 
-    revision_ids = {
-        revision.revision_id for revision in canonical_revisions
-    }
+    revision_ids = set(revision_id_counts.keys())
 
     root_revision_ids = tuple(
         sorted(

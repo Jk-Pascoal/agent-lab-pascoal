@@ -412,6 +412,34 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             project_material_revision_lineage([rev1, rev2])
 
+    def test_rejects_duplicate_revision_ids(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 versão A",
+        )
+        rev_a = MaterialRevision(
+            revision_id="REV-001",
+            record=record_a,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        record_b = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 versão B",
+        )
+        rev_b = MaterialRevision(
+            revision_id="REV-001",
+            record=record_b,
+            revised_at=datetime(2026, 8, 27, 11, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        with self.assertRaises(ValueError):
+            project_material_revision_lineage([rev_a, rev_b])
+
 
 if __name__ == "__main__":
     unittest.main()
