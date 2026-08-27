@@ -245,6 +245,145 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         self.assertFalse(lineage.has_forks)
         self.assertFalse(lineage.has_cycles)
 
+    def test_detects_two_revision_cycle(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (No A)",
+        )
+        rev_a = MaterialRevision(
+            revision_id="REV-A",
+            record=record_a,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-B",
+            source_review_id=None,
+        )
+
+        record_b = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (No B)",
+        )
+        rev_b = MaterialRevision(
+            revision_id="REV-B",
+            record=record_b,
+            revised_at=datetime(2026, 8, 27, 10, 30, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-A",
+            source_review_id=None,
+        )
+
+        lineage = project_material_revision_lineage([rev_a, rev_b])
+
+        self.assertEqual(lineage.material_id, "MAT-001")
+        self.assertEqual(lineage.root_revision_ids, ())
+        self.assertEqual(lineage.orphan_revision_ids, ())
+        self.assertEqual(lineage.fork_predecessor_ids, ())
+        self.assertEqual(lineage.cycle_revision_ids, ("REV-A", "REV-B"))
+        self.assertTrue(lineage.has_cycles)
+        self.assertFalse(lineage.is_linear)
+        self.assertTrue(lineage.has_ambiguities)
+        self.assertEqual(lineage.head_revision_ids, ())
+
+    def test_detects_three_revision_cycle(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (No A)",
+        )
+        rev_a = MaterialRevision(
+            revision_id="REV-A",
+            record=record_a,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-C",
+            source_review_id=None,
+        )
+
+        record_b = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (No B)",
+        )
+        rev_b = MaterialRevision(
+            revision_id="REV-B",
+            record=record_b,
+            revised_at=datetime(2026, 8, 27, 10, 30, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-A",
+            source_review_id=None,
+        )
+
+        record_c = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (No C)",
+        )
+        rev_c = MaterialRevision(
+            revision_id="REV-C",
+            record=record_c,
+            revised_at=datetime(2026, 8, 27, 11, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-B",
+            source_review_id=None,
+        )
+
+        lineage = project_material_revision_lineage([rev_c, rev_a, rev_b])
+
+        self.assertEqual(lineage.material_id, "MAT-001")
+        self.assertEqual(lineage.root_revision_ids, ())
+        self.assertEqual(lineage.head_revision_ids, ())
+        self.assertEqual(lineage.orphan_revision_ids, ())
+        self.assertEqual(lineage.fork_predecessor_ids, ())
+        self.assertEqual(lineage.cycle_revision_ids, ("REV-A", "REV-B", "REV-C"))
+        self.assertTrue(lineage.has_cycles)
+        self.assertFalse(lineage.has_forks)
+        self.assertFalse(lineage.has_orphans)
+        self.assertFalse(lineage.is_linear)
+        self.assertTrue(lineage.has_ambiguities)
+
+    def test_cycle_detection_excludes_tail_node(self) -> None:
+        record_000 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (Cauda REV-000)",
+        )
+        rev_000 = MaterialRevision(
+            revision_id="REV-000",
+            record=record_000,
+            revised_at=datetime(2026, 8, 27, 9, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-A",
+            source_review_id=None,
+        )
+
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (No A)",
+        )
+        rev_a = MaterialRevision(
+            revision_id="REV-A",
+            record=record_a,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-B",
+            source_review_id=None,
+        )
+
+        record_b = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 (No B)",
+        )
+        rev_b = MaterialRevision(
+            revision_id="REV-B",
+            record=record_b,
+            revised_at=datetime(2026, 8, 27, 10, 30, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-A",
+            source_review_id=None,
+        )
+
+        lineage = project_material_revision_lineage([rev_000, rev_a, rev_b])
+
+        self.assertEqual(lineage.material_id, "MAT-001")
+        self.assertEqual(lineage.root_revision_ids, ())
+        self.assertEqual(lineage.orphan_revision_ids, ())
+        self.assertEqual(lineage.fork_predecessor_ids, ("REV-A",))
+        self.assertEqual(lineage.head_revision_ids, ("REV-000",))
+        self.assertEqual(lineage.cycle_revision_ids, ("REV-A", "REV-B"))
+        self.assertNotIn("REV-000", lineage.cycle_revision_ids)
+        self.assertTrue(lineage.has_cycles)
+        self.assertTrue(lineage.has_forks)
+        self.assertFalse(lineage.is_linear)
+        self.assertTrue(lineage.has_ambiguities)
+
 
 if __name__ == "__main__":
     unittest.main()

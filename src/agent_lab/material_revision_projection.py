@@ -113,6 +113,43 @@ def project_material_revision_lineage(
         )
     )
 
+    internal_preds: dict[str, str] = {
+        r.revision_id: r.predecessor_revision_id
+        for r in canonical_revisions
+        if r.predecessor_revision_id is not None
+        and r.predecessor_revision_id in revision_ids
+    }
+
+    cycle_ids: set[str] = set()
+    visited_global: set[str] = set()
+
+    for revision in canonical_revisions:
+        node_id = revision.revision_id
+        if node_id in visited_global:
+            continue
+
+        path: list[str] = []
+        path_index_map: dict[str, int] = {}
+        curr: str | None = node_id
+
+        while curr is not None and curr in internal_preds:
+            if curr in path_index_map:
+                cycle_start_idx = path_index_map[curr]
+                for cycle_node in path[cycle_start_idx:]:
+                    cycle_ids.add(cycle_node)
+                break
+
+            if curr in visited_global:
+                break
+
+            path_index_map[curr] = len(path)
+            path.append(curr)
+            curr = internal_preds.get(curr)
+
+        visited_global.update(path)
+
+    cycle_revision_ids = tuple(sorted(cycle_ids))
+
     return MaterialRevisionLineage(
         material_id=material_id,
         revisions=canonical_revisions,
@@ -120,5 +157,5 @@ def project_material_revision_lineage(
         head_revision_ids=head_revision_ids,
         orphan_revision_ids=orphan_revision_ids,
         fork_predecessor_ids=fork_predecessor_ids,
-        cycle_revision_ids=(),
+        cycle_revision_ids=cycle_revision_ids,
     )
