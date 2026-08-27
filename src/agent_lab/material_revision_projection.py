@@ -61,6 +61,14 @@ def project_material_revision_lineage(
     revisions: Sequence[MaterialRevision],
 ) -> MaterialRevisionLineage:
     canonical_revisions = tuple(sorted(revisions, key=lambda r: r.revision_id))
+
+    material_ids = {revision.material_id for revision in canonical_revisions}
+    if len(material_ids) > 1:
+        sorted_ids = sorted(material_ids)
+        raise ValueError(
+            f"material revisions must belong to a single material_id, got: {sorted_ids}"
+        )
+
     material_id = canonical_revisions[0].material_id
 
     revision_ids = {

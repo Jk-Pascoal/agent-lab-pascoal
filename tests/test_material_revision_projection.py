@@ -384,6 +384,34 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         self.assertFalse(lineage.is_linear)
         self.assertTrue(lineage.has_ambiguities)
 
+    def test_rejects_mixed_material_ids(self) -> None:
+        record1 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v1",
+        )
+        rev1 = MaterialRevision(
+            revision_id="REV-001",
+            record=record1,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        record2 = MaterialRecord(
+            material_id="MAT-002",
+            description_short="Porca M8 v1",
+        )
+        rev2 = MaterialRevision(
+            revision_id="REV-002",
+            record=record2,
+            revised_at=datetime(2026, 8, 27, 11, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        with self.assertRaises(ValueError):
+            project_material_revision_lineage([rev1, rev2])
+
 
 if __name__ == "__main__":
     unittest.main()
