@@ -462,6 +462,10 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             project_material_revision_lineage(revisions_generator)  # type: ignore[arg-type]
 
+    def test_rejects_non_material_revision_item(self) -> None:
+        with self.assertRaises(TypeError):
+            project_material_revision_lineage([object()])  # type: ignore[list-item]
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -65,6 +65,13 @@ def project_material_revision_lineage(
             f"revisions must be a Sequence of MaterialRevision, got {type(revisions).__name__}"
         )
 
+    for index, item in enumerate(revisions):
+        if not isinstance(item, MaterialRevision):
+            raise TypeError(
+                "revisions must contain only MaterialRevision instances, "
+                f"got {type(item).__name__} at index {index}"
+            )
+
     canonical_revisions = tuple(sorted(revisions, key=lambda r: r.revision_id))
 
     if not canonical_revisions:
