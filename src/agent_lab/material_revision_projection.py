@@ -90,6 +90,21 @@ def project_material_revision_lineage(
         if r.predecessor_revision_id is not None
     }
 
+    predecessor_counts: dict[str, int] = {}
+    for r in canonical_revisions:
+        if r.predecessor_revision_id is not None:
+            predecessor_counts[r.predecessor_revision_id] = (
+                predecessor_counts.get(r.predecessor_revision_id, 0) + 1
+            )
+
+    fork_predecessor_ids = tuple(
+        sorted(
+            pred_id
+            for pred_id, count in predecessor_counts.items()
+            if count > 1
+        )
+    )
+
     head_revision_ids = tuple(
         sorted(
             r.revision_id
@@ -104,6 +119,6 @@ def project_material_revision_lineage(
         root_revision_ids=root_revision_ids,
         head_revision_ids=head_revision_ids,
         orphan_revision_ids=orphan_revision_ids,
-        fork_predecessor_ids=(),
+        fork_predecessor_ids=fork_predecessor_ids,
         cycle_revision_ids=(),
     )
