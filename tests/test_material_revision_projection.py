@@ -440,6 +440,10 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             project_material_revision_lineage([rev_a, rev_b])
 
+    def test_rejects_empty_revision_sequence(self) -> None:
+        with self.assertRaises(ValueError):
+            project_material_revision_lineage([])
+
 
 if __name__ == "__main__":
     unittest.main()
