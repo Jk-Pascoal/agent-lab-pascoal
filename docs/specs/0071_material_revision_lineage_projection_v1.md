@@ -8,12 +8,16 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0071` |
-| Status | `PLANNED / RED inicial ainda não iniciado` |
+| Status | `IMPLEMENTED / Concluído e integrado à main` |
 | Issue relacionada | `#71` |
+| PR relacionado | `#72` |
+| Merge commit | `eea57ee` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-27` |
+| Data de conclusão | `2026-08-27` |
 | Última atualização | `2026-08-27` |
 | Baseline de entrada | `397 testes aprovados` |
+| Baseline final | `412 testes aprovados (+15 testes)` |
 | Runner oficial | `unittest` / Python 3.11 |
 
 ---
@@ -279,24 +283,24 @@ Regressão Geral       — python -m unittest discover -s tests -v (397 + novos 
 
 ## 10. Critérios de Aceite
 
-- [ ] Suíte de 397 testes existentes preservada 100% GREEN;
-- [ ] Novos testes implementados exclusivamente via `unittest` em Python 3.11;
-- [ ] Projeção linear simples identificando fielmente raiz, cabeça única e tupla `revisions` canônica;
-- [ ] Determinismo integral comprovado: qualquer permutação da sequência de entrada produz o mesmo `MaterialRevisionLineage` (incluindo `revisions` ordenada por `revision_id`);
-- [ ] Detecção e diagnóstico exato de revisões órfãs (`orphan_revision_ids`);
-- [ ] Detecção e diagnóstico exato de bifurcações (`fork_predecessor_ids`), inclusive quando o predecessor bifurcado for órfão/inexistente;
-- [ ] Detecção e diagnóstico exato de múltiplas raízes (`root_revision_ids`);
-- [ ] Detecção e isolamento exato de ciclos indiretos de tamanho $\ge 2$ (`cycle_revision_ids`), sem incluir nós de cauda externos ao ciclo;
-- [ ] Identificação de múltiplas heads em cenários de fork ou floresta sem eleição arbitrária de uma delas;
-- [ ] Rejeição fail-closed com `ValueError` para sequência vazia `()`;
-- [ ] Rejeição fail-closed com `TypeError` para argumentos que não sejam `Sequence` ou contenham itens não-`MaterialRevision`;
-- [ ] Rejeição fail-closed com `ValueError` para mistura de `material_id`;
-- [ ] Rejeição fail-closed com `ValueError` para duplicidade de `revision_id` na entrada da projeção;
-- [ ] Estrutura `MaterialRevisionLineage` estritamente imutável (`frozen=True`, `slots=True`);
-- [ ] Nenhuma alteração de schema ou semântica no `JsonlMaterialRevisionRepository`;
-- [ ] Nenhuma operação de escrita, reparo ou I/O executada pela projeção;
-- [ ] Nenhuma validação temporal global e nenhuma eleição de revisão atual por timestamp;
-- [ ] Teste de integração comprovando a composição repositório $\rightarrow$ projeção pós-restart.
+- [x] Suíte de 397 testes existentes preservada 100% GREEN;
+- [x] Novos testes implementados exclusivamente via `unittest` em Python 3.11;
+- [x] Projeção linear simples identificando fielmente raiz, cabeça única e tupla `revisions` canônica;
+- [x] Determinismo integral comprovado: qualquer permutação da sequência de entrada produz o mesmo `MaterialRevisionLineage` (incluindo `revisions` ordenada por `revision_id`);
+- [x] Detecção e diagnóstico exato de revisões órfãs (`orphan_revision_ids`);
+- [x] Detecção e diagnóstico exato de bifurcações (`fork_predecessor_ids`), inclusive quando o predecessor bifurcado for órfão/inexistente;
+- [x] Detecção e diagnóstico exato de múltiplas raízes (`root_revision_ids`);
+- [x] Detecção e isolamento exato de ciclos indiretos de tamanho $\ge 2$ (`cycle_revision_ids`), sem incluir nós de cauda externos ao ciclo;
+- [x] Identificação de múltiplas heads em cenários de fork ou floresta sem eleição arbitrária de uma delas;
+- [x] Rejeição fail-closed com `ValueError` para sequência vazia `()`;
+- [x] Rejeição fail-closed com `TypeError` para argumentos que não sejam `Sequence` ou contenham itens não-`MaterialRevision`;
+- [x] Rejeição fail-closed com `ValueError` para mistura de `material_id`;
+- [x] Rejeição fail-closed com `ValueError` para duplicidade de `revision_id` na entrada da projeção;
+- [x] Estrutura `MaterialRevisionLineage` estritamente imutável (`frozen=True`, `slots=True`);
+- [x] Nenhuma alteração de schema ou semântica no `JsonlMaterialRevisionRepository`;
+- [x] Nenhuma operação de escrita, reparo ou I/O executada pela projeção;
+- [x] Nenhuma validação temporal global e nenhuma eleição de revisão atual por timestamp;
+- [x] Teste de integração comprovando a composição repositório $\rightarrow$ projeção pós-restart.
 
 ---
 
