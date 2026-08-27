@@ -60,6 +60,11 @@ class MaterialRevisionLineage:
 def project_material_revision_lineage(
     revisions: Sequence[MaterialRevision],
 ) -> MaterialRevisionLineage:
+    if not isinstance(revisions, Sequence):
+        raise TypeError(
+            f"revisions must be a Sequence of MaterialRevision, got {type(revisions).__name__}"
+        )
+
     canonical_revisions = tuple(sorted(revisions, key=lambda r: r.revision_id))
 
     if not canonical_revisions:

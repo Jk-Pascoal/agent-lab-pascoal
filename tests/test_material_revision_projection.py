@@ -444,6 +444,24 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             project_material_revision_lineage([])
 
+    def test_rejects_non_sequence_input(self) -> None:
+        record = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v1",
+        )
+        rev1 = MaterialRevision(
+            revision_id="REV-001",
+            record=record,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        revisions_generator = (revision for revision in [rev1])
+
+        with self.assertRaises(TypeError):
+            project_material_revision_lineage(revisions_generator)  # type: ignore[arg-type]
+
 
 if __name__ == "__main__":
     unittest.main()
