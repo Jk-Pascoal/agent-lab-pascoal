@@ -63,11 +63,24 @@ def project_material_revision_lineage(
     canonical_revisions = tuple(sorted(revisions, key=lambda r: r.revision_id))
     material_id = canonical_revisions[0].material_id
 
+    revision_ids = {
+        revision.revision_id for revision in canonical_revisions
+    }
+
     root_revision_ids = tuple(
         sorted(
             r.revision_id
             for r in canonical_revisions
             if r.predecessor_revision_id is None
+        )
+    )
+
+    orphan_revision_ids = tuple(
+        sorted(
+            r.revision_id
+            for r in canonical_revisions
+            if r.predecessor_revision_id is not None
+            and r.predecessor_revision_id not in revision_ids
         )
     )
 
@@ -90,7 +103,7 @@ def project_material_revision_lineage(
         revisions=canonical_revisions,
         root_revision_ids=root_revision_ids,
         head_revision_ids=head_revision_ids,
-        orphan_revision_ids=(),
+        orphan_revision_ids=orphan_revision_ids,
         fork_predecessor_ids=(),
         cycle_revision_ids=(),
     )

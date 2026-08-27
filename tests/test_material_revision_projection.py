@@ -116,6 +116,41 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         self.assertEqual(lineage_b, lineage_c)
         self.assertEqual(lineage_a.revisions, (rev1, rev2, rev3))
 
+    def test_detects_orphan_revision(self) -> None:
+        record1 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v1",
+        )
+        rev1 = MaterialRevision(
+            revision_id="REV-001",
+            record=record1,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        record2 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 com predecessor inexistente",
+        )
+        rev2 = MaterialRevision(
+            revision_id="REV-002",
+            record=record2,
+            revised_at=datetime(2026, 8, 27, 11, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id="REV-999",
+            source_review_id=None,
+        )
+
+        lineage = project_material_revision_lineage([rev1, rev2])
+
+        self.assertEqual(lineage.material_id, "MAT-001")
+        self.assertEqual(lineage.root_revision_ids, ("REV-001",))
+        self.assertEqual(lineage.orphan_revision_ids, ("REV-002",))
+        self.assertTrue(lineage.has_orphans)
+        self.assertFalse(lineage.is_linear)
+        self.assertTrue(lineage.has_ambiguities)
+        self.assertEqual(lineage.head_revision_ids, ("REV-001", "REV-002"))
+
 
 if __name__ == "__main__":
     unittest.main()
