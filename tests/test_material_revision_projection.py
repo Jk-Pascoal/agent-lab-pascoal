@@ -204,6 +204,47 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         self.assertFalse(lineage.has_orphans)
         self.assertFalse(lineage.has_cycles)
 
+    def test_detects_multiple_roots(self) -> None:
+        record1 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v1 (Root 1)",
+        )
+        rev1 = MaterialRevision(
+            revision_id="REV-001",
+            record=record1,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        record10 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v10 (Root 2)",
+        )
+        rev10 = MaterialRevision(
+            revision_id="REV-010",
+            record=record10,
+            revised_at=datetime(2026, 8, 27, 10, 30, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        lineage = project_material_revision_lineage([rev10, rev1])
+
+        self.assertEqual(lineage.material_id, "MAT-001")
+        self.assertEqual(lineage.revisions, (rev1, rev10))
+        self.assertEqual(lineage.root_revision_ids, ("REV-001", "REV-010"))
+        self.assertEqual(lineage.head_revision_ids, ("REV-001", "REV-010"))
+        self.assertEqual(lineage.orphan_revision_ids, ())
+        self.assertEqual(lineage.fork_predecessor_ids, ())
+        self.assertEqual(lineage.cycle_revision_ids, ())
+        self.assertTrue(lineage.has_multiple_roots)
+        self.assertFalse(lineage.is_linear)
+        self.assertTrue(lineage.has_ambiguities)
+        self.assertFalse(lineage.has_orphans)
+        self.assertFalse(lineage.has_forks)
+        self.assertFalse(lineage.has_cycles)
+
 
 if __name__ == "__main__":
     unittest.main()
