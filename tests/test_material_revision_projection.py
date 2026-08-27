@@ -67,6 +67,55 @@ class MaterialRevisionProjectionTests(unittest.TestCase):
         self.assertFalse(lineage.has_cycles)
         self.assertFalse(lineage.has_ambiguities)
 
+    def test_projection_is_independent_of_input_order(self) -> None:
+        record1 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v1",
+        )
+        rev1 = MaterialRevision(
+            revision_id="REV-001",
+            record=record1,
+            revised_at=datetime(2026, 8, 27, 10, 0, 0, tzinfo=timezone.utc),
+            predecessor_revision_id=None,
+            source_review_id=None,
+        )
+
+        record2 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v2",
+        )
+        rev2 = create_successor_revision(
+            rev1,
+            revision_id="REV-002",
+            record=record2,
+            revised_at=datetime(2026, 8, 27, 11, 0, 0, tzinfo=timezone.utc),
+            source_review_id=None,
+        )
+
+        record3 = MaterialRecord(
+            material_id="MAT-001",
+            description_short="Parafuso M8 v3",
+        )
+        rev3 = create_successor_revision(
+            rev2,
+            revision_id="REV-003",
+            record=record3,
+            revised_at=datetime(2026, 8, 27, 12, 0, 0, tzinfo=timezone.utc),
+            source_review_id="REVIEW-001",
+        )
+
+        order_a = [rev1, rev2, rev3]
+        order_b = [rev3, rev1, rev2]
+        order_c = [rev2, rev3, rev1]
+
+        lineage_a = project_material_revision_lineage(order_a)
+        lineage_b = project_material_revision_lineage(order_b)
+        lineage_c = project_material_revision_lineage(order_c)
+
+        self.assertEqual(lineage_a, lineage_b)
+        self.assertEqual(lineage_b, lineage_c)
+        self.assertEqual(lineage_a.revisions, (rev1, rev2, rev3))
+
 
 if __name__ == "__main__":
     unittest.main()
