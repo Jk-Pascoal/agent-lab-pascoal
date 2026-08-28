@@ -103,6 +103,79 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         with self.assertRaises((FrozenInstanceError, AttributeError)):
             result.workflow = self.workflow  # type: ignore[misc]
 
+    def test_execute_approves_pending_workflow_and_persists_both_repositories(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+
+        call_order: list[str] = []
+        audit_repo.append.side_effect = lambda event: call_order.append("audit")
+        lifecycle_repo.append_concluded.side_effect = (
+            lambda event: call_order.append("lifecycle")
+        )
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+        )
+
+        result = use_case.execute(
+            self.workflow,
+            review_id="rev-001",
+            audit_event_id="evt-aud-001",
+            lifecycle_event_id="evt-life-001",
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=self.identity,
+            reviewed_at=self.reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+
+        # 1. Validação do workflow concluído
+        self.assertEqual(result.workflow.status.value, "REVIEWED")
+        self.assertEqual(result.workflow.workflow_id, self.workflow.workflow_id)
+        self.assertEqual(result.workflow.material_id, self.workflow.material_id)
+        self.assertEqual(result.workflow.closed_at, self.reviewed_at)
+
+        # 2. Validação da revisão humana
+        self.assertEqual(result.review.review_id, "rev-001")
+        self.assertEqual(result.review.material_id, "MAT-001")
+        self.assertEqual(result.review.human_decision, HumanDecision.APPROVE)
+        self.assertEqual(
+            result.review.system_recommendation, GovernanceDecision.APPROVE
+        )
+        self.assertEqual(result.review.reviewer_identity, self.identity)
+        self.assertEqual(result.review.reviewed_at, self.reviewed_at)
+        self.assertIs(result.workflow.review, result.review)
+
+        # 3. Validação do evento de auditoria
+        self.assertEqual(result.audit_event.event_id, "evt-aud-001")
+        self.assertEqual(
+            result.audit_event.event_type,
+            AuditEventType.HUMAN_REVIEW_RECORDED,
+        )
+        self.assertEqual(result.audit_event.material_id, "MAT-001")
+        self.assertEqual(
+            result.audit_event.actor_id, self.identity.specialist_id
+        )
+        self.assertEqual(result.audit_event.review_id, "rev-001")
+        self.assertEqual(result.audit_event.occurred_at, self.reviewed_at)
+
+        # 4. Validação do evento de ciclo de vida
+        self.assertEqual(result.lifecycle_event.event_id, "evt-life-001")
+        self.assertEqual(
+            result.lifecycle_event.workflow_id, self.workflow.workflow_id
+        )
+        self.assertIs(result.lifecycle_event.review, result.review)
+
+        # 5. Validação da persistência sequencial (ordem e argumentos)
+        self.assertEqual(call_order, ["audit", "lifecycle"])
+        audit_repo.append.assert_called_once_with(result.audit_event)
+        lifecycle_repo.append_concluded.assert_called_once_with(
+            result.lifecycle_event
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
