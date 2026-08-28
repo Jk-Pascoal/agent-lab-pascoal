@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import Mock
 
 from agent_lab.audit import AuditEvent, AuditEventType
+from agent_lab.audit_repository import AuditPersistenceError
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
 from agent_lab.human_review import (
@@ -19,6 +20,7 @@ from agent_lab.human_review_use_case import (
 )
 from agent_lab.workflow import GovernanceWorkflow, conclude_governance_workflow
 from agent_lab.workflow_events import WorkflowConcluded
+from agent_lab.workflow_repository import WorkflowPersistenceError
 
 
 class HumanReviewUseCasePublicContractTests(unittest.TestCase):
@@ -287,6 +289,74 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
 
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
+
+    def test_execute_propagates_audit_repository_failure_and_does_not_call_lifecycle_repository(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+
+        audit_repo.append.side_effect = AuditPersistenceError(
+            "Simulated audit disk failure"
+        )
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+        )
+
+        with self.assertRaises(AuditPersistenceError):
+            use_case.execute(
+                self.workflow,
+                review_id="rev-006",
+                audit_event_id="evt-aud-006",
+                lifecycle_event_id="evt-life-006",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        audit_repo.append.assert_called_once()
+        lifecycle_repo.append_concluded.assert_not_called()
+
+    def test_execute_propagates_lifecycle_repository_failure_after_audit_persistence(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+
+        call_order: list[str] = []
+        audit_repo.append.side_effect = lambda event: call_order.append("audit")
+
+        def fail_lifecycle(event: WorkflowConcluded) -> None:
+            call_order.append("lifecycle")
+            raise WorkflowPersistenceError("Simulated lifecycle disk failure")
+
+        lifecycle_repo.append_concluded.side_effect = fail_lifecycle
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+        )
+
+        with self.assertRaises(WorkflowPersistenceError):
+            use_case.execute(
+                self.workflow,
+                review_id="rev-007",
+                audit_event_id="evt-aud-007",
+                lifecycle_event_id="evt-life-007",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(call_order, ["audit", "lifecycle"])
+        audit_repo.append.assert_called_once()
+        lifecycle_repo.append_concluded.assert_called_once()
 
 
 if __name__ == "__main__":
