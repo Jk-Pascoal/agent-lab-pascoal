@@ -8,13 +8,14 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0074` |
-| Status | `DRAFT / Proposta para revisão humana` |
+| Status | `IMPLEMENTED` |
 | Issue relacionada | `#74` |
 | Branch funcional | `feature/issue-74-human-review-application-use-case` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-28` |
 | Última atualização | `2026-08-28` |
 | Baseline de entrada | `412 testes aprovados` |
+| Baseline final | `423 testes aprovados` |
 | Runner oficial | `unittest` / Python 3.11 |
 
 ---
@@ -265,7 +266,7 @@ As falhas possíveis durante a execução são estritamente categorizadas confor
 
 ## 7. Estratégia TDD Planejada
 
-A implementação seguirá ciclo estrito de micro-TDD em fatias incrementais:
+A implementação seguiu ciclo estrito de micro-TDD em fatias incrementais:
 
 ```text
 Fatia 1 (RED → GREEN) — Estrutura de Retorno e Inicialização do Caso de Uso
@@ -274,22 +275,22 @@ Fatia 3 (RED → GREEN) — Propagação Fail-Closed de Erros do Domínio (Workf
 Fatia 4 (RED → GREEN) — Validação de Artefatos em Memória (Lifecycle Event) Antes de I/O de Auditoria
 Fatia 5 (RED → GREEN) — Comportamento Explícito de Falhas de Persistência (Audit e Lifecycle)
 Fatia 6 (RED → GREEN) — Integração Ponta a Ponta com Repositórios JSONL Reais e Verificação de Consistência
-Regressão Geral       — $env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v (412 + novos testes)
+Regressão Geral       — $env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v (423 testes GREEN)
 ```
 
 ---
 
 ## 8. Critérios de Aceite
 
-- [ ] Suíte existente de 412 testes preservada 100% GREEN (`unittest` / Python 3.11);
-- [ ] Implementação de `RecordHumanDecisionUseCase` e `RecordHumanDecisionResult` em `src/agent_lab/human_review_use_case.py`;
-- [ ] O caso de uso reutiliza 100% dos contratos existentes ([`audit.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/audit.py), [`workflow.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/workflow.py), [`human_review.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/human_review.py), [`workflow_events.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/workflow_events.py), [`audit_repository.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/audit_repository.py), [`workflow_repository.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/workflow_repository.py)) sem alterar seus arquivos;
-- [ ] Nenhum `ApplicationService` genérico ou God Object é introduzido;
-- [ ] A coordenação executa estritamente a sequência em duas fases (preparação de domínio com zero I/O $\rightarrow$ persistência sequencial);
-- [ ] Invariantes do domínio continuam sendo validadas exclusivamente no domínio;
-- [ ] O comportamento de falha parcial do dual-write é mantido explícito, sem promessas de atomicidade ou mascaramento de erros;
-- [ ] Cobertura dedicada dos cenários felizes, violações de domínio e falhas de persistência especificados nesta SPEC;
-- [ ] `git diff --check` permanece limpo.
+- [x] Suíte existente de 412 testes preservada 100% GREEN (`unittest` / Python 3.11), evoluindo para 423 testes ao final;
+- [x] Implementação de `RecordHumanDecisionUseCase` e `RecordHumanDecisionResult` em `src/agent_lab/human_review_use_case.py`;
+- [x] O caso de uso reutiliza 100% dos contratos existentes ([`audit.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/audit.py), [`workflow.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/workflow.py), [`human_review.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/human_review.py), [`workflow_events.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/workflow_events.py), [`audit_repository.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/audit_repository.py), [`workflow_repository.py`](file:///C:/Users/Administrador/agent-lab-pascoal/src/agent_lab/workflow_repository.py)) sem alterar seus arquivos;
+- [x] Nenhum `ApplicationService` genérico ou God Object é introduzido;
+- [x] A coordenação executa estritamente a sequência em duas fases (preparação de domínio com zero I/O $\rightarrow$ persistência sequencial);
+- [x] Invariantes do domínio continuam sendo validadas exclusivamente no domínio;
+- [x] O comportamento de falha parcial do dual-write é mantido explícito, sem promessas de atomicidade ou mascaramento de erros;
+- [x] Cobertura dedicada dos cenários felizes, violações de domínio e falhas de persistência especificados nesta SPEC;
+- [x] `git diff --check` permanece limpo.
 
 ---
 
@@ -313,4 +314,17 @@ Regressão Geral       — $env:PYTHONPATH="src"; py -3.11 -m unittest discover 
   * [`tests/test_human_review_use_case_integration.py`](file:///C:/Users/Administrador/agent-lab-pascoal/tests/test_human_review_use_case_integration.py)
   * [`docs/specs/0074_human_review_application_use_case_v1.md`](file:///C:/Users/Administrador/agent-lab-pascoal/docs/specs/0074_human_review_application_use_case_v1.md)
 * **Arquivos Existentes Modificados em `src/`:**
-  * Nenhum. Todos os contratos existentes são preservados intactos.
+  * Nenhum. Todos os contratos existentes foram preservados intactos.
+
+---
+
+## 11. Fechamento e Evidências
+
+* **Implementação Concluída:** Boundary de aplicação `RecordHumanDecisionUseCase` e estrutura de retorno imutável `RecordHumanDecisionResult` implementados com sucesso;
+* **Suíte Canônica:** **423/423 testes GREEN** (`unittest` / Python 3.11);
+* **Integração Real:** Persistência validada ponta a ponta com instâncias reais de `JsonlAuditRepository` e `JsonlWorkflowLifecycleRepository`;
+* **Restart e Reidratação:** Comprovada a sobrevivência a reinicialização de processo e reidratação fiel do estado `REVIEWED` via `rehydrate_workflow`;
+* **Consistência Dual-Write:** Comprovada a emissão de relatório limpo (`is_consistent = True`, `issue_count = 0`) pelo verificador cruzado somente-leitura `verify_repositories_consistency`;
+* **Integridade de Camadas:** Zero modificações nos módulos existentes de domínio, repositórios, serialização ou projeções;
+* **Dual-Write Não-Atômico:** Preservado sem transações distribuídas, 2PC, rollbacks, compensações, retries ou reparos automáticos em disco;
+* **Escopo Estrito:** A pressão P-07 e todos os itens fora de escopo (filas, SLAs, UI/API, async, BD relacional) permanecem inalterados e fora de escopo.
