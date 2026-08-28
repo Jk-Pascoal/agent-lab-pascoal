@@ -17,7 +17,7 @@ from agent_lab.human_review_use_case import (
     RecordHumanDecisionResult,
     RecordHumanDecisionUseCase,
 )
-from agent_lab.workflow import GovernanceWorkflow
+from agent_lab.workflow import GovernanceWorkflow, conclude_governance_workflow
 from agent_lab.workflow_events import WorkflowConcluded
 
 
@@ -175,6 +175,91 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         lifecycle_repo.append_concluded.assert_called_once_with(
             result.lifecycle_event
         )
+
+    def test_execute_rejects_already_concluded_workflow_via_domain_rule_before_io(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+        )
+
+        reviewed_workflow = conclude_governance_workflow(
+            self.workflow, self.review
+        )
+
+        with self.assertRaises(ValueError):
+            use_case.execute(
+                reviewed_workflow,
+                review_id="rev-002",
+                audit_event_id="evt-aud-002",
+                lifecycle_event_id="evt-life-002",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
+    def test_execute_propagates_human_review_domain_violations_before_io(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+        )
+
+        with self.assertRaises(ValueError):
+            use_case.execute(
+                self.workflow,
+                review_id="rev-003",
+                audit_event_id="evt-aud-003",
+                lifecycle_event_id="evt-life-003",
+                human_decision=HumanDecision.REJECT,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
+    def test_execute_rejects_non_governance_workflow_argument_with_type_error(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+        )
+
+        with self.assertRaises(TypeError):
+            use_case.execute(
+                "not-a-workflow",  # type: ignore[arg-type]
+                review_id="rev-004",
+                audit_event_id="evt-aud-004",
+                lifecycle_event_id="evt-life-004",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
 
 
 if __name__ == "__main__":

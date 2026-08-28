@@ -52,6 +52,9 @@ class RecordHumanDecisionUseCase:
         justification: str | None = None,
         corrections: Iterable[CorrectionRequest] = (),
     ) -> RecordHumanDecisionResult:
+        if not isinstance(workflow, GovernanceWorkflow):
+            raise TypeError("workflow must be a GovernanceWorkflow")
+
         # Fase 1 — Domínio / Zero I/O: construção e validação determinística de todos os artefatos
         human_review_result = record_human_review(
             event_id=audit_event_id,
