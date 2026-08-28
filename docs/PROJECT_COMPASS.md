@@ -12,14 +12,17 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-27
+- **Estado registrado em:** 2026-08-28
 - **Baseline integrado na main:** 412 testes aprovados
+- **Baseline atual na branch da Issue #74:** 423 testes aprovados
 - **Última entrega funcional integrada na main:** Material Revision Lineage Projection v1
-- **Última Issue funcional concluída na main:** #71
+- **Última Issue funcional integrada na main:** #71
 - **Último PR funcional integrado na main:** #72
 - **Último merge funcional:** `eea57ee` — Merge pull request #72
-- **Última SPEC integrada:** `docs/specs/0071_material_revision_lineage_projection_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
+- **Última SPEC integrada na main:** `docs/specs/0071_material_revision_lineage_projection_v1.md`
+- **Incremento funcional atual:** Issue #74 — Human Review Application Use Case v1 — implementação concluída na branch, aguardando PR/merge
+- **SPEC atual da branch:** `docs/specs/0074_human_review_application_use_case_v1.md`
+- **Baseline da branch:** 423 testes GREEN
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -242,9 +245,23 @@ A versão atual integrada na `main` possui:
 - ausência de integração com ERP;
 - ausência de banco de dados relacional ou transacional.
 
-### 4.4 Próxima âncora
+### 4.4 Incremento atual da branch — Issue #74
 
-Incremento atual: nenhum incremento funcional aberto — Issue #71 concluída, integrada e formalmente encerrada.
+- **Status:** implementação concluída na branch `feature/issue-74-human-review-application-use-case`, aguardando PR/merge.
+- **SPEC:** `docs/specs/0074_human_review_application_use_case_v1.md`.
+- **Baseline da branch:** 423 testes GREEN (`unittest` / Python 3.11).
+- **Entregas da branch:**
+  - módulo `src/agent_lab/human_review_use_case.py`: introdução do primeiro boundary explícito da camada de aplicação do Agent Lab Pascoal (`RecordHumanDecisionUseCase`);
+  - dataclass imutável `RecordHumanDecisionResult` (`frozen=True`, `slots=True`) consolidando os quatro artefatos do fluxo (`workflow`, `review`, `audit_event`, `lifecycle_event`);
+  - coordenação estrita em duas fases:
+    - **Fase 1 (Preparação e Validação Determinística em Memória / Zero I/O):** validação defensiva de entrada (`isinstance(workflow, GovernanceWorkflow) -> TypeError`), construção determinística de `HumanReview` e `AuditEvent` via `record_human_review`, transição pura do workflow via `conclude_governance_workflow` e instanciação de `WorkflowConcluded`;
+    - **Fase 2 (Persistência Coordenada):** persistência sequencial em `audit_repository.append(audit_event)` seguida de `workflow_lifecycle_repository.append_concluded(lifecycle_event)`;
+  - preservação canônica das responsabilidades (*Application coordena, Domain decide, Repository preserva, Projection interpreta*): zero duplicação de regras de transição ou negócio na Application;
+  - preservação estrita da semântica de dual-write não-atômico: falhas propagam de forma *fail-closed* sem 2PC, rollbacks, compensações, retries ou reparos automáticos em disco;
+  - integração vertical com repositórios JSONL reais, persistência em disco, sobrevivência a reinicialização de processo, reidratação fiel do estado `REVIEWED` e diagnóstico limpo de consistência cruzada via `verify_repositories_consistency`;
+  - **Limites mantidos na branch:** outros use cases de aplicação, filas HITL, SLAs operacionais, UI/Streamlit, APIs e otimizações P-07 permanecem fora de escopo.
+
+### 4.5 Próxima âncora
 
 Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
@@ -543,6 +560,24 @@ Responsabilidades:
 - validar entradas *fail-closed* contra tipos não-`Sequence`, itens não-`MaterialRevision`, sequências vazias, mistura de `material_id` e identificadores duplicados;
 - produzir diagnóstico determinístico e imutável sem realizar I/O, mutação de instâncias ou eleição de "revisão atual".
 
+### 6.12 Camada de Aplicação / Use Cases — branch #74 (aguardando PR/merge)
+
+```text
+src/agent_lab/human_review_use_case.py
+```
+
+Contratos principais:
+
+- `RecordHumanDecisionResult`: estrutura de retorno imutável contendo os quatro artefatos produzidos (`workflow`, `review`, `audit_event`, `lifecycle_event`);
+- `RecordHumanDecisionUseCase`: caso de uso de aplicação responsável por orquestrar o registro da decisão humana sobre um workflow de governança pendente.
+
+Responsabilidades:
+
+- validar estruturalmente os argumentos de fronteira da aplicação (`isinstance(workflow, GovernanceWorkflow)`);
+- coordenar a preparação e validação determinística de todos os artefatos de domínio em memória antes de qualquer I/O;
+- disparar a persistência sequencial em `AuditRepository` e `WorkflowLifecycleRepository`;
+- propagar exceções e falhas parciais de persistência de forma *fail-closed* sem mascaramento ou tentativas artificiais de compensação/rollback.
+
 ## 7. Comando canônico de testes e baseline
 
 Use sempre:
@@ -558,7 +593,7 @@ Ran 412 tests
 OK
 ```
 
-Histórico de baselines integrados:
+Histórico de baselines integrados e baseline atual da branch:
 - Baseline inicial / release v0.1.0: 206 testes
 - Incremento da Issue #47: +54 testes sobre o baseline anterior de 152
 - Incremento da Issue #52: +49 testes sobre o baseline de entrada de 206
@@ -574,7 +609,9 @@ Histórico de baselines integrados:
 - Incremento da Issue #68: +50 testes sobre o baseline de entrada de 347 (31 testes unitários em `tests/test_material_revision_serialization.py` + 19 testes em `tests/test_material_revision_repository.py`)
 - Baseline integrado após a Issue #68: 397 testes
 - Incremento da Issue #71: +15 testes sobre o baseline de entrada de 397 (14 testes unitários em `tests/test_material_revision_projection.py` + 1 teste de integração em `tests/test_material_revision_lineage_projection_integration.py`)
-- Baseline integrado após a Issue #71: 412 testes
+- Baseline integrado após a Issue #71 (main): 412 testes
+- Incremento da Issue #74 (concluído na branch): +11 testes sobre o baseline de entrada de 412 (9 testes unitários em `tests/test_human_review_use_case.py` + 2 testes de integração em `tests/test_human_review_use_case_integration.py`)
+- Baseline da branch após a Issue #74: 423 testes
 
 Não assumir `pytest`.
 
@@ -857,7 +894,11 @@ MAIN INTEGRADA:
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — Issue #71 concluída, integrada e formalmente encerrada.
+- Issue #74 — Human Review Application Use Case v1 — implementação concluída na branch, aguardando PR/merge.
+- SPEC atual da branch: docs/specs/0074_human_review_application_use_case_v1.md.
+- Baseline da branch: 423 testes GREEN | unittest | Python 3.11.
+- Princípio da branch: Application coordena; Domain decide; Repository preserva; Projection interpreta.
+- RecordHumanDecisionUseCase introduzido na branch como primeiro boundary explícito de Application.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.
