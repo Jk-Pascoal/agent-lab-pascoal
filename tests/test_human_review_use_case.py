@@ -261,6 +261,33 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
+    def test_execute_validates_lifecycle_event_construction_before_audit_persistence(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+        )
+
+        with self.assertRaises(ValueError):
+            use_case.execute(
+                self.workflow,
+                review_id="rev-005",
+                audit_event_id="evt-aud-005",
+                lifecycle_event_id="   ",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
