@@ -13,16 +13,13 @@
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
 - **Estado registrado em:** 2026-08-28
-- **Baseline integrado na main:** 412 testes aprovados
-- **Baseline atual na branch da Issue #74:** 423 testes aprovados
-- **Última entrega funcional integrada na main:** Material Revision Lineage Projection v1
-- **Última Issue funcional integrada na main:** #71
-- **Último PR funcional integrado na main:** #72
-- **Último merge funcional:** `eea57ee` — Merge pull request #72
-- **Última SPEC integrada na main:** `docs/specs/0071_material_revision_lineage_projection_v1.md`
-- **Incremento funcional atual:** Issue #74 — Human Review Application Use Case v1 — implementação concluída na branch, aguardando PR/merge
-- **SPEC atual da branch:** `docs/specs/0074_human_review_application_use_case_v1.md`
-- **Baseline da branch:** 423 testes GREEN
+- **Baseline integrado na main:** 423 testes aprovados
+- **Última entrega funcional integrada na main:** Human Review Application Use Case v1
+- **Última Issue funcional integrada na main:** #74
+- **Último PR funcional integrado na main:** #75
+- **Último merge funcional:** `8adeb74` — Merge pull request #75
+- **Última SPEC integrada na main:** `docs/specs/0074_human_review_application_use_case_v1.md`
+- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -97,7 +94,7 @@ A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle pr
 
 ## 4. Estado arquitetural atual
 
-### 4.1 Baseline versionado atual (v0.1.0)
+### 4.1 Baseline versionado fundacional (v0.1.0)
 
 A versão `v0.1.0 — Governed Agent Workflow Baseline` é a primeira release formal e versionada do laboratório. Ela consolida uma linha de base fundacional composta por:
 
@@ -112,9 +109,9 @@ A versão `v0.1.0 — Governed Agent Workflow Baseline` é a primeira release fo
 - persistência de lifecycle de abertura append-only (`JsonlWorkflowLifecycleRepository` com `schema_version = 1`);
 - projeção pura de reidratação de workflows pendentes (`rehydrate_pending_workflow`) sem reexecução de regras ou chamadas a LLM.
 
-### 4.2 Núcleo normativo implementado
+### 4.2 Núcleo normativo e incrementos integrados na main
 
-O sistema já representa e valida:
+O sistema em seu estado integrado atual na `main` representa e valida:
 
 - materiais e atributos relevantes;
 - normalização de descrições;
@@ -219,7 +216,16 @@ O sistema já representa e valida:
   - identificação causal exata de raízes (`root_revision_ids`), cabeças (`head_revision_ids`), revisões órfãs (`orphan_revision_ids`), bifurcações (`fork_predecessor_ids` inclusive com predecessor externo ausente) e ciclos indiretos de tamanho $\ge 2$ (`cycle_revision_ids`) com exclusão estrita de nós de cauda externos;
   - validação *fail-closed* nominal e defensiva: `TypeError` para argumentos não-`Sequence` e elementos não-`MaterialRevision`; `ValueError` para sequências vazias `()`, mistura de `material_id` e duplicidade de `revision_id` na entrada;
   - princípio `Repository != Projection` estritamente mantido: repositório preserva a ordem física e os fatos persistidos; projeção interpreta deterministicamente a topologia causal;
-  - teste de integração vertical pós-restart (`tests/test_material_revision_lineage_projection_integration.py`) comprovando a integridade do pipeline `JsonlMaterialRevisionRepository` $\rightarrow$ reinicialização $\rightarrow$ `project_material_revision_lineage`.
+  - teste de integração vertical pós-restart (`tests/test_material_revision_lineage_projection_integration.py`) comprovando a integridade do pipeline `JsonlMaterialRevisionRepository` $\rightarrow$ reinicialização $\rightarrow$ `project_material_revision_lineage`;
+- **Incremento integrado da Issue #74 (Human Review Application Use Case v1):**
+  - módulo `src/agent_lab/human_review_use_case.py`: introdução do primeiro boundary explícito da camada de aplicação do Agent Lab Pascoal (`RecordHumanDecisionUseCase`);
+  - dataclass imutável `RecordHumanDecisionResult` (`frozen=True`, `slots=True`) consolidando os quatro artefatos do fluxo (`workflow`, `review`, `audit_event`, `lifecycle_event`);
+  - coordenação estrita em duas fases:
+    - **Fase 1 (Preparação e Validação Determinística em Memória / Zero I/O):** validação defensiva de entrada (`isinstance(workflow, GovernanceWorkflow) -> TypeError`), construção determinística de `HumanReview` e `AuditEvent` via `record_human_review`, transição pura do workflow via `conclude_governance_workflow` e instanciação de `WorkflowConcluded`;
+    - **Fase 2 (Persistência Coordenada):** persistência sequencial em `audit_repository.append(audit_event)` seguida de `workflow_lifecycle_repository.append_concluded(lifecycle_event)`;
+  - preservação canônica das responsabilidades (*Application coordena, Domain decide, Repository preserva, Projection interpreta*): zero duplicação de regras de transição ou negócio na Application;
+  - preservação estrita da semântica de dual-write não-atômico: falhas propagam de forma *fail-closed* sem 2PC, rollbacks, compensações, retries ou reparos automáticos em disco;
+  - integração vertical com repositórios JSONL reais, persistência em disco, sobrevivência a reinicialização de processo, reidratação fiel do estado `REVIEWED` e diagnóstico limpo de consistência cruzada via `verify_repositories_consistency`.
 
 ### 4.3 Limite atual
 
@@ -238,30 +244,16 @@ A versão atual integrada na `main` possui:
 - sem eleição de `latest revision`, `current revision` ou cabeça canônica; sem eleição por timestamp `revised_at`; sem reparo automático ou mutação em disco;
 - conexão de `MaterialRevision` ao pipeline de evidências e recomendações permanece fronteira futura;
 - aplicação automática das correções ao material (`CORRECTION_APPLIED`), mutação automática de `MaterialRecord` e reexecução automática de regras/LLM continuam fora do escopo;
+- primeiro boundary de aplicação (`RecordHumanDecisionUseCase`) integrado para coordenação do registro da deliberação humana; outros use cases de aplicação (`OpenGovernanceWorkflow`, etc.), filas HITL, SLAs operacionais, interfaces de usuário (Streamlit / `app.py`), APIs REST e otimizações P-07 continuam fora do escopo;
 - execução síncrona/monoprocesso;
 - ausência de locking multiprocesso;
 - ausência de autenticação e autorização real (RBAC);
-- ausência de filas e SLAs operacionais;
 - ausência de integração com ERP;
 - ausência de banco de dados relacional ou transacional.
 
-### 4.4 Incremento atual da branch — Issue #74
+### 4.4 Próxima âncora
 
-- **Status:** implementação concluída na branch `feature/issue-74-human-review-application-use-case`, aguardando PR/merge.
-- **SPEC:** `docs/specs/0074_human_review_application_use_case_v1.md`.
-- **Baseline da branch:** 423 testes GREEN (`unittest` / Python 3.11).
-- **Entregas da branch:**
-  - módulo `src/agent_lab/human_review_use_case.py`: introdução do primeiro boundary explícito da camada de aplicação do Agent Lab Pascoal (`RecordHumanDecisionUseCase`);
-  - dataclass imutável `RecordHumanDecisionResult` (`frozen=True`, `slots=True`) consolidando os quatro artefatos do fluxo (`workflow`, `review`, `audit_event`, `lifecycle_event`);
-  - coordenação estrita em duas fases:
-    - **Fase 1 (Preparação e Validação Determinística em Memória / Zero I/O):** validação defensiva de entrada (`isinstance(workflow, GovernanceWorkflow) -> TypeError`), construção determinística de `HumanReview` e `AuditEvent` via `record_human_review`, transição pura do workflow via `conclude_governance_workflow` e instanciação de `WorkflowConcluded`;
-    - **Fase 2 (Persistência Coordenada):** persistência sequencial em `audit_repository.append(audit_event)` seguida de `workflow_lifecycle_repository.append_concluded(lifecycle_event)`;
-  - preservação canônica das responsabilidades (*Application coordena, Domain decide, Repository preserva, Projection interpreta*): zero duplicação de regras de transição ou negócio na Application;
-  - preservação estrita da semântica de dual-write não-atômico: falhas propagam de forma *fail-closed* sem 2PC, rollbacks, compensações, retries ou reparos automáticos em disco;
-  - integração vertical com repositórios JSONL reais, persistência em disco, sobrevivência a reinicialização de processo, reidratação fiel do estado `REVIEWED` e diagnóstico limpo de consistência cruzada via `verify_repositories_consistency`;
-  - **Limites mantidos na branch:** outros use cases de aplicação, filas HITL, SLAs operacionais, UI/Streamlit, APIs e otimizações P-07 permanecem fora de escopo.
-
-### 4.5 Próxima âncora
+Incremento atual: nenhum incremento funcional aberto — Issue #74 concluída, integrada e formalmente encerrada.
 
 Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
@@ -560,7 +552,7 @@ Responsabilidades:
 - validar entradas *fail-closed* contra tipos não-`Sequence`, itens não-`MaterialRevision`, sequências vazias, mistura de `material_id` e identificadores duplicados;
 - produzir diagnóstico determinístico e imutável sem realizar I/O, mutação de instâncias ou eleição de "revisão atual".
 
-### 6.12 Camada de Aplicação / Use Cases — branch #74 (aguardando PR/merge)
+### 6.12 Camada de Aplicação / Use Cases
 
 ```text
 src/agent_lab/human_review_use_case.py
@@ -589,11 +581,11 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 412 tests
+Ran 423 tests
 OK
 ```
 
-Histórico de baselines integrados e baseline atual da branch:
+Histórico de baselines integrados:
 - Baseline inicial / release v0.1.0: 206 testes
 - Incremento da Issue #47: +54 testes sobre o baseline anterior de 152
 - Incremento da Issue #52: +49 testes sobre o baseline de entrada de 206
@@ -609,9 +601,9 @@ Histórico de baselines integrados e baseline atual da branch:
 - Incremento da Issue #68: +50 testes sobre o baseline de entrada de 347 (31 testes unitários em `tests/test_material_revision_serialization.py` + 19 testes em `tests/test_material_revision_repository.py`)
 - Baseline integrado após a Issue #68: 397 testes
 - Incremento da Issue #71: +15 testes sobre o baseline de entrada de 397 (14 testes unitários em `tests/test_material_revision_projection.py` + 1 teste de integração em `tests/test_material_revision_lineage_projection_integration.py`)
-- Baseline integrado após a Issue #71 (main): 412 testes
-- Incremento da Issue #74 (concluído na branch): +11 testes sobre o baseline de entrada de 412 (9 testes unitários em `tests/test_human_review_use_case.py` + 2 testes de integração em `tests/test_human_review_use_case_integration.py`)
-- Baseline da branch após a Issue #74: 423 testes
+- Baseline integrado após a Issue #71: 412 testes
+- Incremento da Issue #74: +11 testes sobre o baseline de entrada de 412 (9 testes unitários em `tests/test_human_review_use_case.py` + 2 testes de integração em `tests/test_human_review_use_case_integration.py`)
+- Baseline integrado após a Issue #74: 423 testes
 
 Não assumir `pytest`.
 
@@ -874,11 +866,11 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 412 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #71 | Material Revision Lineage Projection v1 | PR #72 (merge eea57ee).
-- Última SPEC integrada: docs/specs/0071_material_revision_lineage_projection_v1.md.
-- Último PR funcional integrado: PR #72.
-- Último merge funcional: eea57ee.
+- Baseline integrado na main: 423 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #74 | Human Review Application Use Case v1 | PR #75 (merge 8adeb74).
+- Última SPEC integrada: docs/specs/0074_human_review_application_use_case_v1.md.
+- Último PR funcional integrado: PR #75.
+- Último merge funcional: 8adeb74.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
@@ -887,18 +879,15 @@ MAIN INTEGRADA:
   + correction follow-up causal com persistência de WorkflowOpened v2 e reidratação de lineage em PENDING_HUMAN_REVIEW e REVIEWED pós-restart
   + MaterialRevision factual e imutável com identidade temporal explícita, predecessor_revision_id, source_review_id declarativo, create_successor_revision pura, identidade exata de material_id e monotonicidade temporal
   + persistência append-only de MaterialRevision em JSONL com schema_version=1 canônico, JsonlMaterialRevisionRepository durável (flush + fsync), unicidade de revision_id e diagnóstico fail-closed de corrupção com line_number 1-based
-  + projeção pura MaterialRevisionLineage determinística em memória via project_material_revision_lineage com ordenação canônica por revision_id, identificação de raízes, cabeças, órfãos, bifurcações (inclusive com predecessor ausente) e ciclos indiretos fechados (sem caudas externas), e validações fail-closed de entrada.
-- Princípios: Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
-- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem.
+  + projeção pura MaterialRevisionLineage determinística em memória via project_material_revision_lineage com ordenação canônica por revision_id, identificação de raízes, cabeças, órfãos, bifurcações (inclusive com predecessor ausente) e ciclos indiretos fechados (sem caudas externas), e validações fail-closed de entrada
+  + camada de aplicação com RecordHumanDecisionUseCase executando coordenação em duas fases (preparação de domínio com zero I/O -> persistência sequencial audit/lifecycle) com resultado imutável RecordHumanDecisionResult.
+- Princípios: Application coordena | Domain decide | Repository preserva | Projection interpreta | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro sem reaprender regras do domínio.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
-  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; sem locking multiprocesso, RBAC real, filas, SLAs ou ERP.
+  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; primeiro boundary de aplicação (RecordHumanDecisionUseCase) integrado para coordenação da deliberação humana; outros use cases de aplicação, filas HITL, SLAs operacionais, UI/Streamlit, APIs e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
-- Issue #74 — Human Review Application Use Case v1 — implementação concluída na branch, aguardando PR/merge.
-- SPEC atual da branch: docs/specs/0074_human_review_application_use_case_v1.md.
-- Baseline da branch: 423 testes GREEN | unittest | Python 3.11.
-- Princípio da branch: Application coordena; Domain decide; Repository preserva; Projection interpreta.
-- RecordHumanDecisionUseCase introduzido na branch como primeiro boundary explícito de Application.
+- Nenhum incremento funcional aberto — Issue #74 concluída, integrada e formalmente encerrada.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.
