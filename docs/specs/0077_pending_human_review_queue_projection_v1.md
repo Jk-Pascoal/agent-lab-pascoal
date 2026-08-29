@@ -8,13 +8,14 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0077` |
-| Status | `DRAFT / Planejado` |
+| Status | `Implementada e Validada (Aguardando PR / Integração)` |
 | Issue relacionada | `#77` |
 | Branch funcional | `feature/issue-77-pending-human-review-queue-projection` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-29` |
 | Última atualização | `2026-08-29` |
 | Baseline de entrada | `423 testes aprovados` |
+| Baseline final | `438 testes aprovados (+15 testes)` |
 | Runner oficial | `unittest` / Python 3.11 |
 
 ---
@@ -182,33 +183,38 @@ A projeção estabelece uma distinção conceitual e técnica explícita entre d
 
 ---
 
-## 7. Estratégia Micro-TDD Planejada
+## 7. Estratégia Micro-TDD Executada
 
 ```text
-Fatia 1 (RED → GREEN) — Validação estrutural de entrada (TypeError / ValueError) e caso base vazio (events=() -> ())
-Fatia 2 (RED → GREEN) — Projeção de múltiplos WorkflowOpened isolados retornando GovernanceWorkflow em PENDING_HUMAN_REVIEW
-Fatia 3 (RED → GREEN) — Exclusão correta de workflows concluídos (WorkflowOpened + WorkflowConcluded)
-Fatia 4 (RED → GREEN) — Ordenação determinística canônica (FIFO por opened_at com tie-breaker por workflow_id)
-Fatia 5 (RED → GREEN) — Imunidade ao interleaving global entre workflows distintos que preserve a ordem causal interna de cada workflow_id
-Fatia 6 (RED → GREEN) — Preservação de lineage causal para correction follow-ups na fila pendente
-Fatia 7 (RED → GREEN) — Fail-closed diante de históricos individuais corrompidos/inválidos (delegação a rehydrate_workflow)
-Fatia 8 (RED → GREEN) — Teste de integração vertical pós-restart com JsonlWorkflowLifecycleRepository
-Regressão Geral       — $env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v (100% GREEN)
+Fatia 1 (RED → GREEN) [Concluída] — Validação estrutural de entrada (TypeError / ValueError) e caso base vazio (events=() -> ()) (+3 testes unitários)
+Fatia 2 (RED → GREEN) [Concluída] — Projeção de WorkflowOpened isolados retornando GovernanceWorkflow em PENDING_HUMAN_REVIEW (+2 testes unitários)
+Fatia 3 (RED → GREEN) [Concluída] — Exclusão correta de workflows concluídos (+2 testes unitários)
+Fatia 4 (RED → GREEN) [Concluída] — Ordenação determinística canônica FIFO por opened_at com tie-break por workflow_id (+2 testes unitários)
+Fatia 5 [Caracterização GREEN] — Invariância a interleaving global entre workflows distintos preservando causalidade interna (+1 teste unitário)
+Fatia 6 [Caracterização GREEN] — Preservação de correction follow-up lineage por reutilização de rehydrate_pending_workflow (+1 teste unitário)
+Fatia 7 (RED → GREEN) [Concluída] — Fail-closed para históricos inválidos, delegando semântica de lifecycle a rehydrate_workflow (+3 testes unitários)
+Fatia 8 [Integração GREEN por composição] — Integração vertical pós-restart com JsonlWorkflowLifecycleRepository (+1 teste de integração)
+Regressão Geral [Concluída] — $env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v (438/438 GREEN — 100%)
 ```
+
+> **Nota de Composição e Caracterização:**
+> - As Fatias 5 e 6 foram propriedades emergentes da arquitetura, comprovadas por caracterização nos testes unitários;
+> - A Fatia 8 foi comprovada por composição vertical dos boundaries existentes (`JsonlWorkflowLifecycleRepository.list_all_events()` → `project_pending_human_review_queue()`);
+> - Nenhuma delas exigiu código adicional de produção.
 
 ---
 
 ## 8. Critérios de Aceite
 
-- [ ] Suíte existente de 423 testes preservada 100% GREEN (`unittest` / Python 3.11);
-- [ ] Implementação de `project_pending_human_review_queue` em `src/agent_lab/workflow_projection.py`;
-- [ ] A função opera com pureza estrita (zero I/O) e retorna `tuple[GovernanceWorkflow, ...]`;
-- [ ] Nenhum novo read-model redundante (`PendingReviewItem`, etc.) é introduzido na v1;
-- [ ] A ordenação da fila é canônica por `(opened_at, workflow_id)` ascendente;
-- [ ] Interleaving global arbitrário entre workflows distintos que preserve a ordem causal interna produz a mesma fila;
-- [ ] Históricos unitários com inversão causal ou corrupção falham fechado sem reparo implícito;
-- [ ] Teste de integração vertical pós-restart com `JsonlWorkflowLifecycleRepository` aprovado;
-- [ ] `git diff --check` permanece limpo.
+- [x] Suíte existente de 423 testes preexistentes preservada + 15 novos testes = 438/438 GREEN (`unittest` / Python 3.11);
+- [x] Implementação de `project_pending_human_review_queue` em `src/agent_lab/workflow_projection.py`;
+- [x] A função opera com pureza estrita (zero I/O) e retorna `tuple[GovernanceWorkflow, ...]`;
+- [x] Nenhum novo read-model redundante (`PendingReviewItem`, etc.) é introduzido na v1;
+- [x] A ordenação da fila é canônica por `(opened_at, workflow_id)` ascendente;
+- [x] Interleaving global arbitrário entre workflows distintos que preserve a ordem causal interna produz a mesma fila (invariância de interleaving);
+- [x] Históricos unitários com inversão causal ou corrupção falham fechado sem reparo implícito (fail-closed via `rehydrate_workflow`);
+- [x] Teste de integração vertical pós-restart com `JsonlWorkflowLifecycleRepository` aprovado (`tests/test_pending_review_queue_projection_integration.py`);
+- [x] `git diff --check` permanece limpo.
 
 ---
 
