@@ -19,7 +19,7 @@
 - **Último PR funcional integrado na main:** #75
 - **Último merge funcional:** `8adeb74` — Merge pull request #75
 - **Última SPEC integrada na main:** `docs/specs/0074_human_review_application_use_case_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
+- **Incremento funcional atual:** Issue #77 — Pending Human Review Queue Projection v1 (implementada e validada em 438/438 GREEN na branch feature/issue-77-pending-human-review-queue-projection; aguardando PR e integração na main)
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -253,9 +253,9 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: nenhum incremento funcional aberto — Issue #74 concluída, integrada e formalmente encerrada.
+Incremento atual: Issue #77 — Pending Human Review Queue Projection v1 (implementada e validada em 438/438 GREEN na branch funcional feature/issue-77-pending-human-review-queue-projection; aguardando PR e integração na main).
 
-Próxima âncora arquitetural: a definir somente após novo planejamento humano.
+Próxima âncora arquitetural após a Issue #77: a definir somente após novo planejamento humano e integração da #77.
 
 Sequência evolutiva recomendada:
 
@@ -409,6 +409,7 @@ Contratos principais:
 - `WorkflowLifecycleEvent`: TypeAlias unindo `WorkflowOpened | WorkflowConcluded`;
 - `rehydrate_pending_workflow`: projeção pura reconstruindo `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW`;
 - `rehydrate_workflow`: projeção pura reconstruindo `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` ou `REVIEWED` a partir do histórico;
+- `project_pending_human_review_queue`: projeção pura e determinística em memória da fila de workflows pendentes de revisão humana (`PENDING_HUMAN_REVIEW`), com agrupamento por `workflow_id`, preservação da ordem interna do lifecycle, delegação da semântica/fail-closed a `rehydrate_workflow`, retenção exclusiva de pendências e ordenação canônica por `(opened_at ASC, workflow_id ASC)`;
 - `workflow_opened_to_record` / `workflow_opened_from_record`: serialização versionada de abertura com suporte a `schema_version = 1` (abertura raiz sem chaves de lineage e sem `event_type`) e `schema_version = 2` (correction follow-up com `predecessor_workflow_id` e `triggering_review_id`, sem `event_type`);
 - `workflow_concluded_to_record` / `workflow_concluded_from_record`: serialização versionada de conclusão (`schema_version = 1`) com `HumanReview` completo;
 - `workflow_event_to_record` / `workflow_event_from_record`: dispatcher polimórfico de ciclo de vida com fail-closed estrito;
@@ -887,10 +888,12 @@ MAIN INTEGRADA:
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; primeiro boundary de aplicação (RecordHumanDecisionUseCase) integrado para coordenação da deliberação humana; outros use cases de aplicação, filas HITL, SLAs operacionais, UI/Streamlit, APIs e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — Issue #74 concluída, integrada e formalmente encerrada.
+- Issue #77 — Pending Human Review Queue Projection v1 (implementada e validada em 438/438 GREEN na branch feature/issue-77-pending-human-review-queue-projection; aguardando PR e integração na main).
+- Arquitetura da Issue #77: Projeção pura em memória `project_pending_human_review_queue(events)` que interpreta o fluxo de lifecycle, agrupa por `workflow_id`, preserva a ordem interna do lifecycle, delega a semântica/fail-closed a `rehydrate_workflow`, retém exclusivamente workflows `PENDING_HUMAN_REVIEW` e ordena deterministicamente por `(opened_at ASC, workflow_id ASC)`.
+- Princípios mantidos: Application coordena | Domain decide | Repository preserva fatos | Projection interpreta.
 
 PRÓXIMA ÂNCORA:
-- Ainda não definida; deve ser escolhida somente após novo planejamento humano.
+- A definir somente após novo planejamento humano e integração da Issue #77.
 
 Comando oficial:
 python -m unittest discover -s tests -v

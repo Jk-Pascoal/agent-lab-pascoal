@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from agent_lab.workflow import GovernanceWorkflow
+from agent_lab.workflow import GovernanceWorkflow, WorkflowStatus
 from agent_lab.workflow_events import (
     WorkflowConcluded,
     WorkflowLifecycleEvent,
@@ -87,3 +87,32 @@ def rehydrate_workflow(
         triggering_review_id=opened.triggering_review_id,
     )
 
+
+def project_pending_human_review_queue(
+    events: Sequence[WorkflowLifecycleEvent],
+) -> tuple[GovernanceWorkflow, ...]:
+    """Project an ordered queue of workflows currently in PENDING_HUMAN_REVIEW state."""
+    if not isinstance(events, Sequence):
+        raise TypeError(
+            f"events must be a Sequence, got {type(events).__name__}"
+        )
+
+    for index, event in enumerate(events):
+        if not isinstance(event, (WorkflowOpened, WorkflowConcluded)):
+            raise ValueError(
+                f"Unsupported lifecycle event type at index {index}: {type(event).__name__}"
+            )
+
+    grouped_events: dict[str, list[WorkflowLifecycleEvent]] = {}
+    for event in events:
+        grouped_events.setdefault(event.workflow_id, []).append(event)
+
+    pending_workflows: list[GovernanceWorkflow] = []
+    for workflow_history in grouped_events.values():
+        workflow = rehydrate_workflow(workflow_history)
+        if workflow.status == WorkflowStatus.PENDING_HUMAN_REVIEW:
+            pending_workflows.append(workflow)
+
+    pending_workflows.sort(key=lambda wf: (wf.opened_at, wf.workflow_id))
+
+    return tuple(pending_workflows)
