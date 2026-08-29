@@ -8,14 +8,16 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0077` |
-| Status | `Implementada e Validada (Aguardando PR / Integração)` |
+| Status | `Concluída e Integrada na main` |
 | Issue relacionada | `#77` |
+| Pull Request | `#78` |
+| Merge commit | `a121f8b` |
 | Branch funcional | `feature/issue-77-pending-human-review-queue-projection` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-29` |
 | Última atualização | `2026-08-29` |
 | Baseline de entrada | `423 testes aprovados` |
-| Baseline final | `438 testes aprovados (+15 testes)` |
+| Baseline final integrado | `438 testes aprovados (+15 testes)` |
 | Runner oficial | `unittest` / Python 3.11 |
 
 ---
