@@ -4,31 +4,25 @@
 
 ## Status
 
-- **Artefato visual oficial:** `docs/architecture/agent_lab_architecture_graph_v2.html`
+- **Artefato visual oficial:** `docs/architecture/agent_lab_architecture_graph_complete_v1_v2.html`
 - **Fonte arquitetural consolidada:** `docs/PROJECT_COMPASS.md`
-- **Baseline representado:** 438/438 testes GREEN
+- **Escopo visual:** V1 fundacional + V2 atual
+- **Baseline integrado representado:** 438/438 testes GREEN
 - **Última Issue funcional representada:** #77 — Pending Human Review Queue Projection v1
+- **Pressões visíveis, não implementadas:** P-07 e P-08
 - **Data de formalização:** 2026-08-29
 
 ## 1. Papel do grafo
 
 O **Agent Lab Architecture Graph** é a projeção visual oficial e complementar do `PROJECT_COMPASS`.
 
-Ele existe para:
+Ele existe para facilitar reentrada cognitiva, estudo espacial da arquitetura, leitura das relações entre fluxos, módulos, contratos, Issues e invariantes, além de permitir acompanhar a evolução do projeto.
 
-- facilitar reentrada cognitiva no projeto;
-- permitir estudo espacial da arquitetura;
-- tornar visíveis relações entre fluxos, módulos, contratos, Issues e invariantes;
-- ajudar a detectar lacunas, acoplamentos e pressões arquiteturais;
-- acompanhar a evolução do sistema sem substituir os artefatos normativos.
-
-O grafo **interpreta o sistema; não legisla sobre ele**.
-
-Uma conexão desenhada no HTML não cria, por si só, um contrato arquitetural. Relações arquiteturais precisam estar sustentadas pelo estado integrado do projeto — código, testes, SPECs e `PROJECT_COMPASS`.
+O grafo **interpreta o sistema; não legisla sobre ele**. Uma conexão desenhada no HTML não cria, por si só, um contrato arquitetural.
 
 ## 2. Hierarquia de autoridade
 
-Em caso de divergência, usar esta ordem de verificação:
+Em caso de divergência:
 
 ```text
 Código + testes integrados
@@ -42,11 +36,24 @@ Architecture Graph
 
 O grafo deve ser corrigido sempre que divergir do estado integrado.
 
-## 3. Leitura macro oficial
+## 3. Leitura V1 — Fundação
 
-O Agent Lab é representado por **três fluxos de domínio interligados**:
+A visão V1 mostra a formação do sistema governado antes de sua expansão temporal e factual:
 
-### 3.1 Análise e Recomendação
+```text
+repositório
+├── docs/  → promessa e governança escrita
+├── tests/ → promessa executável
+└── src/   → implementação
+```
+
+Ela preserva a cadeia evolutiva fundacional: harness determinístico, fronteira LLM estruturada, Evidence Engine, Recommendation Pipeline, autoridade humana, memória auditável e identidade verificável.
+
+## 4. Leitura V2 — Estado arquitetural atual
+
+O Agent Lab atual é representado por **três fluxos de domínio interligados**.
+
+### 4.1 Análise e Recomendação
 
 ```text
 MaterialRecord
@@ -57,9 +64,7 @@ MaterialRecord
 → DecisionRecommendation
 ```
 
-Pergunta central: **o que os dados e as evidências permitem recomendar?**
-
-### 3.2 Governança Humana e Temporal
+### 4.2 Governança Humana e Temporal
 
 ```text
 DecisionRecommendation
@@ -71,11 +76,9 @@ DecisionRecommendation
 → reconstrução / projeção
 ```
 
-Inclui o primeiro boundary explícito de Application Layer (`RecordHumanDecisionUseCase`) e a projeção da fila pendente.
+Inclui `RecordHumanDecisionUseCase` e a projeção da fila pendente introduzida pela Issue #77.
 
-Pergunta central: **como a decisão humana é coordenada, preservada e reconstruída no tempo?**
-
-### 3.3 Evolução Factual do Material
+### 4.3 Evolução Factual do Material
 
 ```text
 MaterialRevision
@@ -84,13 +87,9 @@ MaterialRevision
 → roots / heads / orphans / forks / cycles
 ```
 
-Pergunta central: **como a história factual do material evolui sem reescrever o passado?**
+## 5. Infraestrutura transversal
 
-## 4. Infraestrutura transversal
-
-Persistência, auditoria, serialização, projeções e reconstrução de estado sustentam mais de um fluxo. Elas **não formam um quarto fluxo de negócio**.
-
-Síntese:
+Persistência, auditoria, serialização, consistency check, projeções e reconstrução pós-restart sustentam mais de um fluxo. Elas **não formam um quarto fluxo de negócio**.
 
 ```text
              ┌─ Análise e Recomendação
@@ -102,20 +101,23 @@ Material ────┼─ Governança Humana e Temporal
        ↕ persistência · auditoria · projeções · reconstrução
 ```
 
-## 5. Categorias visuais
+## 6. Categorias visuais
 
-O grafo usa as seguintes categorias:
+O grafo completo usa:
 
-- **Raiz:** visão integrada do Agent Lab;
-- **Fluxos:** os três caminhos macro de domínio;
-- **Módulos `src/`:** localização da implementação;
-- **Contratos/objetos:** entidades, eventos e read-models relevantes;
-- **Marcos (Issues):** incrementos que alteraram a topologia arquitetural;
-- **Invariantes:** condições que devem permanecer verdadeiras para preservar coerência.
+- **Raiz**;
+- **Fases V1/V2**;
+- **Fluxos**;
+- **Estrutura / Docs**;
+- **Módulos `src/`**;
+- **Contratos / Objetos**;
+- **Marcos / Issues**;
+- **Invariantes**;
+- **Pressões**.
 
-## 6. Princípios arquiteturais representados
+As pressões são visualmente distintas e **não representam capacidade implementada**.
 
-Entre os princípios e separações canônicas:
+## 7. Princípios arquiteturais representados
 
 ```text
 Evidence ≠ Decision
@@ -128,7 +130,7 @@ lineage ≠ current
 diagnóstico ≠ reparo
 ```
 
-E a separação de responsabilidades:
+Separação de responsabilidades:
 
 ```text
 Application coordena.
@@ -137,7 +139,34 @@ Repository preserva fatos.
 Projection interpreta.
 ```
 
-## 7. Protocolo de atualização
+## 8. Pressões arquiteturais
+
+O mapa pode exibir pressões ainda não implementadas quando isso ajuda a leitura de fronteira do sistema, desde que estejam marcadas explicitamente como tal.
+
+### P-07 — Industrial Load / Scale Validation
+
+Pressão para validação em 100k+ SKUs, com candidate generation e blocking sem comparação `all-vs-all`.
+
+Princípios candidatos registrados:
+
+- **Semantic Blocking before Similarity**;
+- **Classification guides search; it does not constrain truth**;
+- classificação declarada não pode funcionar como filtro rígido;
+- benchmark deve conter sujeira cadastral real.
+
+### P-08 — Material Supersession / Replacement Lineage
+
+Pressão para representar descontinuação e substituição entre materiais distintos.
+
+Regra candidata:
+
+```text
+MaterialRevision ≠ MaterialReplacement
+```
+
+P-07 e P-08 continuam **não implementadas** e não são tratadas como Issues funcionais aprovadas.
+
+## 9. Protocolo de atualização
 
 Após um incremento funcional integrado:
 
@@ -145,38 +174,27 @@ Após um incremento funcional integrado:
 merge na main
 → suíte canônica GREEN
 → PROJECT_COMPASS atualizado
-→ avaliar se a topologia arquitetural mudou
+→ avaliar impacto topológico
 → atualizar Architecture Graph quando necessário
 ```
 
-Atualizar o grafo quando houver, por exemplo:
+Atualizar o grafo quando houver novo fluxo, boundary, contrato central, relação causal/temporal, infraestrutura transversal relevante, invariante ou Issue que altere significativamente a topologia.
 
-- novo fluxo ou subfluxo relevante;
-- novo boundary arquitetural;
-- novo contrato central;
-- nova relação causal ou temporal;
-- nova infraestrutura transversal relevante;
-- nova invariante;
-- Issue que altere significativamente a topologia existente.
-
-Não é necessário atualizar o grafo para mudanças internas que não alterem sua leitura arquitetural.
-
-## 8. Regra de divergência
+## 10. Regra de divergência
 
 Se `PROJECT_COMPASS` e Architecture Graph divergirem:
 
-1. não reinterpretar silenciosamente o código para fazer o desenho “caber”;
-2. verificar código, testes e SPECs integrados;
-3. usar o `PROJECT_COMPASS` como ponto oficial de reentrada consolidada;
-4. corrigir o grafo;
-5. registrar a atualização documental no fluxo normal de Git/PR.
+1. verificar código, testes e SPECs integrados;
+2. usar o `PROJECT_COMPASS` como ponto oficial de reentrada consolidada;
+3. corrigir o grafo;
+4. registrar a atualização documental pelo fluxo normal de Git/PR.
 
-## 9. Estado representado nesta versão
+## 11. Estado representado nesta versão
 
-A V2 formalizada incorpora a evolução até:
+A visão completa preserva a fundação V1 e acompanha a evolução V2 até:
 
 - #71 — Material Revision Lineage Projection v1 — baseline 412;
 - #74 — Human Review Application Use Case v1 — baseline 423;
 - #77 — Pending Human Review Queue Projection v1 — baseline 438.
 
-Pressões arquiteturais ainda não implementadas, como **P-07 (Industrial Load / Scale Validation)** e **P-08 (Material Supersession / Replacement Lineage)**, não são desenhadas como capacidades existentes. Elas só devem entrar na topologia oficial quando houver decisão arquitetural ou incremento integrado que justifique sua representação.
+O arquivo possui presets de navegação **Macro**, **V1 Fundação**, **V2 Atual** e **Tudo**, permitindo estudar a arquitetura em diferentes níveis sem criar fontes de verdade concorrentes.
