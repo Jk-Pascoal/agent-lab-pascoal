@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-08-29
-- **Baseline integrado na main:** 438 testes aprovados
-- **Última entrega funcional integrada na main:** Pending Human Review Queue Projection v1
-- **Última Issue funcional integrada na main:** #77
-- **Último PR funcional integrado na main:** #78
-- **Último merge funcional:** `a121f8b` — Merge pull request #78
-- **Última SPEC integrada na main:** `docs/specs/0077_pending_human_review_queue_projection_v1.md`
+- **Estado registrado em:** 2026-08-30
+- **Baseline integrado na main:** 444 testes aprovados
+- **Última entrega funcional integrada na main:** Pending Human Review Queue Application Use Case v1
+- **Última Issue funcional integrada na main:** #81
+- **Último PR funcional integrado na main:** #82
+- **Último merge funcional:** `34bcf7d` — Merge pull request #82
+- **Última SPEC integrada na main:** `docs/specs/0081_pending_human_review_queue_application_use_case_v1.md`
 - **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
@@ -237,7 +237,17 @@ O sistema em seu estado integrado atual na `main` representa e valida:
   - invariância comprovada a interleaving global entre workflows distintos desde que a ordem causal interna de cada `workflow_id` seja preservada;
   - preservação fiel da linhagem causal de follow-up (`predecessor_workflow_id`, `triggering_review_id`);
   - retorno imutável como `tuple[GovernanceWorkflow, ...]`, sem introduzir read models redundantes (`PendingReviewItem`, etc.);
-  - teste de integração vertical pós-restart (`tests/test_pending_review_queue_projection_integration.py`) validando persistência física em JSONL via `JsonlWorkflowLifecycleRepository`, reinicialização de processo, leitura via `list_all_events()` e reconstrução determinística da fila ativa.
+  - teste de integração vertical pós-restart (`tests/test_pending_review_queue_projection_integration.py`) validando persistência física em JSONL via `JsonlWorkflowLifecycleRepository`, reinicialização de processo, leitura via `list_all_events()` e reconstrução determinística da fila ativa;
+- **Incremento integrado da Issue #81 (Pending Human Review Queue Application Use Case v1):**
+  - módulo `src/agent_lab/pending_human_reviews_use_case.py`: introdução do boundary de consulta da Camada de Aplicação (`ListPendingHumanReviewsUseCase`);
+  - injeção de dependência explícita do protocolo `WorkflowLifecycleRepository` no construtor e método `execute() -> tuple[GovernanceWorkflow, ...]`;
+  - coordenação estrita de leitura e interpretação: `self._workflow_lifecycle_repository.list_all_events()` repassado diretamente para `project_pending_human_review_queue(events)`;
+  - preservação canônica de responsabilidades (*Application coordena, Domain decide, Repository preserva, Projection interpreta*): zero lógica de filtragem (`status == ...`), ordenação, reidratação ou validação de regras de lifecycle na classe de caso de uso;
+  - ausência de DTOs ou read models redundantes: retorno direto de `tuple[GovernanceWorkflow, ...]`;
+  - propagação estritamente *fail-closed* de erros de persistência/corrupção do repositório (`WorkflowPersistenceError`, `WorkflowCorruptionError`) e erros de integridade da projeção (`TypeError`, `ValueError`) sem blocos `except Exception`, retries ou mascaramento;
+  - teste de integração vertical pós-restart (`tests/test_pending_human_reviews_use_case_integration.py`) comprovando consulta de persistência real JSONL via `JsonlWorkflowLifecycleRepository`;
+  - teste de integração composicional de ciclo completo comprovando interoperabilidade direta com `RecordHumanDecisionUseCase` (`List` $\rightarrow$ `RecordHumanDecision` $\rightarrow$ `List`), onde o workflow pendente consultado é deliberado e deixa de figurar na listagem subsequente;
+  - zero alterações em contratos de domínio, protocolos de repositório, schemas de persistência ou projeções existentes.
 
 ### 4.3 Limite atual
 
@@ -256,7 +266,7 @@ A versão atual integrada na `main` possui:
 - sem eleição de `latest revision`, `current revision` ou cabeça canônica; sem eleição por timestamp `revised_at`; sem reparo automático ou mutação em disco;
 - conexão de `MaterialRevision` ao pipeline de evidências e recomendações permanece fronteira futura;
 - aplicação automática das correções ao material (`CORRECTION_APPLIED`), mutação automática de `MaterialRecord` e reexecução automática de regras/LLM continuam fora do escopo;
-- primeiro boundary de aplicação (`RecordHumanDecisionUseCase`) e primeira projeção pura de fila pendente (`project_pending_human_review_queue`) integrados; outros use cases de aplicação (`OpenGovernanceWorkflow`, etc.), claim/lock/assignee de fila, SLAs operacionais, interfaces de usuário (Streamlit / `app.py`), APIs REST e otimizações P-07 continuam fora do escopo;
+- dois boundaries de aplicação integrados: `RecordHumanDecisionUseCase` (deliberação e persistência) e `ListPendingHumanReviewsUseCase` (consulta determinística da fila pendente); outros use cases de aplicação, claim, assignment / assignee, ownership operacional, lock / checkout, SLAs operacionais, priorização operacional, interfaces de usuário (Streamlit / `app.py`), APIs REST, CLI, processamento assíncrono / concorrência e otimizações P-07 continuam fora do escopo;
 - execução síncrona/monoprocesso;
 - ausência de locking multiprocesso;
 - ausência de autenticação e autorização real (RBAC);
@@ -265,7 +275,7 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: nenhum incremento funcional aberto — Issue #77 concluída, integrada e formalmente encerrada via PR #78 (merge `a121f8b`).
+Incremento atual: incremento funcional da Issue #81 concluído e integrado na main via PR #82 (merge `34bcf7d`); Issue #81 permanece aberta até a conclusão do closeout documental.
 
 Próxima âncora arquitetural: a definir somente após novo planejamento humano.
 
@@ -285,6 +295,7 @@ Contrato
   → Persistência de revisões de material (concluída na #68)
   → Projeção de linhagem de revisões de material (concluída na #71)
   → Projeção de fila de revisão humana pendente (concluída na #77)
+  → Pending Human Review Queue Application Use Case (concluído na #81)
   → Avaliação de revisões sucessivas / Integração ERP (futuras)
 ```
 
@@ -570,19 +581,29 @@ Responsabilidades:
 
 ```text
 src/agent_lab/human_review_use_case.py
+src/agent_lab/pending_human_reviews_use_case.py
 ```
 
 Contratos principais:
 
 - `RecordHumanDecisionResult`: estrutura de retorno imutável contendo os quatro artefatos produzidos (`workflow`, `review`, `audit_event`, `lifecycle_event`);
-- `RecordHumanDecisionUseCase`: caso de uso de aplicação responsável por orquestrar o registro da decisão humana sobre um workflow de governança pendente.
+- `RecordHumanDecisionUseCase`: caso de uso de aplicação responsável por orquestrar o registro da decisão humana sobre um workflow de governança pendente;
+- `ListPendingHumanReviewsUseCase`: caso de uso de aplicação responsável por consultar workflows que atualmente aguardam revisão humana.
 
 Responsabilidades:
 
-- validar estruturalmente os argumentos de fronteira da aplicação (`isinstance(workflow, GovernanceWorkflow)`);
-- coordenar a preparação e validação determinística de todos os artefatos de domínio em memória antes de qualquer I/O;
-- disparar a persistência sequencial em `AuditRepository` e `WorkflowLifecycleRepository`;
-- propagar exceções e falhas parciais de persistência de forma *fail-closed* sem mascaramento ou tentativas artificiais de compensação/rollback.
+- em `RecordHumanDecisionUseCase`:
+  - validar estruturalmente os argumentos de fronteira da aplicação (`isinstance(workflow, GovernanceWorkflow)`);
+  - coordenar a preparação e validação determinística de todos os artefatos de domínio em memória antes de qualquer I/O;
+  - disparar a persistência sequencial em `AuditRepository` e `WorkflowLifecycleRepository`;
+  - propagar exceções e falhas parciais de persistência de forma *fail-closed* sem mascaramento ou tentativas artificiais de compensação/rollback;
+- em `ListPendingHumanReviewsUseCase`:
+  - obter fatos históricos exclusivamente através de `WorkflowLifecycleRepository.list_all_events()`;
+  - delegar integralmente a interpretação para a projeção pura `project_pending_human_review_queue(events)`;
+  - retornar diretamente `tuple[GovernanceWorkflow, ...]`, preservando a ordenação canônica FIFO garantida pela projeção;
+  - não filtrar, ordenar, reidratar ou decidir na Application;
+  - propagar falhas de leitura do repositório ou de integridade da projeção de forma *fail-closed*;
+  - operação somente-leitura, sem estado mutável, sem cache e sem I/O direto fora do repositório (todo acesso persistente permanece encapsulado em `WorkflowLifecycleRepository` e nenhuma lógica de persistência é implementada na Application).
 
 ## 7. Comando canônico de testes e baseline
 
@@ -595,7 +616,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 438 tests
+Ran 444 tests
 OK
 ```
 
@@ -620,6 +641,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #74: 423 testes
 - Incremento da Issue #77: +15 testes sobre o baseline de entrada de 423 (14 testes unitários em `tests/test_workflow_projection.py` + 1 teste de integração em `tests/test_pending_review_queue_projection_integration.py`)
 - Baseline integrado após a Issue #77: 438 testes
+- Incremento da Issue #81: +6 testes sobre o baseline de entrada de 438 (4 testes unitários em `tests/test_pending_human_reviews_use_case.py` + 2 testes de integração em `tests/test_pending_human_reviews_use_case_integration.py`)
+- Baseline integrado após a Issue #81: 444 testes
 
 Não assumir `pytest`.
 
@@ -804,7 +827,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 - autenticação e autorização real (RBAC);
 - papéis e segregação de funções;
 - taxonomia completa de motivos;
-- filas e SLAs;
+- filas operacionais com claim/assignment/ownership/lock, priorização e SLAs (a projeção pura da fila PENDING_HUMAN_REVIEW foi integrada na Issue #77 e seu boundary de consulta na Application foi integrado na Issue #81; atributos operacionais de gestão de fila permanecem adiados);
 - notificações e escalonamento;
 - interface do especialista;
 - integração e fila de injeção ERP;
@@ -882,11 +905,11 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 438 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #77 | Pending Human Review Queue Projection v1 | PR #78 (merge a121f8b).
-- Última SPEC integrada: docs/specs/0077_pending_human_review_queue_projection_v1.md.
-- Último PR funcional integrado: PR #78.
-- Último merge funcional: a121f8b.
+- Baseline integrado na main: 444 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #81 | Pending Human Review Queue Application Use Case v1 | PR #82 (merge 34bcf7d).
+- Última SPEC integrada: docs/specs/0081_pending_human_review_queue_application_use_case_v1.md.
+- Último PR funcional integrado: PR #82.
+- Último merge funcional: 34bcf7d.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
@@ -897,14 +920,16 @@ MAIN INTEGRADA:
   + persistência append-only de MaterialRevision em JSONL com schema_version=1 canônico, JsonlMaterialRevisionRepository durável (flush + fsync), unicidade de revision_id e diagnóstico fail-closed de corrupção com line_number 1-based
   + projeção pura MaterialRevisionLineage determinística em memória via project_material_revision_lineage com ordenação canônica por revision_id, identificação de raízes, cabeças, órfãos, bifurcações (inclusive com predecessor ausente) e ciclos indiretos fechados (sem caudas externas), e validações fail-closed de entrada
   + camada de aplicação com RecordHumanDecisionUseCase executando coordenação em duas fases (preparação de domínio com zero I/O -> persistência sequencial audit/lifecycle) com resultado imutável RecordHumanDecisionResult
-  + projeção pura de fila de revisão humana pendente (project_pending_human_review_queue) determinística em memória com ordenação FIFO (opened_at ASC, workflow_id ASC), delegação fail-closed para rehydrate_workflow e preservação de lineage de follow-up pós-restart.
+  + projeção pura de fila de revisão humana pendente (project_pending_human_review_queue) determinística em memória com ordenação FIFO (opened_at ASC, workflow_id ASC), delegação fail-closed para rehydrate_workflow e preservação de lineage de follow-up pós-restart
+  + boundary de consulta na camada de aplicação via ListPendingHumanReviewsUseCase coordenando leitura do repositório e interpretação pela projeção pura sem retenção de regras de domínio.
 - Princípios: Application coordena | Domain decide | Repository preserva | Projection interpreta | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
-- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro sem reaprender regras do domínio.
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro sem reaprender regras do domínio; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
-  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM; primeiro boundary de aplicação (RecordHumanDecisionUseCase) e primeira projeção pura de fila pendente (project_pending_human_review_queue) integrados; outros use cases de aplicação, claim/lock/assignee de fila, SLAs operacionais, UI/Streamlit, APIs e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
+  correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM;
+  dois boundaries de aplicação (RecordHumanDecisionUseCase e ListPendingHumanReviewsUseCase) integrados; outros use cases de aplicação, claim, assignment / assignee, ownership operacional, lock / checkout, SLAs operacionais, priorização operacional, UI/Streamlit, APIs REST, CLI, processamento assíncrono e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — Issue #77 concluída, integrada e formalmente encerrada via PR #78 (merge a121f8b).
+- Incremento funcional da Issue #81 concluído e integrado na main via PR #82 (merge 34bcf7d); Issue #81 permanece aberta até a conclusão do closeout documental.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.

@@ -8,14 +8,17 @@
 | Campo | Valor |
 | --- | --- |
 | Identificador | `SPEC-0081` |
-| Status | `DRAFT` |
+| Status | `Concluída e Integrada na main` |
 | Issue relacionada | `#81` |
+| PR funcional | `#82` |
+| Merge commit | `34bcf7d` |
 | Branch funcional | `feature/issue-81-pending-human-review-queue-application-use-case` |
 | Responsável | `Jk-Pascoal` |
 | Data de criação | `2026-08-30` |
 | Data do ambiente | `2026-08-30` |
 | Última atualização | `2026-08-30` |
 | Baseline de entrada | `438 testes aprovados` |
+| Baseline final | `444 testes aprovados (+6 testes)` |
 | Runner oficial | `unittest` / Python 3.11.9 |
 
 ---
@@ -36,9 +39,9 @@ O protocolo `WorkflowLifecycleRepository` já expõe a operação de consulta de
 list_all_events() -> tuple[WorkflowLifecycleEvent, ...]
 ```
 
-No entanto, para consultar os workflows que atualmente aguardam deliberação de um especialista, um consumidor externo (futura UI Streamlit em `app.py`, API REST ou CLI) ainda precisaria orquestrar manualmente a leitura de eventos no repositório e passar a sequência resultante para a função de projeção `project_pending_human_review_queue`.
+Antes da implementação desta SPEC, para consultar os workflows que aguardavam deliberação de um especialista, um consumidor externo (UI, API ou CLI) precisaria orquestrar manualmente a leitura de eventos no repositório e encaminhá-los para `project_pending_human_review_queue`.
 
-Essa ausência de boundary de consulta na Camada de Aplicação forçaria as interfaces externas a atuarem como "orquestradores acidentais".
+Essa ausência de boundary, existente na baseline de entrada, faria as interfaces externas atuarem como "orquestradores acidentais".
 
 ---
 
@@ -80,7 +83,7 @@ project_pending_human_review_queue(...)
 tuple[GovernanceWorkflow, ...]
 ```
 
-Não existe uma entidade formal na camada de aplicação que assuma o ownership dessa coordenação e a exponha de forma coesa e testável para consumidores externos.
+Na baseline de entrada desta SPEC, não existia uma entidade formal na camada de aplicação que assumisse o ownership dessa coordenação e a expusesse de forma coesa e testável para consumidores externos.
 
 ### Objetivos
 
@@ -221,30 +224,30 @@ def execute(self) -> tuple[GovernanceWorkflow, ...]:
 
 ---
 
-## 7. Estratégia Micro-TDD Planejada
+## 7. Estratégia Micro-TDD Executada
 
 ```text
-Fatia 1 (RED → GREEN) — Boundary mínimo: repository vazio e execute() retornando ()
-Fatia 2 (Composição Repository → Projection) — Cenário representativo com lifecycle events reais/fake repository, comprovando que o resultado da Projection atravessa a Application sem transformação (se chegar GREEN por composição após a Fatia 1, não fabricar RED artificial)
-Fatia 3 (RED → GREEN) — Propagação fail-closed de erros do repositório (I/O, corrupção) e projeção
-Fatia 4 (Integração) — Teste de integração vertical pós-restart com JsonlWorkflowLifecycleRepository
-Fatia 5 (Integração) — Teste de integração vertical de ciclo completo: List → RecordHumanDecision → List
-Regressão Geral — $env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v (100% GREEN)
+Fatia 1 (RED → GREEN) — Boundary mínimo: ListPendingHumanReviewsUseCase instanciado com WorkflowLifecycleRepository vazio retornando ()
+Fatia 2 (GREEN por composição) — Composição Repository → Projection: cenário representativo comprovando que o resultado da Projection atravessa a Application sem transformação
+Fatia 3 (GREEN por composição) — Propagação fail-closed de erros do repositório (WorkflowPersistenceError) e de integridade da projeção (ValueError)
+Fatia 4 (GREEN por integração/composição) — Teste de integração vertical pós-restart com JsonlWorkflowLifecycleRepository em arquivo JSONL real
+Fatia 5 (GREEN por integração/composição) — Teste de integração vertical composicional de ciclo completo: List → RecordHumanDecision → List
+Regressão Geral — $env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v (444/444 GREEN)
 ```
 
 ---
 
 ## 8. Critérios de Aceite
 
-- [ ] Suíte preexistente de 438 testes mantida 100% GREEN (`unittest` / Python 3.11.9);
-- [ ] Implementação de `ListPendingHumanReviewsUseCase` em `src/agent_lab/pending_human_reviews_use_case.py`;
-- [ ] Zero alterações em módulos de domínio, repositórios, serialização ou projeções existentes em `src/`;
-- [ ] O caso de uso recebe `WorkflowLifecycleRepository` por injeção e retorna `tuple[GovernanceWorkflow, ...]`;
-- [ ] Nenhuma lógica de filtragem, ordenação ou inferência de estado é implementada na classe (delegação integral para `project_pending_human_review_queue`);
-- [ ] Comportamento *fail-closed* preservado para qualquer falha de leitura ou anomalia estrutural;
-- [ ] Testes unitários focados no contrato observável e na propagação de erros aprovados;
-- [ ] Testes de integração vertical aprovados (pós-restart e ciclo completo com `RecordHumanDecisionUseCase`);
-- [ ] `git diff --check` permanece limpo.
+- [x] Suíte preexistente de 438 testes mantida 100% GREEN (`unittest` / Python 3.11.9);
+- [x] Implementação de `ListPendingHumanReviewsUseCase` em `src/agent_lab/pending_human_reviews_use_case.py`;
+- [x] Zero alterações em módulos de domínio, repositórios, serialização ou projeções existentes em `src/`;
+- [x] O caso de uso recebe `WorkflowLifecycleRepository` por injeção e retorna `tuple[GovernanceWorkflow, ...]`;
+- [x] Nenhuma lógica de filtragem, ordenação ou inferência de estado é implementada na classe (delegação integral para `project_pending_human_review_queue`);
+- [x] Comportamento *fail-closed* preservado para qualquer falha de leitura ou anomalia estrutural;
+- [x] Testes unitários focados no contrato observável e na propagação de erros aprovados;
+- [x] Testes de integração vertical aprovados (pós-restart e ciclo completo com `RecordHumanDecisionUseCase`);
+- [x] `git diff --check` permanece limpo.
 
 ---
 
