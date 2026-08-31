@@ -30,6 +30,9 @@ class HumanReviewClaim:
         if not isinstance(self.specialist, VerifiedSpecialistIdentity):
             raise TypeError("specialist must be a VerifiedSpecialistIdentity")
 
+        if not isinstance(self.claimed_at, datetime):
+            raise TypeError("claimed_at must be a datetime")
+
 
 def claim_pending_human_review(
     workflow: GovernanceWorkflow,
