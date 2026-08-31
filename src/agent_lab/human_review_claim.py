@@ -27,6 +27,9 @@ class HumanReviewClaim:
         if not self.workflow_id.strip():
             raise ValueError("workflow_id must not be empty")
 
+        if not isinstance(self.specialist, VerifiedSpecialistIdentity):
+            raise TypeError("specialist must be a VerifiedSpecialistIdentity")
+
 
 def claim_pending_human_review(
     workflow: GovernanceWorkflow,
