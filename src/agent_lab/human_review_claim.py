@@ -21,6 +21,12 @@ class HumanReviewClaim:
         if not self.claim_id.strip():
             raise ValueError("claim_id must not be empty")
 
+        if not isinstance(self.workflow_id, str):
+            raise TypeError("workflow_id must be a string")
+
+        if not self.workflow_id.strip():
+            raise ValueError("workflow_id must not be empty")
+
 
 def claim_pending_human_review(
     workflow: GovernanceWorkflow,
