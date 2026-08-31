@@ -80,6 +80,24 @@ class HumanReviewClaimTests(unittest.TestCase):
         )
         self.assertIsNone(self.workflow.review)
 
+    def test_claim_rejects_empty_claim_id(self) -> None:
+        with self.assertRaises(ValueError):
+            claim_pending_human_review(
+                self.workflow,
+                claim_id="",
+                specialist=self.specialist,
+                claimed_at=self.claimed_at,
+            )
+
+    def test_claim_rejects_whitespace_claim_id(self) -> None:
+        with self.assertRaises(ValueError):
+            claim_pending_human_review(
+                self.workflow,
+                claim_id="   ",
+                specialist=self.specialist,
+                claimed_at=self.claimed_at,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
