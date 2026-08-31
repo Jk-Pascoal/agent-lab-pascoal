@@ -36,6 +36,11 @@ class HumanReviewClaim:
         if self.claimed_at.tzinfo is None or self.claimed_at.utcoffset() is None:
             raise ValueError("claimed_at must be timezone-aware")
 
+        if self.specialist.verified_at > self.claimed_at:
+            raise ValueError(
+                "specialist verification must not be after claimed_at"
+            )
+
 
 def claim_pending_human_review(
     workflow: GovernanceWorkflow,
