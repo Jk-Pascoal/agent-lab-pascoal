@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 
 from agent_lab.decision import DecisionRecommendation
@@ -291,6 +292,44 @@ class HumanReviewClaimTests(unittest.TestCase):
             agent_lab.claim_pending_human_review,
             claim_pending_human_review,
         )
+
+    def test_human_review_claim_rejects_invalid_claim_id_type(self) -> None:
+        with self.assertRaises(TypeError):
+            HumanReviewClaim(
+                claim_id=123,  # type: ignore[arg-type]
+                workflow_id="WF-001",
+                specialist=self.specialist,
+                claimed_at=self.claimed_at,
+            )
+
+    def test_human_review_claim_rejects_invalid_workflow_id_type(self) -> None:
+        with self.assertRaises(TypeError):
+            HumanReviewClaim(
+                claim_id="CLAIM-001",
+                workflow_id=123,  # type: ignore[arg-type]
+                specialist=self.specialist,
+                claimed_at=self.claimed_at,
+            )
+
+    def test_human_review_claim_rejects_whitespace_workflow_id(self) -> None:
+        with self.assertRaises(ValueError):
+            HumanReviewClaim(
+                claim_id="CLAIM-001",
+                workflow_id="   ",
+                specialist=self.specialist,
+                claimed_at=self.claimed_at,
+            )
+
+    def test_human_review_claim_is_immutable(self) -> None:
+        claim = HumanReviewClaim(
+            claim_id="CLAIM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=self.claimed_at,
+        )
+
+        with self.assertRaises(FrozenInstanceError):
+            claim.claim_id = "CLAIM-002"  # type: ignore[misc]
 
 
 if __name__ == "__main__":
