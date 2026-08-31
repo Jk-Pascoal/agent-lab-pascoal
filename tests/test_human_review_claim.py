@@ -143,6 +143,33 @@ class HumanReviewClaimTests(unittest.TestCase):
                 claimed_at=naive_claimed_at,
             )
 
+    def test_human_review_claim_rejects_specialist_verified_after_claim(
+        self,
+    ) -> None:
+        specialist = VerifiedSpecialistIdentity(
+            specialist_id="spec-002",
+            identity_provider="corp-idp",
+            identity_subject="late@corp.local",
+            verification_id="ver-late",
+            verified_at=datetime(
+                2026,
+                8,
+                31,
+                9,
+                30,
+                0,
+                tzinfo=timezone.utc,
+            ),
+        )
+
+        with self.assertRaises(ValueError):
+            HumanReviewClaim(
+                claim_id="CLAIM-001",
+                workflow_id="WF-001",
+                specialist=specialist,
+                claimed_at=self.claimed_at,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
