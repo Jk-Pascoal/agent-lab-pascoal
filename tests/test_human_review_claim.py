@@ -210,6 +210,25 @@ class HumanReviewClaimTests(unittest.TestCase):
                 claimed_at=claimed_at,
             )
 
+    def test_claim_allows_claimed_at_equal_to_opened_at(self) -> None:
+        specialist = VerifiedSpecialistIdentity(
+            specialist_id="spec-004",
+            identity_provider="corp-idp",
+            identity_subject="opening-boundary@corp.local",
+            verification_id="ver-opening-boundary",
+            verified_at=self.workflow.opened_at,
+        )
+
+        claim = claim_pending_human_review(
+            self.workflow,
+            claim_id="CLAIM-001",
+            specialist=specialist,
+            claimed_at=self.workflow.opened_at,
+        )
+
+        self.assertEqual(claim.claimed_at, self.workflow.opened_at)
+        self.assertEqual(claim.workflow_id, self.workflow.workflow_id)
+
 
 if __name__ == "__main__":
     unittest.main()
