@@ -14,6 +14,13 @@ class HumanReviewClaim:
     specialist: VerifiedSpecialistIdentity
     claimed_at: datetime
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.claim_id, str):
+            raise TypeError("claim_id must be a string")
+
+        if not self.claim_id.strip():
+            raise ValueError("claim_id must not be empty")
+
 
 def claim_pending_human_review(
     workflow: GovernanceWorkflow,
