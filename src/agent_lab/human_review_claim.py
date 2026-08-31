@@ -49,6 +49,9 @@ def claim_pending_human_review(
     specialist: VerifiedSpecialistIdentity,
     claimed_at: datetime,
 ) -> HumanReviewClaim:
+    if not isinstance(workflow, GovernanceWorkflow):
+        raise TypeError("workflow must be a GovernanceWorkflow")
+
     if workflow.status is not WorkflowStatus.PENDING_HUMAN_REVIEW:
         raise ValueError("workflow must be pending human review")
 
