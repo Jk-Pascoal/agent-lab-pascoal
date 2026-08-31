@@ -191,6 +191,25 @@ class HumanReviewClaimTests(unittest.TestCase):
         self.assertEqual(claim.specialist, specialist)
         self.assertEqual(claim.claimed_at, self.claimed_at)
 
+    def test_claim_rejects_claimed_at_before_opened_at(self) -> None:
+        claimed_at = datetime(
+            2026,
+            8,
+            31,
+            8,
+            45,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        with self.assertRaises(ValueError):
+            claim_pending_human_review(
+                self.workflow,
+                claim_id="CLAIM-001",
+                specialist=self.specialist,
+                claimed_at=claimed_at,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
