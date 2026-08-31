@@ -5,12 +5,20 @@ from datetime import datetime, timezone
 
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
-from agent_lab.human_review import VerifiedSpecialistIdentity
+from agent_lab.human_review import (
+    HumanDecision,
+    HumanReview,
+    VerifiedSpecialistIdentity,
+)
 from agent_lab.human_review_claim import (
     HumanReviewClaim,
     claim_pending_human_review,
 )
-from agent_lab.workflow import GovernanceWorkflow, WorkflowStatus
+from agent_lab.workflow import (
+    GovernanceWorkflow,
+    WorkflowStatus,
+    conclude_governance_workflow,
+)
 
 
 class HumanReviewClaimTests(unittest.TestCase):
@@ -228,6 +236,43 @@ class HumanReviewClaimTests(unittest.TestCase):
 
         self.assertEqual(claim.claimed_at, self.workflow.opened_at)
         self.assertEqual(claim.workflow_id, self.workflow.workflow_id)
+
+    def test_claim_rejects_reviewed_workflow(self) -> None:
+        reviewed_at = datetime(
+            2026,
+            8,
+            31,
+            9,
+            30,
+            0,
+            tzinfo=timezone.utc,
+        )
+        review = HumanReview(
+            review_id="REV-001",
+            material_id=self.recommendation.material_id,
+            system_recommendation=self.recommendation.decision,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=self.specialist,
+            reviewed_at=reviewed_at,
+        )
+        reviewed_workflow = conclude_governance_workflow(self.workflow, review)
+        claimed_at = datetime(
+            2026,
+            8,
+            31,
+            9,
+            45,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        with self.assertRaises(ValueError):
+            claim_pending_human_review(
+                reviewed_workflow,
+                claim_id="CLAIM-001",
+                specialist=self.specialist,
+                claimed_at=claimed_at,
+            )
 
 
 if __name__ == "__main__":
