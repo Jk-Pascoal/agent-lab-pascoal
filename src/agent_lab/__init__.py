@@ -8,6 +8,10 @@ from .domain import (
     IssueType,
     MaterialRecord,
 )
+from .human_review_claim import (
+    HumanReviewClaim,
+    claim_pending_human_review,
+)
 from .validator import DeterministicGovernanceValidator
 
 __all__ = [
@@ -18,4 +22,6 @@ __all__ = [
     "IssueType",
     "MaterialRecord",
     "DeterministicGovernanceValidator",
+    "HumanReviewClaim",
+    "claim_pending_human_review",
 ]
