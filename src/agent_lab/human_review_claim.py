@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from agent_lab.human_review import VerifiedSpecialistIdentity
-from agent_lab.workflow import GovernanceWorkflow
+from agent_lab.workflow import GovernanceWorkflow, WorkflowStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +49,9 @@ def claim_pending_human_review(
     specialist: VerifiedSpecialistIdentity,
     claimed_at: datetime,
 ) -> HumanReviewClaim:
+    if workflow.status is not WorkflowStatus.PENDING_HUMAN_REVIEW:
+        raise ValueError("workflow must be pending human review")
+
     if claimed_at < workflow.opened_at:
         raise ValueError(
             "claimed_at must not be before workflow opened_at"
