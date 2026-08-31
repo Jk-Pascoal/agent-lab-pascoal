@@ -33,6 +33,9 @@ class HumanReviewClaim:
         if not isinstance(self.claimed_at, datetime):
             raise TypeError("claimed_at must be a datetime")
 
+        if self.claimed_at.tzinfo is None or self.claimed_at.utcoffset() is None:
+            raise ValueError("claimed_at must be timezone-aware")
+
 
 def claim_pending_human_review(
     workflow: GovernanceWorkflow,
