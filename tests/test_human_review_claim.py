@@ -283,6 +283,15 @@ class HumanReviewClaimTests(unittest.TestCase):
                 claimed_at=self.claimed_at,
             )
 
+    def test_human_review_claim_symbols_are_publicly_exported(self) -> None:
+        import agent_lab
+
+        self.assertIs(agent_lab.HumanReviewClaim, HumanReviewClaim)
+        self.assertIs(
+            agent_lab.claim_pending_human_review,
+            claim_pending_human_review,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
