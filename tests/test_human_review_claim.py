@@ -170,6 +170,27 @@ class HumanReviewClaimTests(unittest.TestCase):
                 claimed_at=self.claimed_at,
             )
 
+    def test_human_review_claim_allows_specialist_verified_at_claimed_at(
+        self,
+    ) -> None:
+        specialist = VerifiedSpecialistIdentity(
+            specialist_id="spec-003",
+            identity_provider="corp-idp",
+            identity_subject="boundary@corp.local",
+            verification_id="ver-boundary",
+            verified_at=self.claimed_at,
+        )
+
+        claim = HumanReviewClaim(
+            claim_id="CLAIM-001",
+            workflow_id="WF-001",
+            specialist=specialist,
+            claimed_at=self.claimed_at,
+        )
+
+        self.assertEqual(claim.specialist, specialist)
+        self.assertEqual(claim.claimed_at, self.claimed_at)
+
 
 if __name__ == "__main__":
     unittest.main()
