@@ -49,6 +49,11 @@ def claim_pending_human_review(
     specialist: VerifiedSpecialistIdentity,
     claimed_at: datetime,
 ) -> HumanReviewClaim:
+    if claimed_at < workflow.opened_at:
+        raise ValueError(
+            "claimed_at must not be before workflow opened_at"
+        )
+
     return HumanReviewClaim(
         claim_id=claim_id,
         workflow_id=workflow.workflow_id,
