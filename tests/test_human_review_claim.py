@@ -274,6 +274,15 @@ class HumanReviewClaimTests(unittest.TestCase):
                 claimed_at=claimed_at,
             )
 
+    def test_claim_rejects_invalid_workflow_type(self) -> None:
+        with self.assertRaises(TypeError):
+            claim_pending_human_review(
+                "invalid-workflow",  # type: ignore[arg-type]
+                claim_id="CLAIM-001",
+                specialist=self.specialist,
+                claimed_at=self.claimed_at,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
