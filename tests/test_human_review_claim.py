@@ -116,6 +116,15 @@ class HumanReviewClaimTests(unittest.TestCase):
                 claimed_at=self.claimed_at,
             )
 
+    def test_human_review_claim_rejects_invalid_claimed_at_type(self) -> None:
+        with self.assertRaises(TypeError):
+            HumanReviewClaim(
+                claim_id="CLAIM-001",
+                workflow_id="WF-001",
+                specialist=self.specialist,
+                claimed_at="invalid-datetime",  # type: ignore[arg-type]
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
