@@ -4,17 +4,28 @@ Laboratório progressivo de engenharia de agentes de IA aplicado à governança 
 
 ## Objetivo
 
-Construir, compreender e avaliar agentes capazes de apoiar a governança de materiais sem substituir a decisão do especialista.
+Construir, compreender e avaliar agentes capazes de apoiar a governança de cadastros industriais sem substituir a decisão do especialista.
 
-O laboratório evolui de soluções simples e auditáveis para componentes probabilísticos somente quando existe uma hipótese mensurável de ganho. A arquitetura atual combina baseline determinístico, contratos estruturados para LLM, fronteiras explícitas de validação, guardrails e revisão humana.
+O laboratório evolui de soluções simples e auditáveis para componentes probabilísticos somente quando existe uma hipótese mensurável de ganho. A arquitetura combina baseline determinístico, contratos estruturados para LLM, fronteiras explícitas de validação, guardrails semânticos, ciclo temporal de governança, proveniência de revisões, projeções determinísticas e revisão humana obrigatória.
 
-## Princípio de engenharia
+## Princípios de engenharia
 
-> A IA só entra onde demonstrar ganho mensurável sobre uma solução mais simples.
+> **A IA só entra onde demonstrar ganho mensurável sobre uma solução mais simples.**
 
-Antes de acrescentar uma LLM, construímos um baseline determinístico. Ele permanece como referência para comparar qualidade, custo, latência e risco das próximas abordagens.
+1. **A IA recomenda; o humano decide:** o sistema produz evidências e recomendações rastreáveis, mas a decisão final e a autorização de mudanças permanecem estritamente humanas.
+2. **Separação de responsabilidades:**
+   - **Application coordena:** orquestra o fluxo de execução entre os componentes através de boundaries explícitos de coordenação.
+   - **Domain decide:** encapsula regras de negócio, validações e invariantes.
+   - **Repository preserva fatos persistidos:** armazena registros e eventos em logs duráveis, estruturados e append-only.
+   - **Projection interpreta:** reconstrói o estado atual e topologias a partir do histórico persistido.
+3. **Repository != Projection:** Repository preserva fatos persistidos; Projection interpreta. Repositórios append-only não reescrevem fatos históricos; projeções derivam estado ou topologia sem mutar a fonte persistida.
+4. **WorkflowLifecycleEvent != AuditEvent:** o lifecycle preserva os fatos e o estado operacional do processo (`PENDING_HUMAN_REVIEW`, `REVIEWED`); a trilha de auditoria preserva evidência imutável e rastreabilidade técnica da deliberação humana.
+5. **CorrectionRequest != MaterialRevision:** a solicitação de correção do especialista (`CorrectionRequest`) expressa a intenção humana de ajuste no contexto da revisão; a revisão de material (`MaterialRevision`) é um registro de proveniência cadastral em contrato e repositório separados. O campo `source_review_id` em `MaterialRevision` é proveniência declarada, não prova de causalidade nem aplicação automática da correção.
+6. **Dual-write deliberadamente não-atômico no registro da decisão:** a persistência no fluxo `RecordHumanDecisionUseCase` → `AuditRepository` → `WorkflowLifecycleRepository` é sequencial e sem transações distribuídas (sem 2PC, rollback, retry automático ou compensação). A consistência entre essas duas fontes é verificada de forma determinística e somente-leitura.
 
 ## Arquitetura atual
+
+A arquitetura do laboratório opera em camadas desacopladas e trilhas persistentes complementares:
 
 ```text
 MaterialRecord
@@ -23,136 +34,120 @@ MaterialRecord
      │                  │
      │                  └──► Evidence Engine
      │
-     └──────────────► Fronteira LLM
+     └──────────────► Fronteira LLM (independente de provider)
                         │
-                        ├──► prompt determinístico
+                        ├──► Prompt determinístico
                         ├──► LLMProvider
-                        ├──► JSON bruto
-                        ├──► validação Pydantic
-                        ├──► JSON Schema
-                        ├──► guardrail de identidade
+                        ├──► JSON bruto → Validação Pydantic
+                        ├──► Guardrail de identidade
                         └──► GovernanceAgentOutput
                                   │
                                   └──► Evidence Engine
                                             │
                                             └──► DecisionRecommendation
                                                       │
-                                                      └──► WorkflowOpened
-                                                                │
-                                                                └──► Workflow lifecycle serialization v1
-                                                                          │
-                                                                          └──► JsonlWorkflowLifecycleRepository (append-only)
-                                                                                    │
-                                                                                    └──► rehydrate_pending_workflow
-                                                                                              │
-                                                                                              └──► GovernanceWorkflow (PENDING_HUMAN_REVIEW)
-                                                                                                        │
-                                                                                                        └──► HumanReview (+ VerifiedSpecialistIdentity)
-                                                                                                                  │
-                                                                                                                  ├──► conclude_governance_workflow
-                                                                                                                  │         │
-                                                                                                                  │         └──► GovernanceWorkflow (REVIEWED)
-                                                                                                                  │
-                                                                                                                  └──► record_human_review
-                                                                                                                            │
-                                                                                                                            └──► AuditEvent
-                                                                                                                                      │
-                                                                                                                                      └──► Audit serialization v1
-                                                                                                                                                │
-                                                                                                                                                └──► JsonlAuditRepository (append-only)
+                                                      ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ TRILHA DE LIFECYCLE (Append-only)                                                      │
+│                                                                                        │
+│  WorkflowOpened  ──►  JsonlWorkflowLifecycleRepository  ◄──  WorkflowConcluded        │
+│          │                                                           │                 │
+│          └───────────────────────────┬───────────────────────────────┘                 │
+│                                      ▼                                                 │
+│                        rehydrate_workflow (Projeção)                                  │
+│                                      │                                                 │
+│                      ┌───────────────┴───────────────┐                                 │
+│                      ▼                               ▼                                 │
+│            PENDING_HUMAN_REVIEW                  REVIEWED                              │
+│                      │                               │                                 │
+│                      │                 open_correction_follow_up                       │
+│                      │                 (predecessor_workflow_id,                       │
+│                      │                  triggering_review_id)                          │
+│                      ▼                                                                 │
+│             Revisão pelo Especialista (+ VerifiedSpecialistIdentity)                   │
+└──────────────────────┬─────────────────────────────────────────────────────────────────┘
+                       │
+                       │ Coordenação via Application
+                       │ (RecordHumanDecisionUseCase: gravação sequencial não-atômica)
+                       ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ TRILHA DE AUDITORIA (Append-only, desacoplada)                                         │
+│                                                                                        │
+│  HumanReview ──► AuditEvent ──► JsonlAuditRepository                                   │
+│                                                                                        │
+│  Consistência cruzada (Read-only):                                                     │
+│  verify_dual_write_consistency / verify_repositories_consistency                       │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ TRILHA DE MATERIAL REVISION (Contrato e repositório independentes)                     │
+│                                                                                        │
+│  MaterialRevision (com source_review_id declarado e predecessor_revision_id)           │
+│       │                                                                                │
+│       ▼                                                                                │
+│  JsonlMaterialRevisionRepository (Append-only)                                         │
+│       │                                                                                │
+│       ▼                                                                                │
+│  project_material_revision_lineage (Topologia pura: roots, heads, forks, ciclos)       │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-A fronteira LLM está implementada de forma independente de fornecedor. O projeto ainda não realiza chamadas reais para OpenAI, Anthropic, Gemini ou outro provider externo.
+### Camada de Aplicação (Application Layer)
 
-## Módulos concluídos
+Os casos de uso de Application oferecem boundaries explícitos de coordenação:
+
+- **`RecordHumanDecisionUseCase`:** coordena o fluxo de conclusão de uma revisão humana. Executa primeiro a preparação determinística em memória (zero-I/O) e, em seguida, realiza a persistência sequencial explícita: grava primeiro o `AuditEvent` no repositório de auditoria e, em seguida, o `WorkflowConcluded` no repositório de lifecycle. O dual-write desse fluxo é deliberadamente não-atômico (sem 2PC, rollback ou compensação), permitindo verificar eventuais divergências via `verify_dual_write_consistency`. *(Nota: este caso de uso não cria nem grava `MaterialRevision`, que pertence a um contrato e repositório independentes).*
+- **`ListPendingHumanReviewsUseCase`:** expõe a consulta da fila ativa de workflows pendentes de revisão humana através da projeção determinística `project_pending_human_review_queue`.
+
+A fronteira de LLM está desenhada de forma desacoplada de provedores externos via abstração `LLMProvider`, permitindo testes unitários e de integração determinísticos sem custos de rede ou dependências externas.
+
+## Módulos fundacionais (Base da Release v0.1.0)
+
+A release formal **v0.1.0** (*Governed Agent Workflow Baseline*) consolidou os módulos fundacionais do projeto, protegida por um baseline de 206 testes automatizados:
 
 ### Módulo 0 — Fundação
-
-O Módulo 0 definiu:
-
-1. o problema de governança;
-2. as fronteiras de decisão;
-3. os contratos de entrada e saída;
-4. as métricas iniciais;
-5. um conjunto de dados sintético;
-6. os primeiros modelos de domínio.
+- Definição do problema de governança, fronteiras de decisão, contratos de dados sintéticos e modelos de domínio iniciais.
 
 ### Módulo 1 — Baseline determinístico
-
-O Módulo 1 implementou:
-
-- leitura tipada dos materiais;
-- normalização de textos e abreviações;
-- validação de campos obrigatórios;
-- análise de unidades, status e atributos técnicos;
-- identificação lexical de possíveis duplicidades;
-- recomendações `APPROVE`, `REVIEW` e `REJECT`;
-- conjunto de desafio separado;
-- avaliação de precisão, recall e correspondência exata;
-- métrica ponderada de custo dos erros.
-
-O baseline não utiliza LLM. Ele representa a solução auditável que as abordagens probabilísticas deverão superar de forma mensurável.
+- Leitura tipada, normalização textual, validação de regras e identificação léxica de duplicidades.
+- Conjunto de desafio separado e métrica ponderada de custo dos erros sem uso de LLM.
 
 ### Módulo 2 — Saída estruturada e fronteira LLM
-
-O Módulo 2 já possui uma primeira fronteira segura e testável para futuras integrações com LLMs.
-
-Capacidades implementadas:
-
-- modelo `GovernanceAgentOutput` com Pydantic;
-- campos obrigatórios e tipados;
-- `GovernanceDecision` e `IssueType` reutilizados do domínio;
-- `confidence` restrita ao intervalo entre 0 e 1;
-- rejeição de propriedades extras com `extra="forbid"`;
-- objetos imutáveis com `frozen=True`;
-- parsing e validação de JSON bruto;
-- exportação do contrato como JSON Schema;
-- contrato `LLMProvider` independente de fornecedor;
-- `GovernanceLLMService`/fronteira de execução para análise de materiais;
-- construção determinística do prompt;
-- Fake Provider para testes sem rede;
-- rejeição de JSON malformado ou estruturalmente inválido;
-- guardrail semântico de identidade do material;
-- erro explícito quando o `material_id` retornado diverge do registro analisado;
-- preservação dos identificadores `expected` e `received` para auditoria;
-- ausência deliberada de correção silenciosa e retry automático nesse guardrail.
-
-O contrato estruturado garante conformidade sintática e estrutural. Ele não comprova veracidade semântica, ausência de alucinação ou qualidade da recomendação.
+- Contrato `GovernanceAgentOutput` com Pydantic e JSON Schema exportável.
+- Abstração `LLMProvider`, fake provider determinístico e guardrail semântico de identidade do material com erro explícito diante de divergências.
 
 ### Módulo 3 — Evidence Engine e recomendação de decisão
-
-- estruturação de evidências determinísticas e geradas por LLM;
-- agregação em `EvidenceCollection` imutável;
-- geração de `DecisionRecommendation` com confiança e rastreabilidade.
+- Estruturação e agregação imutável de evidências (`EvidenceCollection`) e derivação de `DecisionRecommendation` com score de confiança e rastreabilidade.
 
 ### Módulo 4 — Human-in-the-Loop e trilha de auditoria
-
-- separação estrita entre recomendação automática e decisão humana;
-- contratos imutáveis `HumanDecision`, `CorrectionRequest`, `HumanReview` e `AuditEvent`;
-- registro de concordância, divergência, justificativa e correções estruturadas;
-- serviço `record_human_review`.
+- Contratos `HumanDecision`, `CorrectionRequest`, `HumanReview` e `AuditEvent`.
+- Separação estrita entre recomendação automática e decisão humana.
 
 ### Módulo 5 — Persistência auditável v1
-
-- protocolo `AuditRepository` e implementação `JsonlAuditRepository`;
-- serialização versionada com `schema_version = 1` e timestamps com timezone;
-- persistência local append-only pela API da aplicação;
-- durabilidade com escrita síncrona, `flush` e `os.fsync`;
-- leitura *fail-closed* diante de qualquer corrupção ou incompatibilidade com identificação de `line_number`;
-- detecção explícita de duplicidade (`DuplicateAuditEventError`).
+- `JsonlAuditRepository` append-only durável (`flush` + `os.fsync`), versionamento de schema e leitura *fail-closed*.
 
 ### Módulo 6 — Identidade verificável e workflow temporal
-
-- contrato imutável `VerifiedSpecialistIdentity` com rastreamento de provedor, sujeito, identificador de verificação e timestamp;
-- ciclo de vida temporal de governança em memória `GovernanceWorkflow` com estados `PENDING_HUMAN_REVIEW` e `REVIEWED`;
-- transição pura canônica `conclude_governance_workflow` com validação cronológica (`opened_at <= reviewed_at`) e derivação de `review_lead_time`.
+- Contrato `VerifiedSpecialistIdentity` e máquina de estados em memória `GovernanceWorkflow` (`PENDING_HUMAN_REVIEW` e `REVIEWED`) com derivação de lead time.
 
 ### Módulo 7 — Persistência de abertura de workflow e reidratação v1
+- Evento `WorkflowOpened`, repositório append-only `JsonlWorkflowLifecycleRepository` e projeção pura `rehydrate_pending_workflow`.
 
-- evento de domínio imutável `WorkflowOpened` (`event_id`, `workflow_id`, `recommendation`, `opened_at`);
-- serialização versionada (`schema_version = 1`) preservando integralmente `DecisionRecommendation` e coleção de `GovernanceEvidence`;
-- protocolo `WorkflowLifecycleRepository` e repositório append-only `JsonlWorkflowLifecycleRepository` com escrita durável (`flush` + `os.fsync`) e leitura *fail-closed*;
-- projeção pura `rehydrate_pending_workflow` para restabelecer o `GovernanceWorkflow` em `PENDING_HUMAN_REVIEW` após reinício de processo sem reexecução de regras ou LLM.
+---
+
+## Incrementos pós-v0.1.0 integrados na main
+
+Após o fechamento da release v0.1.0, o projeto evoluiu continuamente através de incrementos funcionais protegidos por SPECs e testes automatizados:
+
+- **Workflow Conclusion Persistence (Issue #52):** persistência append-only do evento `WorkflowConcluded` no repositório de lifecycle e projeção pura `rehydrate_workflow` para os estados `PENDING_HUMAN_REVIEW` e `REVIEWED`.
+- **Dual-Write Consistency Check (Issue #55):** verificação determinística e somente-leitura de consistência cruzada entre as trilhas desacopladas de lifecycle e auditoria (`verify_dual_write_consistency` e `verify_repositories_consistency`).
+- **Correction Follow-up Workflow Contract (Issue #58):** contrato de domínio para abertura de novo ciclo de governança sucessor (`open_correction_follow_up`) a partir de revisões com solicitação de correção, preservando o predecessor imutável.
+- **Correction Follow-up Lineage Persistence (Issue #61):** persistência de eventos `WorkflowOpened` com rastreamento explícito de linhagem causal (`predecessor_workflow_id` e `triggering_review_id`) e versionamento de schema v2 retrocompatível.
+- **Material Revision Provenance (Issue #64):** modelo de domínio imutável `MaterialRevision` para capturar proveniência, rastreabilidade e histórico de modificações cadastrais (`predecessor_revision_id`, `source_review_id`, etc.).
+- **Material Revision Persistence (Issue #68):** repositório append-only durável `JsonlMaterialRevisionRepository` com serialização versionada para gravação segura de revisões de materiais.
+- **Material Revision Lineage Projection (Issue #71):** projeção pura `project_material_revision_lineage` para reconstruir a topologia causal de revisões (roots, heads, órfãos, forks, múltiplas raízes e ciclos), sem eleger latest head ou ordenar semanticamente por timestamp.
+- **Human Review Application Use Case (Issue #74):** caso de uso `RecordHumanDecisionUseCase` com boundary explícito de coordenação, preparação zero-I/O e persistência sequencial (Audit → Lifecycle).
+- **Pending Human Review Queue Projection (Issue #77):** projeção pura `project_pending_human_review_queue` para identificar workflows abertos que aguardam revisão humana.
+- **Pending Human Review Queue Application Use Case (Issue #81):** caso de uso de aplicação `ListPendingHumanReviewsUseCase` para consulta estruturada da fila ativa de pendências do especialista.
 
 ## Resultados do baseline
 
@@ -185,27 +180,24 @@ O peso 5:1 é uma hipótese experimental e deverá ser calibrado futuramente com
 
 ## Engenharia e governança do repositório
 
-O desenvolvimento segue um fluxo rastreável:
+O desenvolvimento segue um fluxo rigoroso e rastreável:
 
 ```text
 Issue → análise → SPEC → TDD → implementação → Pull Request
       → CI → revisão → merge → release
 ```
 
-O projeto atualmente possui:
+O projeto conta com:
 
 - templates de Issue e Pull Request;
-- SPECs versionadas;
+- SPECs versionadas e detalhadas em `docs/specs/`;
 - desenvolvimento orientado por testes (TDD);
-- GitHub Actions em Python 3.11;
-- suíte automatizada com **206 testes** cobrindo estruturalmente as principais camadas, contratos, invariantes e integrações da versão;
-- proteção da branch `main`;
-- status check de CI obrigatório antes do merge;
-- política de Versionamento Semântico;
-- `CHANGELOG.md` e guia de contribuição;
-- revisão humana preservada como fronteira de decisão.
-
-Um PR experimental com falha deliberada também foi utilizado para comprovar que uma CI reprovada bloqueia a integração na `main`.
+- GitHub Actions com Python 3.11;
+- **444 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência e casos de uso de aplicação;
+- baseline fundacional da release **v0.1.0** preservado (206 testes);
+- proteção de branch com status check de CI obrigatório antes de qualquer merge;
+- política estrita de Versionamento Semântico e registro de mudanças em `CHANGELOG.md`;
+- revisão humana obrigatória preservada em todas as camadas de governança.
 
 ## Estrutura principal do projeto
 
@@ -229,22 +221,30 @@ agent-lab-pascoal/
 │   └── PROJECT_COMPASS.md
 ├── src/
 │   └── agent_lab/
+│       ├── __init__.py
 │       ├── audit.py
 │       ├── audit_repository.py
 │       ├── audit_serialization.py
 │       ├── baseline.py
 │       ├── cli.py
+│       ├── consistency.py
 │       ├── data_io.py
 │       ├── decision.py
 │       ├── domain.py
 │       ├── duplicates.py
 │       ├── evidence.py
 │       ├── human_review.py
+│       ├── human_review_use_case.py
 │       ├── llm_provider.py
 │       ├── llm_schema.py
 │       ├── llm_service.py
+│       ├── material_revision.py
+│       ├── material_revision_projection.py
+│       ├── material_revision_repository.py
+│       ├── material_revision_serialization.py
 │       ├── metrics.py
 │       ├── normalization.py
+│       ├── pending_human_reviews_use_case.py
 │       ├── rules.py
 │       ├── validator.py
 │       ├── workflow.py
@@ -281,36 +281,39 @@ python -m agent_lab.cli data/synthetic/materials_challenge.csv
 
 Para manter a documentação tecnicamente honesta, o laboratório ainda **não** possui:
 
-- integração com provider real de LLM;
-- benchmark de qualidade entre modelos reais;
+- integração com provider real de LLM (OpenAI, Anthropic, Gemini);
+- benchmark de qualidade comparativo entre modelos reais;
 - detecção semântica de duplicidades por embeddings ou similaridade vetorial;
-- RAG sobre normas, catálogos ou procedimentos;
-- autenticação e autorização real (SSO, OAuth2, RBAC corporativo);
-- persistência e reidratação do evento de conclusão (`WorkflowConcluded`) e estado `REVIEWED` a partir do log de lifecycle;
-- reabertura de workflow ou múltiplos ciclos de correção para o mesmo `workflow_id`;
-- banco de dados relacional remoto ou cliente/servidor;
-- concorrência multiprocesso ou múltiplos escritores;
-- workflow completo com filas, SLAs e escalonamento;
-- integração ou injeção em ERP;
-- tool calling e orquestração multiagente;
-- observabilidade de produção;
-- aprendizado automático a partir de feedback humano.
-
-Essas capacidades pertencem à esteira evolutiva e devem ser introduzidas em incrementos pequenos, testáveis e mensuráveis.
+- RAG (Retrieval-Augmented Generation) sobre normas, catálogos técnicos ou procedimentos;
+- autenticação e autorização corporativa real (SSO, OAuth2, RBAC);
+- banco de dados relacional remoto ou arquitetura cliente/servidor;
+- controle de concorrência multiprocesso, múltiplos escritores simultâneos ou locking distribuído;
+- gestão operacional de claim, atribuição (assignment) e ownership de itens na fila de revisão;
+- gestão de SLAs, prazos e priorização operacional de atendimento;
+- interface operacional (UI/Web/CLI) para o especialista de governança;
+- validação de carga e escala industrial (pressão arquitetural P-07: throughput, memória sob grandes volumes);
+- linhagem de sucessão e substituição de materiais (pressão arquitetural P-08: `MaterialRevision != MaterialReplacement`);
+- integração ou injeção direta em sistemas ERP/MDM legados;
+- observabilidade de produção (telemetria, tracing distribuído, métricas Prometheus/OpenTelemetry);
+- aprendizado automático ou fine-tuning a partir do feedback do especialista;
+- aplicação automática de correções (`CorrectionRequest`): a aplicação automática em cadastros reais permanece deliberadamente fora do escopo, preservando a soberania humana.
 
 ## Próximas frentes
 
-Frentes evolutivas candidatas incluem, sem ordem de prioridade:
+Próxima fase planejada: evoluir o Human-in-the-Loop para operação de PoC — claim/assignment, estados de atendimento, SLA e preparação da interface do especialista — mediante novas Issues pequenas e explicitamente aprovadas.
 
-1. persistência de fechamento de ciclo (`WorkflowConcluded`);
+Frentes evolutivas e pressões arquiteturais no backlog incluem:
+
+1. evolução do atendimento operacional de revisão (claim, estados de atendimento, SLA e interface do especialista);
 2. integração de um provider real sem quebrar a abstração `LLMProvider`;
-3. medição da LLM contra o baseline determinístico;
-4. introdução de detecção semântica de duplicidades;
+3. medição da LLM contra o baseline determinístico e benchmark com ground truth;
+4. introdução de detecção semântica de duplicidades por similaridade vetorial;
 5. expansão de evidências e justificativas auditáveis;
 6. teste de arquitetura híbrida de regras + similaridade + RAG + LLM;
-7. construção de benchmark com ground truth;
-8. acompanhamento de precision, recall, falsos negativos, revisões desnecessárias, custo, latência e risco;
-9. evolução para uma PoC de diagnóstico de qualidade cadastral antes de qualquer promessa de produto industrial.
+7. acompanhamento de precision, recall, falsos negativos, revisões desnecessárias, custo, latência e risco;
+8. validação de carga e escala industrial (pressão arquitetural P-07);
+9. linhagem de substituição e sucessão de materiais no catálogo (pressão arquitetural P-08);
+10. evolução para uma PoC de diagnóstico de qualidade cadastral antes de qualquer promessa de produto industrial.
 
 ## Segurança dos dados
 
@@ -332,22 +335,10 @@ A decisão final permanece humana.
 
 ## Estado do laboratório
 
-✅ **Módulo 0 concluído:** fundação do domínio e contratos iniciais.
+✅ **Módulos 0 a 7 concluídos (Release v0.1.0):** fundação do domínio, baseline determinístico, saída estruturada, Evidence Engine, Human-in-the-Loop v1, persistência auditável durável, identidade verificável e persistência de abertura de workflow.
 
-✅ **Módulo 1 concluído:** baseline determinístico, conjunto de desafio e custo ponderado de erros.
+✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #81):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), caso de uso `RecordHumanDecisionUseCase`, projeção de fila pendente e caso de uso `ListPendingHumanReviewsUseCase`.
 
-✅ **Módulo 2 concluído:** saída estruturada, JSON Schema, fronteira LLM independente de fornecedor e guardrail de identidade.
+🧪 **444 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0).
 
-✅ **Módulo 3 concluído:** Evidence Engine e recomendação de decisão com confiança.
-
-✅ **Módulo 4 concluído:** Human-in-the-Loop v1 e eventos de auditoria imutáveis.
-
-✅ **Módulo 5 concluído:** persistência auditável durável com repositório JSONL append-only pela API.
-
-✅ **Módulo 6 concluído:** identidade verificável de especialista e workflow temporal de governança em memória.
-
-✅ **Módulo 7 concluído:** persistência append-only de abertura de workflow (`WorkflowOpened`) e reidratação de workflows pendentes.
-
-🧪 **206 testes automatizados** protegem o comportamento atual com `unittest`.
-
-➡️ **Próxima etapa:** definir próxima âncora arquitetural na esteira evolutiva.
+➡️ **Próxima etapa:** evoluir o Human-in-the-Loop para operação de PoC — claim/assignment, estados de atendimento, SLA e preparação da interface do especialista — mediante novas Issues pequenas e explicitamente aprovadas.
