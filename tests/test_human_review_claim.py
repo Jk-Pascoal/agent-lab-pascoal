@@ -125,6 +125,24 @@ class HumanReviewClaimTests(unittest.TestCase):
                 claimed_at="invalid-datetime",  # type: ignore[arg-type]
             )
 
+    def test_human_review_claim_rejects_naive_claimed_at(self) -> None:
+        naive_claimed_at = datetime(
+            2026,
+            8,
+            31,
+            9,
+            15,
+            0,
+        )
+
+        with self.assertRaises(ValueError):
+            HumanReviewClaim(
+                claim_id="CLAIM-001",
+                workflow_id="WF-001",
+                specialist=self.specialist,
+                claimed_at=naive_claimed_at,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
