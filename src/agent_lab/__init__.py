@@ -12,6 +12,17 @@ from .human_review_claim import (
     HumanReviewClaim,
     claim_pending_human_review,
 )
+from .human_review_claim_repository import (
+    DuplicateHumanReviewClaimError,
+    HumanReviewClaimCorruptionError,
+    HumanReviewClaimPersistenceError,
+    HumanReviewClaimRepository,
+    JsonlHumanReviewClaimRepository,
+)
+from .human_review_claim_serialization import (
+    human_review_claim_from_record,
+    human_review_claim_to_record,
+)
 from .validator import DeterministicGovernanceValidator
 
 __all__ = [
@@ -24,4 +35,11 @@ __all__ = [
     "DeterministicGovernanceValidator",
     "HumanReviewClaim",
     "claim_pending_human_review",
+    "human_review_claim_to_record",
+    "human_review_claim_from_record",
+    "HumanReviewClaimPersistenceError",
+    "DuplicateHumanReviewClaimError",
+    "HumanReviewClaimCorruptionError",
+    "HumanReviewClaimRepository",
+    "JsonlHumanReviewClaimRepository",
 ]
