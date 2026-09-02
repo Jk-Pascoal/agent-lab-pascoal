@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import unittest
 from unittest.mock import patch
 
+import agent_lab
+
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
 from agent_lab.human_review import VerifiedSpecialistIdentity
@@ -245,3 +247,11 @@ class RecordHumanReviewClaimUseCaseSlice3Tests(unittest.TestCase):
         self.assertIsNone(self.workflow.review)
         self.assertEqual(self.workflow.workflow_id, "WF-001")
         self.assertEqual(self.workflow.opened_at, self.opened_at)
+
+
+class RecordHumanReviewClaimUseCaseSlice5Tests(unittest.TestCase):
+    def test_package_root_exports_record_human_review_claim_use_case(self) -> None:
+        self.assertIs(
+            agent_lab.RecordHumanReviewClaimUseCase,
+            RecordHumanReviewClaimUseCase,
+        )

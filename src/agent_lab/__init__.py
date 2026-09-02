@@ -23,6 +23,7 @@ from .human_review_claim_serialization import (
     human_review_claim_from_record,
     human_review_claim_to_record,
 )
+from .human_review_claim_use_case import RecordHumanReviewClaimUseCase
 from .validator import DeterministicGovernanceValidator
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "HumanReviewClaimCorruptionError",
     "HumanReviewClaimRepository",
     "JsonlHumanReviewClaimRepository",
+    "RecordHumanReviewClaimUseCase",
 ]
