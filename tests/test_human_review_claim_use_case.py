@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import unittest
+from unittest.mock import patch
 
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
@@ -92,3 +93,70 @@ class RecordHumanReviewClaimUseCaseSlice1Tests(unittest.TestCase):
         self.assertIsNone(self.workflow.review)
         self.assertEqual(self.workflow.workflow_id, "WF-001")
         self.assertEqual(self.workflow.opened_at, self.opened_at)
+
+
+class RecordHumanReviewClaimUseCaseSlice2Tests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.repository = FakeHumanReviewClaimRepository()
+        self.use_case = RecordHumanReviewClaimUseCase(
+            claim_repository=self.repository
+        )
+
+        self.verified_at = datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc)
+        self.opened_at = datetime(2026, 9, 2, 9, 30, 0, tzinfo=timezone.utc)
+        self.claimed_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=timezone.utc)
+
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=self.verified_at,
+        )
+
+        self.recommendation = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Necessária revisão cadastral",
+            requires_human_decision=True,
+        )
+
+        self.workflow = GovernanceWorkflow(
+            workflow_id="WF-001",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            review=None,
+        )
+
+    def test_execute_rejects_non_governance_workflow_before_domain_and_io(self) -> None:
+        with patch(
+            "agent_lab.human_review_claim_use_case.claim_pending_human_review"
+        ) as mock_claim:
+            with self.assertRaises(TypeError) as ctx:
+                self.use_case.execute(
+                    object(),  # type: ignore[arg-type]
+                    claim_id="CLM-001",
+                    specialist=self.specialist,
+                    claimed_at=self.claimed_at,
+                )
+
+            self.assertEqual(str(ctx.exception), "workflow must be a GovernanceWorkflow")
+            mock_claim.assert_not_called()
+            self.assertEqual(len(self.repository.appended_claims), 0)
+
+    def test_execute_propagates_domain_chronology_error_without_io(self) -> None:
+        invalid_claimed_at = self.opened_at.replace(minute=29)
+
+        with self.assertRaises(ValueError) as ctx:
+            self.use_case.execute(
+                self.workflow,
+                claim_id="CLM-001",
+                specialist=self.specialist,
+                claimed_at=invalid_claimed_at,
+            )
+
+        self.assertIn("claimed_at must not be before workflow opened_at", str(ctx.exception))
+        self.assertEqual(len(self.repository.appended_claims), 0)
+        self.assertEqual(self.workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW)
+        self.assertIsNone(self.workflow.review)

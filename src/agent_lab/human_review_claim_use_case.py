@@ -29,6 +29,9 @@ class RecordHumanReviewClaimUseCase:
         specialist: VerifiedSpecialistIdentity,
         claimed_at: datetime,
     ) -> HumanReviewClaim:
+        if not isinstance(workflow, GovernanceWorkflow):
+            raise TypeError("workflow must be a GovernanceWorkflow")
+
         claim = claim_pending_human_review(
             workflow,
             claim_id=claim_id,
