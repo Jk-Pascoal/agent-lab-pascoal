@@ -115,6 +115,7 @@ Os casos de uso de Application oferecem boundaries explícitos de coordenação:
 
 - **`RecordHumanDecisionUseCase`:** coordena o fluxo de conclusão de uma revisão humana. Executa primeiro a preparação determinística em memória (zero-I/O) e, em seguida, realiza a persistência sequencial explícita: grava primeiro o `AuditEvent` no repositório de auditoria e, em seguida, o `WorkflowConcluded` no repositório de lifecycle. O dual-write desse fluxo é deliberadamente não-atômico (sem 2PC, rollback ou compensação), permitindo verificar eventuais divergências via `verify_dual_write_consistency`. *(Nota: este caso de uso não cria nem grava `MaterialRevision`, que pertence a um contrato e repositório independentes).*
 - **`ListPendingHumanReviewsUseCase`:** expõe a consulta da fila ativa de workflows pendentes de revisão humana através da projeção determinística `project_pending_human_review_queue`.
+- **`RecordHumanReviewClaimUseCase`:** coordena a assunção voluntária de um workflow pendente por especialista verificado (`claim_pending_human_review`) e sua persistência append-only via `HumanReviewClaimRepository`, sem alterar o status do workflow e sem eleger claim ativo.
 
 A fronteira de LLM está desenhada de forma desacoplada de provedores externos via abstração `LLMProvider`, permitindo testes unitários e de integração determinísticos sem custos de rede ou dependências externas.
 
@@ -167,6 +168,7 @@ Após o fechamento da release v0.1.0, o projeto evoluiu continuamente através d
 - **Pending Human Review Queue Application Use Case (Issue #81):** caso de uso de aplicação `ListPendingHumanReviewsUseCase` para consulta estruturada da fila ativa de pendências do especialista.
 - **Human Review Claim Domain Contract (Issue #85):** contrato puro de domínio em memória (`HumanReviewClaim` e `claim_pending_human_review`) para assunção voluntária de workflows pendentes por especialistas verificados, com tipagem estrita, imutabilidade, validação fail-closed de elegibilidade (`PENDING_HUMAN_REVIEW`) e cronologia.
 - **Human Review Claim Persistence (Issue #88):** persistência append-only durável em JSONL (`JsonlHumanReviewClaimRepository`) com serialização canônica versionada (`schema_version = 1`), validação fail-closed estrita, suporte a múltiplos claims por `workflow_id` na ordem física de append, integridade pós-restart e exportação da API pública.
+- **Record Human Review Claim Application Use Case (Issue #91):** caso de uso de aplicação `RecordHumanReviewClaimUseCase` para coordenação explícita da criação determinística e persistência de `HumanReviewClaim` via `HumanReviewClaimRepository`, com integração vertical validada contra `JsonlHumanReviewClaimRepository` e exportação da API pública.
 
 ## Resultados do baseline
 
