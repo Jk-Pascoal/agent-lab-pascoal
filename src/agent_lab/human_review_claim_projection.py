@@ -21,11 +21,25 @@ class HumanReviewClaimState:
     def __post_init__(self) -> None:
         if not isinstance(self.workflow_id, str) or isinstance(self.workflow_id, bool):
             raise TypeError("workflow_id must be a string")
-        if not self.workflow_id.strip():
+        sanitized_wf = self.workflow_id.strip()
+        if not sanitized_wf:
             raise ValueError("workflow_id must not be empty or whitespace")
+        if self.workflow_id != sanitized_wf:
+            object.__setattr__(self, "workflow_id", sanitized_wf)
 
         if not isinstance(self.claims, tuple):
             raise TypeError("claims must be a tuple")
+
+        for idx, claim in enumerate(self.claims):
+            if not isinstance(claim, HumanReviewClaim) or isinstance(claim, bool):
+                raise TypeError(
+                    f"claim at index {idx} must be a HumanReviewClaim instance"
+                )
+            if claim.workflow_id != sanitized_wf:
+                raise ValueError(
+                    f"claim at index {idx} has workflow_id {claim.workflow_id!r}, "
+                    f"expected {sanitized_wf!r}"
+                )
 
     @property
     def claim_count(self) -> int:
@@ -62,9 +76,25 @@ def project_human_review_claim_state(
     workflow_id: str,
     claims: Sequence[HumanReviewClaim],
 ) -> HumanReviewClaimState:
-    filtered = [c for c in claims if c.workflow_id == workflow_id]
+    if not isinstance(workflow_id, str) or isinstance(workflow_id, bool):
+        raise TypeError("workflow_id must be a string")
+    sanitized_wf = workflow_id.strip()
+    if not sanitized_wf:
+        raise ValueError("workflow_id must not be empty or whitespace")
+
+    if not isinstance(claims, Sequence) or isinstance(claims, (str, bytes, bytearray)):
+        raise TypeError("claims must be a Sequence of HumanReviewClaim")
+
+    for idx, claim in enumerate(claims):
+        if not isinstance(claim, HumanReviewClaim) or isinstance(claim, bool):
+            raise TypeError(
+                f"claim at index {idx} must be a HumanReviewClaim instance, "
+                f"got {type(claim).__name__}"
+            )
+
+    filtered = [c for c in claims if c.workflow_id == sanitized_wf]
     sorted_claims = sorted(
         filtered,
         key=lambda claim: (claim.claimed_at, claim.claim_id),
     )
-    return HumanReviewClaimState(workflow_id=workflow_id, claims=tuple(sorted_claims))
+    return HumanReviewClaimState(workflow_id=sanitized_wf, claims=tuple(sorted_claims))
