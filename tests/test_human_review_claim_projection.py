@@ -79,5 +79,52 @@ class HumanReviewClaimProjectionSlice1Tests(unittest.TestCase):
             )
 
 
+class HumanReviewClaimProjectionSlice2Tests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        self.claim = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 2, 9, 15, 0, tzinfo=timezone.utc),
+        )
+
+    def test_project_claim_state_with_single_claim_returns_single_claim_state(
+        self,
+    ) -> None:
+        result = project_human_review_claim_state("WF-001", (self.claim,))
+
+        self.assertIsInstance(result, HumanReviewClaimState)
+        self.assertEqual(result.workflow_id, "WF-001")
+        self.assertEqual(result.claims, (self.claim,))
+        self.assertEqual(result.claim_count, 1)
+        self.assertIs(result.state, HumanReviewClaimFactState.SINGLE_CLAIM)
+        self.assertFalse(result.is_unclaimed)
+        self.assertTrue(result.has_claims)
+        self.assertFalse(result.has_multiple_claims)
+        self.assertIs(result.sole_claim, self.claim)
+
+    def test_read_model_derives_single_claim_state_from_cardinality(
+        self,
+    ) -> None:
+        state = HumanReviewClaimState(
+            workflow_id="WF-001",
+            claims=(self.claim,),
+        )
+
+        self.assertEqual(state.claim_count, 1)
+        self.assertIs(state.state, HumanReviewClaimFactState.SINGLE_CLAIM)
+        self.assertFalse(state.is_unclaimed)
+        self.assertTrue(state.has_claims)
+        self.assertFalse(state.has_multiple_claims)
+        self.assertIs(state.sole_claim, self.claim)
+
+
 if __name__ == "__main__":
     unittest.main()
