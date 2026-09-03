@@ -143,6 +143,24 @@ class HumanReviewClaimProjectionIntegrationTests(unittest.TestCase):
         self.assertIsNone(state.sole_claim)
         self.assertEqual(state.claims, ())
 
+    def test_vertical_projection_for_single_claim_workflow_post_restart(self) -> None:
+        repo_before_restart = JsonlHumanReviewClaimRepository(self.repo_path)
+        repo_before_restart.append(self.claim_wf1_a)
+
+        repo_after_restart = JsonlHumanReviewClaimRepository(self.repo_path)
+        rehydrated_claims = repo_after_restart.list_all()
+
+        state = project_human_review_claim_state("WF-001", rehydrated_claims)
+
+        self.assertEqual(state.workflow_id, "WF-001")
+        self.assertEqual(state.claim_count, 1)
+        self.assertIs(state.state, HumanReviewClaimFactState.SINGLE_CLAIM)
+        self.assertTrue(state.has_claims)
+        self.assertFalse(state.has_multiple_claims)
+        self.assertFalse(state.is_unclaimed)
+        self.assertEqual(state.sole_claim, self.claim_wf1_a)
+        self.assertEqual(state.claims, (self.claim_wf1_a,))
+
 
 if __name__ == "__main__":
     unittest.main()
