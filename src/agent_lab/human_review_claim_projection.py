@@ -9,6 +9,7 @@ from agent_lab.human_review_claim import HumanReviewClaim
 
 class HumanReviewClaimFactState(str, Enum):
     NO_CLAIM = "NO_CLAIM"
+    SINGLE_CLAIM = "SINGLE_CLAIM"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,8 @@ class HumanReviewClaimState:
 
     @property
     def state(self) -> HumanReviewClaimFactState:
+        if self.claim_count == 1:
+            return HumanReviewClaimFactState.SINGLE_CLAIM
         return HumanReviewClaimFactState.NO_CLAIM
 
     @property
@@ -47,6 +50,8 @@ class HumanReviewClaimState:
 
     @property
     def sole_claim(self) -> HumanReviewClaim | None:
+        if self.state is HumanReviewClaimFactState.SINGLE_CLAIM:
+            return self.claims[0]
         return None
 
 
