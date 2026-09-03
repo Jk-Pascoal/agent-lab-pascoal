@@ -159,13 +159,15 @@ class HumanReviewClaimState:
     def __post_init__(self) -> None:
         if not isinstance(self.workflow_id, str) or isinstance(self.workflow_id, bool):
             raise TypeError("workflow_id must be a string")
-        if not self.workflow_id.strip():
+        sanitized_wf = self.workflow_id.strip()
+        if not sanitized_wf:
             raise ValueError("workflow_id must not be empty or whitespace")
+        if self.workflow_id != sanitized_wf:
+            object.__setattr__(self, "workflow_id", sanitized_wf)
 
         if not isinstance(self.claims, tuple):
             raise TypeError("claims must be a tuple")
 
-        sanitized_wf = self.workflow_id.strip()
         for idx, claim in enumerate(self.claims):
             if not isinstance(claim, HumanReviewClaim) or isinstance(claim, bool):
                 raise TypeError(
@@ -240,7 +242,7 @@ Para garantir independência integral da ordem de entrada dos registros em `clai
    - Se `not isinstance(workflow_id, str)` ou `isinstance(workflow_id, bool)`: levantar `TypeError("workflow_id must be a string")`;
    - Se `not workflow_id.strip()`: levantar `ValueError("workflow_id must not be empty or whitespace")`.
 2. **`claims`:**
-   - Se `not isinstance(claims, collections.abc.Sequence)` ou `isinstance(claims, (str, bytes))`: levantar `TypeError("claims must be a Sequence")`;
+   - Se `not isinstance(claims, collections.abc.Sequence)` ou `isinstance(claims, (str, bytes, bytearray))`: levantar `TypeError("claims must be a Sequence of HumanReviewClaim")`;
    - Se qualquer item em `claims` não for `HumanReviewClaim` (ex: `None`, `dict`, `int`, etc.): levantar `TypeError(f"all items in claims must be HumanReviewClaim instances, got {type(item).__name__}")` **antes de qualquer filtragem por workflow_id**.
 3. **Sequência Vazia (`claims = ()`):**
    - Comportamento válido e esperado;
