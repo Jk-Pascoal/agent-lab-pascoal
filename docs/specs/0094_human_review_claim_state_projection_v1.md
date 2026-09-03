@@ -68,6 +68,9 @@ Projection interpreta.
    - A projeção **NÃO** deve inventar regras operacionais de "claim ativo", "vencedor", "titular atual", "Last-Claim-Wins" ou "desempate", cuja autoridade e especificação pertencem à decisão humana de governança e não ao software.
 5. **Zero I/O e Pureza Funcional:** A projeção opera exclusivamente sobre sequências fornecidas em memória; não lê arquivos, não escreve em disco e não instancia repositórios.
 6. **Isolamento de Trilhas:** A interpretação de claims não emite `AuditEvent`, não emite `WorkflowLifecycleEvent` e não altera instâncias de `GovernanceWorkflow`.
+7. **Eliminação de Estado Derivado Armazenado:**
+   - O read-model armazena exclusivamente os fatos brutos projetados (`workflow_id` e a tupla `claims`).
+   - Contagens, estados factuais e indicadores booleanos são propriedades computadas puras (`@property`), garantindo que seja impossível construir um read-model com estado internamente contraditório.
 
 ---
 
@@ -97,7 +100,7 @@ Sem um read-model padronizado:
 
 ## 4. Decisões de Design e Contrato
 
-### 4.1 Assinatura da Projeção
+### 4.1 Assinatura da Projeção e Ordem de Execução
 
 **Decisão:**
 ```python
@@ -112,12 +115,16 @@ def project_human_review_claim_state(
 1. **Identidade Explícita de Workflow (`workflow_id: str`):**
    - Uma assinatura que recebesse apenas `claims: Sequence[HumanReviewClaim]` seria **incapaz** de representar corretamente o estado de zero claims (`claims = ()`), pois uma sequência vazia não carrega a identidade do workflow consultado.
    - Fornecer explicitamente `workflow_id` permite à projeção responder com precisão o estado factual `NO_CLAIM` para um workflow específico conhecido, mesmo quando nenhum claim tiver sido registrado para ele.
-2. **Seleção Determinística diante de Coleções Globais:**
-   - A projeção aceita uma coleção `claims: Sequence[HumanReviewClaim]` que pode conter claims de múltiplos workflows (como o retorno de `repository.list_all()`) ou já pré-filtrada (como o retorno de `repository.list_by_workflow_id(workflow_id)`).
-   - A projeção filtra deterministicamente os elementos cujo `claim.workflow_id == workflow_id.strip()`.
-   - **Justificativa:** Isso desacopla a projeção da granularidade da consulta do repositório. O chamador pode repassar o log completo de claims ou apenas a partição relevante; o resultado projetado para o `workflow_id` será idêntico, puro e idempotente.
-3. **Validação Estrutural Fail-Closed (Sem Mascaramento):**
-   - Se `claims` contiver qualquer elemento que não seja uma instância de `HumanReviewClaim`, a função **NÃO** ignora o item silenciosamente durante a filtragem; ela levanta imediatamente `TypeError`. Não se esconde sujeira ou dados estruturalmente inválidos sob o pretexto de "não pertencer ao workflow".
+2. **Ordem Estrita de Execução Defensiva (Validar Antes de Filtrar):**
+   Para coleções globais ou parciais de entrada, a função executa obrigatoriamente a seguinte ordem determinística:
+   - **Etapa 1:** Validação estrutural de `workflow_id` (deve ser `str` e não-vazia após `.strip()`);
+   - **Etapa 2:** Validação estrutural de `claims` (deve satisfazer `collections.abc.Sequence`);
+   - **Etapa 3:** Validação integral e exaustiva de TODOS os elementos da sequência como instâncias de `HumanReviewClaim` (fail-closed antes de qualquer filtragem);
+   - **Etapa 4:** Filtragem seletiva dos claims pertencentes ao workflow alvo (`claim.workflow_id == sanitized_workflow_id`);
+   - **Etapa 5:** Ordenação canônica determinística dos claims filtrados `(claimed_at ASC, claim_id ASC)`;
+   - **Etapa 6:** Instanciação e retorno do read-model imutável `HumanReviewClaimState(workflow_id=sanitized_workflow_id, claims=tuple(sorted_claims))`.
+3. **Justificativa da Validação Prévia:**
+   - Um elemento estruturalmente inválido (ex: `None`, `dict`, `int`) contido na sequência **NÃO** deve ser silenciosamente ignorado sob a premissa de que ficaria de fora do filtro do workflow alvo. A função falha imediatamente com `TypeError`.
 
 ### 4.2 Estados Factuais Candidatos
 
@@ -141,13 +148,47 @@ class HumanReviewClaimFactState(str, Enum):
 
 ### 4.3 Read-Model Imutável: `HumanReviewClaimState`
 
+Para eliminar qualquer risco de estados internamente contraditórios (por exemplo, `claim_count` ou `state` divergindo da tupla `claims` real), os únicos campos armazenados são os fatos fundamentais:
+
 ```python
 @dataclass(frozen=True, slots=True)
 class HumanReviewClaimState:
     workflow_id: str
     claims: tuple[HumanReviewClaim, ...]
-    state: HumanReviewClaimFactState
-    claim_count: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.workflow_id, str) or isinstance(self.workflow_id, bool):
+            raise TypeError("workflow_id must be a string")
+        if not self.workflow_id.strip():
+            raise ValueError("workflow_id must not be empty or whitespace")
+
+        if not isinstance(self.claims, tuple):
+            raise TypeError("claims must be a tuple")
+
+        sanitized_wf = self.workflow_id.strip()
+        for idx, claim in enumerate(self.claims):
+            if not isinstance(claim, HumanReviewClaim) or isinstance(claim, bool):
+                raise TypeError(
+                    f"claim at index {idx} must be a HumanReviewClaim instance"
+                )
+            if claim.workflow_id != sanitized_wf:
+                raise ValueError(
+                    f"claim at index {idx} has workflow_id {claim.workflow_id!r}, "
+                    f"expected {sanitized_wf!r}"
+                )
+
+    @property
+    def claim_count(self) -> int:
+        return len(self.claims)
+
+    @property
+    def state(self) -> HumanReviewClaimFactState:
+        count = self.claim_count
+        if count == 0:
+            return HumanReviewClaimFactState.NO_CLAIM
+        if count == 1:
+            return HumanReviewClaimFactState.SINGLE_CLAIM
+        return HumanReviewClaimFactState.MULTIPLE_CLAIMS
 
     @property
     def is_unclaimed(self) -> bool:
@@ -169,11 +210,11 @@ class HumanReviewClaimState:
 ```
 
 **Regras do Read-Model:**
-- Imutabilidade absoluta: `frozen=True, slots=True`, sem setters, sem métodos de mutação e sem estado persistido novo;
-- `workflow_id`: string sanitizada via `.strip()`;
-- `claims`: tupla imutável contendo exclusivamente os claims pertencentes ao `workflow_id`, dispostos em ordem canônica determinística;
-- `claim_count`: inteiro exato `len(self.claims)`;
-- `sole_claim`:
+- **Fonte única da verdade:** `claims` constitui a única fonte factual; `claim_count`, `state`, `is_unclaimed`, `has_claims`, `has_multiple_claims` e `sole_claim` são estritamente derivados de `self.claims`;
+- **Impossibilidade de contradição:** Como `state` e `claim_count` não são campos do construtor, é impossível instanciar `HumanReviewClaimState` com um `claim_count` falso ou um `state` em desacordo com a cardinalidade de `claims`;
+- **Tentativa de passar derivados no construtor:** Tentativas de instanciar passando `state=...` ou `claim_count=...` levantam `TypeError` de argumentos desconhecidos nativo de dataclasses com `slots=True`;
+- **Imutabilidade:** `frozen=True, slots=True`, sem setters e sem estado mutável;
+- **`sole_claim`:**
   - Retorna o único objeto `HumanReviewClaim` quando `state == SINGLE_CLAIM`;
   - Retorna `None` quando `state == NO_CLAIM` ou `state == MULTIPLE_CLAIMS`;
   - **Sentido semântico mandatório:** `sole_claim` significa estrita e literalmente **"o único fato de claim existente"**, e **NUNCA** "claim ativo", "vencedor de disputa" ou "titular do lock".
@@ -199,14 +240,14 @@ Para garantir independência integral da ordem de entrada dos registros em `clai
    - Se `not isinstance(workflow_id, str)` ou `isinstance(workflow_id, bool)`: levantar `TypeError("workflow_id must be a string")`;
    - Se `not workflow_id.strip()`: levantar `ValueError("workflow_id must not be empty or whitespace")`.
 2. **`claims`:**
-   - Se `not isinstance(claims, collections.abc.Sequence)`: levantar `TypeError("claims must be a Sequence")`;
-   - Se qualquer item em `claims` não for `HumanReviewClaim` (ex: `None`, `dict`, `int`, etc.): levantar `TypeError(f"all items in claims must be HumanReviewClaim instances, got {type(item).__name__}")`.
+   - Se `not isinstance(claims, collections.abc.Sequence)` ou `isinstance(claims, (str, bytes))`: levantar `TypeError("claims must be a Sequence")`;
+   - Se qualquer item em `claims` não for `HumanReviewClaim` (ex: `None`, `dict`, `int`, etc.): levantar `TypeError(f"all items in claims must be HumanReviewClaim instances, got {type(item).__name__}")` **antes de qualquer filtragem por workflow_id**.
 3. **Sequência Vazia (`claims = ()`):**
    - Comportamento válido e esperado;
-   - Retorna `HumanReviewClaimState(workflow_id=sanitized_id, claims=(), state=HumanReviewClaimFactState.NO_CLAIM, claim_count=0)`.
+   - Retorna `HumanReviewClaimState(workflow_id=sanitized_id, claims=())`, com `state = NO_CLAIM`, `claim_count = 0`.
 4. **Claims de Outros Workflows:**
-   - Itens que sejam instâncias válidas de `HumanReviewClaim`, mas cujo `claim.workflow_id != sanitized_id`, são ignorados na composição de `claims` do read-model resultante.
-   - Se após a filtragem restarem 0 claims para aquele `workflow_id`, o resultado é `NO_CLAIM`.
+   - Itens que sejam instâncias válidas de `HumanReviewClaim`, mas cujo `claim.workflow_id != sanitized_id`, são filtrados e descartados da composição de `claims` do read-model resultante.
+   - Se após a filtragem restarem 0 claims para aquele `workflow_id`, o resultado derivado é `NO_CLAIM`.
 
 ---
 
@@ -228,8 +269,8 @@ Para garantir independência integral da ordem de entrada dos registros em `clai
 
 1. **Módulo de Projeção (`src/agent_lab/human_review_claim_projection.py`):**
    - Enum `HumanReviewClaimFactState` com os valores `NO_CLAIM`, `SINGLE_CLAIM`, `MULTIPLE_CLAIMS`;
-   - Dataclass imutável `HumanReviewClaimState` (`frozen=True, slots=True`) com os campos e propriedades descritas na Seção 4.3;
-   - Função pura `project_human_review_claim_state(workflow_id: str, claims: Sequence[HumanReviewClaim]) -> HumanReviewClaimState` com validação defensiva fail-closed;
+   - Dataclass imutável `HumanReviewClaimState` (`frozen=True, slots=True`) com campos apenas factuais (`workflow_id`, `claims`) e propriedades derivadas;
+   - Função pura `project_human_review_claim_state(workflow_id: str, claims: Sequence[HumanReviewClaim]) -> HumanReviewClaimState` com validação prévia exaustiva fail-closed;
    - Ordenação determinística de apresentação `(claimed_at ASC, claim_id ASC)`;
 2. **Exportação Pública no Pacote Raiz (`src/agent_lab/__init__.py`):**
    - Exportação de `HumanReviewClaimFactState`, `HumanReviewClaimState` e `project_human_review_claim_state`;
@@ -240,11 +281,13 @@ Para garantir independência integral da ordem de entrada dos registros em `clai
    - Independência da ordem de entrada: permutações de entrada geram exatamente a mesma tupla `claims` canonicamente ordenada;
    - Tie-break por `claim_id` em claims com mesmo `claimed_at`;
    - Filtragem seletiva: preservação apenas dos claims do `workflow_id` alvo e descarte de claims de outros workflows válidos;
+   - Derivação pura do read-model: comprovação de que `claim_count == len(state.claims)` e `state` dependem unicamente da cardinalidade de `claims`;
+   - Rejeição de argumentos derivados no construtor de `HumanReviewClaimState`: tentar passar `state=...` ou `claim_count=...` levanta `TypeError`;
    - Validações defensivas fail-closed:
      - `workflow_id` não-string ou booleano (`TypeError`);
      - `workflow_id` vazio ou somente whitespace (`ValueError`);
      - `claims` não-sequência (`TypeError`);
-     - item de `claims` não-`HumanReviewClaim` (`TypeError`);
+     - item de `claims` não-`HumanReviewClaim` falha imediatamente com `TypeError`, inclusive em coleções com claims de múltiplos workflows e itens inválidos que estariam fora do filtro;
    - Imutabilidade comprovada: tentativa de mutação de atributos em `HumanReviewClaimState` levanta `FrozenInstanceError`;
 4. **Testes de Integração Vertical Pós-Restart (`tests/test_human_review_claim_projection_integration.py`):**
    - Comprovação do pipeline vertical completo com persistência real em JSONL:
@@ -282,22 +325,22 @@ A implementação seguirá ciclos estritos de micro-TDD em pequenas fatias atôm
 ### Fatias Planejadas
 
 ```text
-Fatia 1: Read-Model e Projeção Básica para Caso NO_CLAIM
+Fatia 1: Read-Model Puramente Factual e Projeção Básica para Caso NO_CLAIM
   -> Teste: test_no_claim_with_empty_sequence e test_no_claim_when_no_matching_workflow
   -> Execução: RED genuíno (módulo src/agent_lab/human_review_claim_projection.py não existe)
-  -> Implementação GREEN: definir HumanReviewClaimFactState, HumanReviewClaimState e project_human_review_claim_state
-  -> Validação: NO_CLAIM retornado com tupla vazia e propriedades corretas
+  -> Implementação GREEN: definir HumanReviewClaimFactState, HumanReviewClaimState (com workflow_id e claims apenas) e project_human_review_claim_state
+  -> Validação: NO_CLAIM derivado com tupla vazia, claim_count=0 e propriedades corretas
 
 Fatia 2: Caso SINGLE_CLAIM e Comportamento de sole_claim
   -> Teste: test_single_claim_projection_and_sole_claim
-  -> Execução: RED ou GREEN dependendo da implementação mínima
-  -> Implementação GREEN: derivação de SINGLE_CLAIM e exposição de sole_claim
+  -> Execução: comprovação do comportamento
+  -> Implementação GREEN: derivação pura de SINGLE_CLAIM a partir de len(claims) == 1 e exposição de sole_claim
   -> Validação: sole_claim retorna o claim único, is_unclaimed=False, has_claims=True
 
 Fatia 3: Caso MULTIPLE_CLAIMS e Filtragem por workflow_id
   -> Teste: test_multiple_claims_projection e test_filters_claims_by_workflow_id
   -> Execução: comprovação do comportamento
-  -> Implementação GREEN: agrupamento/filtragem correta e estado MULTIPLE_CLAIMS com sole_claim=None
+  -> Implementação GREEN: agrupamento/filtragem por workflow_id e estado MULTIPLE_CLAIMS com sole_claim=None
   -> Validação: múltiplos claims representados sem eleição de vencedor
 
 Fatia 4: Ordenação Canônica Determinística e Tie-Break
@@ -306,23 +349,29 @@ Fatia 4: Ordenação Canônica Determinística e Tie-Break
   -> Implementação GREEN: sorted(filtered_claims, key=lambda c: (c.claimed_at, c.claim_id))
   -> Validação: saída idêntica para qualquer permutação da sequência de entrada
 
-Fatia 5: Validações Defensivas Fail-Closed e Imutabilidade
-  -> Teste: rejeição de workflow_id inválido/vazio, claims não-Sequence, itens não-HumanReviewClaim, FrozenInstanceError
-  -> Execução: validações de tipo e valor
-  -> Implementação GREEN: checagens fail-closed no início da função
+Fatia 5: Validação Defensiva Estrita (Validação Prévia à Filtragem) e Fail-Closed
+  -> Teste:
+     - rejeição de workflow_id inválido/vazio
+     - claims não-Sequence
+     - item não-HumanReviewClaim em coleção global falha com TypeError ANTES de qualquer filtragem
+     - prova de que claim_count == len(claims) e state são exclusivamente derivados
+     - construtor de HumanReviewClaimState rejeita argumentos state e claim_count com TypeError
+     - FrozenInstanceError comprovado
+  -> Execução: checagens fail-closed
+  -> Implementação GREEN: validação prévia exaustiva na projeção e no __post_init__ do read-model
   -> Validação: propagação estrita de TypeError e ValueError
 
 Fatia 6: Exportação Pública no Pacote Raiz
-  -> Teste: teste de importação de HumanReviewClaimFactState, HumanReviewClaimState e project_human_review_claim_state a partir de agent_lab
+  -> Teste: importação a partir do namespace agent_lab
   -> Execução: RED se ausente em __all__; GREEN após adição
   -> Implementação GREEN: exportar símbolos em src/agent_lab/__init__.py
   -> Validação: símbolos acessíveis publicamente
 
 Fatia 7: Teste de Integração Vertical Pós-Restart
   -> Teste: tests/test_human_review_claim_projection_integration.py
-  -> Execução: pipeline com JsonlHumanReviewClaimRepository real persistido em disco
-  -> Implementação GREEN: nenhuma alteração de código esperada (composição pura)
-  -> Validação: leitura fiel de dados em JSONL após reinicialização simulada de processo
+  -> Execução: pipeline com JsonlHumanReviewClaimRepository real em JSONL
+  -> Implementação GREEN: comprovação composicional sem alteração de código
+  -> Validação: persistência em disco -> restart simulado -> projeção fiel
 
 Regressão Canônica:
   -> python -m unittest discover -s tests -v (509 + novos testes GREEN)
@@ -334,8 +383,12 @@ Regressão Canônica:
 
 - [ ] SPEC técnica aprovada formalmente por revisão humana antes de qualquer alteração em `src/` ou `tests/`;
 - [ ] Implementação de `src/agent_lab/human_review_claim_projection.py` com o enum `HumanReviewClaimFactState`, o dataclass `HumanReviewClaimState` e a função pura `project_human_review_claim_state`;
+- [ ] `HumanReviewClaimState` armazena exclusivamente `workflow_id: str` e `claims: tuple[HumanReviewClaim, ...]`;
+- [ ] `state`, `claim_count`, `is_unclaimed`, `has_claims`, `has_multiple_claims` e `sole_claim` são estritamente propriedades derivadas (`@property`) sem armazenamento redundante;
+- [ ] Tentativa de instanciar `HumanReviewClaimState` com argumentos `state` ou `claim_count` rejeitada com `TypeError`;
 - [ ] `workflow_id` validado fail-closed (`TypeError` para não-string/bool, `ValueError` para string vazia/whitespace);
-- [ ] `claims` validado fail-closed (`TypeError` para não-Sequence, `TypeError` para qualquer elemento não-`HumanReviewClaim`);
+- [ ] `claims` validado fail-closed (`TypeError` para não-Sequence);
+- [ ] Validação prévia e exaustiva: qualquer elemento em `claims` que não seja `HumanReviewClaim` levanta `TypeError` imediatamente, antes de qualquer filtragem de workflow;
 - [ ] Retorno fiel de `HumanReviewClaimFactState.NO_CLAIM` quando a sequência for vazia ou não contiver claims para o `workflow_id`;
 - [ ] Retorno fiel de `HumanReviewClaimFactState.SINGLE_CLAIM` e propriedade `sole_claim` preenchida quando houver exatamente 1 claim;
 - [ ] Retorno fiel de `HumanReviewClaimFactState.MULTIPLE_CLAIMS` e propriedade `sole_claim is None` quando houver $\ge 2$ claims;
@@ -369,9 +422,10 @@ Regressão Canônica:
 
 | Risco | Severidade | Mitigação Arquitetural |
 |---|---|---|
+| **Inconsistência interna por campos redundantes** | Crítica | Eliminou-se o armazenamento de `state` e `claim_count`; todas as informações são propriedades derivadas exclusivamente da tupla `claims`. |
 | **Interpretação errônea de `sole_claim` como "claim ativo"** | Alta | A documentação da SPEC e as docstrings explicitam que `sole_claim` significa unicamente que existe 1 fato isolado, sem promessa de lock ou exclusividade. |
 | **Invenção inadvertida de Last-Claim-Wins** | Crítica | A projeção classifica $\ge 2$ claims como `MULTIPLE_CLAIMS` e define `sole_claim = None`, recusando a escolha do mais recente. A ordenação é declarada como puro determinismo de apresentação. |
-| **Ocultação de dados inválidos em coleções globais** | Alta | A validação estrutural de tipo (`isinstance(claim, HumanReviewClaim)`) ocorre sobre toda a coleção de entrada antes ou durante a filtragem, levantando `TypeError` imediatamente caso haja elementos corrompidos. |
+| **Ocultação de dados inválidos em coleções globais** | Alta | A validação estrutural de tipo ocorre sobre toda a coleção de entrada antes da filtragem, levantando `TypeError` imediatamente caso haja elementos corrompidos. |
 | **Acoplamento prematuro com a fila de pendências** | Média | A projeção é mantida estritamente focada em claims (`HumanReviewClaimState`), deixando a composição de fila para uma fatia posterior dedicada (`Queue with Claim State`). |
 
 ---
