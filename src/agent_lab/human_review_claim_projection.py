@@ -62,5 +62,9 @@ def project_human_review_claim_state(
     workflow_id: str,
     claims: Sequence[HumanReviewClaim],
 ) -> HumanReviewClaimState:
-    filtered = tuple(c for c in claims if c.workflow_id == workflow_id)
-    return HumanReviewClaimState(workflow_id=workflow_id, claims=filtered)
+    filtered = [c for c in claims if c.workflow_id == workflow_id]
+    sorted_claims = sorted(
+        filtered,
+        key=lambda claim: (claim.claimed_at, claim.claim_id),
+    )
+    return HumanReviewClaimState(workflow_id=workflow_id, claims=tuple(sorted_claims))
