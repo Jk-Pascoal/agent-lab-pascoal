@@ -8,7 +8,7 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0094` |
-| **Status** | `PROPOSED` |
+| **Status** | `APPROVED` |
 | **Issue relacionada** | `#94` |
 | **Branch funcional** | `feature/issue-94-human-review-claim-state-projection` |
 | **Responsável** | `Jk-Pascoal` |
