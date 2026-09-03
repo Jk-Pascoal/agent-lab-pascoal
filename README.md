@@ -93,7 +93,11 @@ MaterialRecord
 │  Claim JSONL                                                                           │
 │       │                                                                                │
 │       ▼                                                                                │
-│  (futuras projeções operacionais / Repository não elege claim ativo)                   │
+│  project_human_review_claim_state (Projeção pura determinística)                       │
+│       │                                                                                │
+│       ▼                                                                                │
+│  NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS                                             │
+│  (factual projection != active claim policy / Repository não elege claim ativo)        │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -169,6 +173,7 @@ Após o fechamento da release v0.1.0, o projeto evoluiu continuamente através d
 - **Human Review Claim Domain Contract (Issue #85):** contrato puro de domínio em memória (`HumanReviewClaim` e `claim_pending_human_review`) para assunção voluntária de workflows pendentes por especialistas verificados, com tipagem estrita, imutabilidade, validação fail-closed de elegibilidade (`PENDING_HUMAN_REVIEW`) e cronologia.
 - **Human Review Claim Persistence (Issue #88):** persistência append-only durável em JSONL (`JsonlHumanReviewClaimRepository`) com serialização canônica versionada (`schema_version = 1`), validação fail-closed estrita, suporte a múltiplos claims por `workflow_id` na ordem física de append, integridade pós-restart e exportação da API pública.
 - **Record Human Review Claim Application Use Case (Issue #91):** caso de uso de aplicação `RecordHumanReviewClaimUseCase` para coordenação explícita da criação determinística e persistência de `HumanReviewClaim` via `HumanReviewClaimRepository`, com integração vertical validada contra `JsonlHumanReviewClaimRepository` e exportação da API pública.
+- **Human Review Claim State Projection (Issue #94):** projeção pura e determinística em memória (`project_human_review_claim_state`) e read-model imutável (`HumanReviewClaimState`) sobre fatos de claims persistidos, classificando fielmente os estados factuais `NO_CLAIM`, `SINGLE_CLAIM` e `MULTIPLE_CLAIMS`, com propriedades puramente derivadas (sem armazenamento redundante de `state` ou `claim_count`), ordenação canônica determinística `(claimed_at ASC, claim_id ASC)` sem autoridade operacional de vencedor ou precedência, validação fail-closed estrita de todos os elementos antes da filtragem, integração vertical pós-restart com `JsonlHumanReviewClaimRepository` e exportação pública no pacote `agent_lab`.
 
 ## Resultados do baseline
 
@@ -214,7 +219,7 @@ O projeto conta com:
 - SPECs versionadas e detalhadas em `docs/specs/`;
 - desenvolvimento orientado por testes (TDD);
 - GitHub Actions com Python 3.11;
-- **503 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência de claim e casos de uso de aplicação;
+- **531 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência de claim, casos de uso de aplicação e projeções de claims;
 - baseline fundacional da release **v0.1.0** preservado (206 testes);
 - proteção de branch com status check de CI obrigatório antes de qualquer merge;
 - política estrita de Versionamento Semântico e registro de mudanças em `CHANGELOG.md`;
@@ -256,8 +261,10 @@ agent-lab-pascoal/
 │       ├── evidence.py
 │       ├── human_review.py
 │       ├── human_review_claim.py
+│       ├── human_review_claim_projection.py
 │       ├── human_review_claim_repository.py
 │       ├── human_review_claim_serialization.py
+│       ├── human_review_claim_use_case.py
 │       ├── human_review_use_case.py
 │       ├── llm_provider.py
 │       ├── llm_schema.py
