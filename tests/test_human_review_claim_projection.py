@@ -213,5 +213,101 @@ class HumanReviewClaimProjectionSlice3Tests(unittest.TestCase):
         self.assertIsNone(result.sole_claim)
 
 
+class HumanReviewClaimProjectionSlice4Tests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        self.claim_a = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 2, 9, 10, 0, tzinfo=timezone.utc),
+        )
+        self.claim_b = HumanReviewClaim(
+            claim_id="CLM-002",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 2, 9, 20, 0, tzinfo=timezone.utc),
+        )
+        self.claim_c = HumanReviewClaim(
+            claim_id="CLM-003",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 2, 9, 30, 0, tzinfo=timezone.utc),
+        )
+
+        self.claim_tie_1 = HumanReviewClaim(
+            claim_id="CLM-010",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 2, 10, 0, 0, tzinfo=timezone.utc),
+        )
+        self.claim_tie_2 = HumanReviewClaim(
+            claim_id="CLM-020",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 2, 10, 0, 0, tzinfo=timezone.utc),
+        )
+
+        self.claim_other = HumanReviewClaim(
+            claim_id="CLM-999",
+            workflow_id="WF-OTHER",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 2, 9, 15, 0, tzinfo=timezone.utc),
+        )
+
+    def test_canonical_sorting_independent_of_input_order(self) -> None:
+        expected_canonical = (self.claim_a, self.claim_b, self.claim_c)
+
+        projection_a = project_human_review_claim_state(
+            "WF-001",
+            (self.claim_c, self.claim_a, self.claim_b),
+        )
+        projection_b = project_human_review_claim_state(
+            "WF-001",
+            (self.claim_b, self.claim_c, self.claim_a),
+        )
+
+        self.assertEqual(projection_a, projection_b)
+        self.assertEqual(projection_a.claims, expected_canonical)
+        self.assertEqual(projection_b.claims, expected_canonical)
+
+    def test_tie_break_lexicographically_by_claim_id_when_claimed_at_identical(
+        self,
+    ) -> None:
+        expected_canonical = (self.claim_tie_1, self.claim_tie_2)
+
+        # Fornecidos deliberadamente em ordem inversa (CLM-020 antes de CLM-010)
+        projection = project_human_review_claim_state(
+            "WF-001",
+            (self.claim_tie_2, self.claim_tie_1),
+        )
+
+        self.assertEqual(projection.claims, expected_canonical)
+
+    def test_canonical_sorting_with_interleaved_global_collection(self) -> None:
+        expected_canonical = (self.claim_a, self.claim_b, self.claim_c)
+
+        projection_1 = project_human_review_claim_state(
+            "WF-001",
+            (self.claim_other, self.claim_c, self.claim_a, self.claim_b),
+        )
+        projection_2 = project_human_review_claim_state(
+            "WF-001",
+            (self.claim_b, self.claim_other, self.claim_c, self.claim_a),
+        )
+
+        self.assertEqual(projection_1, projection_2)
+        self.assertEqual(projection_1.claims, expected_canonical)
+        self.assertEqual(projection_2.claims, expected_canonical)
+        self.assertNotIn(self.claim_other, projection_1.claims)
+        self.assertNotIn(self.claim_other, projection_2.claims)
+
+
 if __name__ == "__main__":
     unittest.main()
