@@ -19,6 +19,11 @@ from .human_review_claim_repository import (
     HumanReviewClaimRepository,
     JsonlHumanReviewClaimRepository,
 )
+from .human_review_claim_projection import (
+    HumanReviewClaimFactState,
+    HumanReviewClaimState,
+    project_human_review_claim_state,
+)
 from .human_review_claim_serialization import (
     human_review_claim_from_record,
     human_review_claim_to_record,
@@ -44,4 +49,7 @@ __all__ = [
     "HumanReviewClaimRepository",
     "JsonlHumanReviewClaimRepository",
     "RecordHumanReviewClaimUseCase",
+    "HumanReviewClaimFactState",
+    "HumanReviewClaimState",
+    "project_human_review_claim_state",
 ]
