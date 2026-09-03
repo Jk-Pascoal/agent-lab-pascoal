@@ -476,5 +476,25 @@ class HumanReviewClaimProjectionSlice5Tests(unittest.TestCase):
             state.claims = ()  # type: ignore[misc]
 
 
+class HumanReviewClaimProjectionSlice6Tests(unittest.TestCase):
+    def test_package_root_exports_human_review_claim_projection_symbols(self) -> None:
+        from agent_lab import (
+            HumanReviewClaimFactState as ExportedFactState,
+            HumanReviewClaimState as ExportedState,
+            project_human_review_claim_state as exported_project_func,
+        )
+
+        self.assertIs(ExportedFactState, HumanReviewClaimFactState)
+        self.assertIs(ExportedState, HumanReviewClaimState)
+        self.assertIs(exported_project_func, project_human_review_claim_state)
+
+    def test_package_root_all_includes_projection_symbols(self) -> None:
+        import agent_lab
+
+        self.assertIn("HumanReviewClaimFactState", agent_lab.__all__)
+        self.assertIn("HumanReviewClaimState", agent_lab.__all__)
+        self.assertIn("project_human_review_claim_state", agent_lab.__all__)
+
+
 if __name__ == "__main__":
     unittest.main()
