@@ -12,14 +12,14 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-09-03
-- **Baseline integrado na main:** 531 testes aprovados
-- **Última entrega funcional integrada na main:** Human Review Claim State Projection v1
-- **Última Issue funcional integrada na main:** #94
-- **Último PR funcional integrado na main:** #95
-- **Último merge funcional:** `f20129f` — Merge pull request #95
-- **Última SPEC integrada na main:** `docs/specs/0094_human_review_claim_state_projection_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir
+- **Estado registrado em:** 2026-09-04
+- **Baseline integrado na main:** 549 testes aprovados
+- **Última entrega funcional integrada na main:** Pending Human Review Queue with Claim State Application Use Case v1
+- **Última Issue funcional integrada na main:** #97
+- **Último PR funcional integrado na main:** #98
+- **Último merge funcional:** `2e763f7` — Merge pull request #98
+- **Última SPEC integrada na main:** `docs/specs/0097_pending_human_review_queue_with_claim_state_application_use_case_v1.md`
+- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -80,19 +80,43 @@ Claim JSONL
 project_human_review_claim_state
         ↓
 NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS
+
+4. COMPOSIÇÃO DE APLICAÇÃO (Somente-leitura)
+Workflow Lifecycle JSONL
+        ↓
+project_pending_human_review_queue
+        ↓
+pending workflows
+        *
+Claim JSONL
+        ↓
+project_human_review_claim_state
+        ↓
+NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS
+        ↓
+ListPendingHumanReviewsWithClaimStateUseCase
+        ↓
+PendingHumanReviewWithClaimStateItem
 ```
 
 Separação conceitual mandatória:
 - **`WorkflowLifecycleEvent ≠ AuditEvent`**
 - **`HumanReviewClaim ≠ HumanReview`**
 - **`CLAIMED ≠ REVIEWED`**
+- **`Projection factual ≠ Policy operacional`**
+- **`sole_claim ≠ active claim`**
+- **`sole_claim ≠ owner`**
+- **`sole_claim ≠ assignment`**
+- **`sole_claim ≠ winner`**
 - **`Repository ≠ Projection`**
 - **`DecisionRecommendation ≠ HumanReview`**
 - **`CorrectionRequest ≠ MaterialRevision`**
 - **Workflow lifecycle persistence (`WorkflowOpened`, `WorkflowConcluded`):** preserva os fatos do ciclo temporal de governança operacional e viabiliza a reidratação determinística de workflows nos estados `PENDING_HUMAN_REVIEW` e `REVIEWED` após reinicialização do processo;
 - **Audit persistence (`AuditEvent`):** preserva a evidência imutável da deliberação do especialista humano pós-decisão;
-- **Human Review Claim persistence (`HumanReviewClaim`):** representa o fato operacional imutável de um especialista assumir voluntariamente um workflow pendente e agora possui trilha persistente dedicada append-only (`JsonlHumanReviewClaimRepository`), desacoplada de lifecycle e auditoria. Persistir o claim não altera `WorkflowStatus` (`PENDING_HUMAN_REVIEW` preservado), não gera `WorkflowLifecycleEvent`, não gera `AuditEvent` e não constitui decisão humana;
-- **Princípio `Repository != Projection`:** o repositório (`JsonlHumanReviewClaimRepository`) preserva os fatos físicos na ordem de append; a projeção (`project_human_review_claim_state`) interpreta o estado factual (`NO_CLAIM`, `SINGLE_CLAIM`, `MULTIPLE_CLAIMS`) sem criar autoridade operacional, sem eleger claim ativo e sem inventar políticas de vigência, exclusividade ou concorrência;
+- **Human Review Claim persistence (`HumanReviewClaim`):** representa o fato operacional imutável de um especialista assumir voluntariamente um workflow pendente e possui trilha persistente dedicada append-only (`JsonlHumanReviewClaimRepository`), desacoplada de lifecycle e auditoria. Persistir o claim não altera `WorkflowStatus` (`PENDING_HUMAN_REVIEW` preservado), não gera `WorkflowLifecycleEvent`, não gera `AuditEvent` e não constitui decisão humana;
+- **Princípio `Repository ≠ Projection`:** o repositório (`JsonlHumanReviewClaimRepository`) preserva os fatos físicos na ordem de append; a projeção (`project_human_review_claim_state`) interpreta o estado factual (`NO_CLAIM`, `SINGLE_CLAIM`, `MULTIPLE_CLAIMS`) sem criar autoridade operacional, sem eleger claim ativo e sem inventar políticas de vigência, exclusividade ou concorrência;
+- **Application composition read-only (`ListPendingHumanReviewsWithClaimStateUseCase`):** combina de forma puramente determinística e somente-leitura a fila pendente com o estado factual de claims em itens imutáveis `PendingHumanReviewWithClaimStateItem`, utilizando snapshot local único por repositório e preservando a pending queue como driver set FIFO, com invariante relacional estrito `workflow.workflow_id == claim_state.workflow_id`;
+- **Princípio `Repository preserva | Projection interpreta | Application coordena`:** o repositório preserva a integridade física e histórica; a projeção interpreta deterministicamente read-models factuais em memória; a camada de aplicação coordena a interação entre repositórios e projeções sem reinventar regras de negócio nem eleger policies operacionais;
 - Não fundir responsabilidades operacionais, de governança, de auditoria ou factuais.
 
 
@@ -304,6 +328,28 @@ O sistema em seu estado integrado atual na `main` representa e valida:
   - sobrevivência e determinismo comprovados em teste de integração vertical pós-restart (`tests/test_human_review_claim_projection_integration.py`), provando na prática o princípio `Repository preserva ordem física | Projection interpreta ordem canônica`;
   - exportação pública de `HumanReviewClaimFactState`, `HumanReviewClaimState` e `project_human_review_claim_state` no pacote raiz `src/agent_lab/__init__.py`;
   - fronteiras e escopo negativo mantidos: zero eleição de active claim/winner/owner, zero vigência/TTL, zero exclusividade/lock/lease/SLA e zero mutação no ciclo de governança de `GovernanceWorkflow`.
+- **Incremento integrado da Issue #97 (Pending Human Review Queue with Claim State Application Use Case v1):**
+  - módulo `src/agent_lab/pending_human_reviews_with_claim_state_use_case.py`: introdução do boundary de composição da Camada de Aplicação (`ListPendingHumanReviewsWithClaimStateUseCase`);
+  - read-model imutável `PendingHumanReviewWithClaimStateItem` (`frozen=True, slots=True`) compondo deterministicamente `workflow: GovernanceWorkflow` e `claim_state: HumanReviewClaimState`;
+  - injeção explícita de dependências: o construtor recebe `WorkflowLifecycleRepository` e `HumanReviewClaimRepository`, preservando o desacoplamento da Application Layer em relação às implementações concretas de persistência;
+  - método `execute() -> tuple[PendingHumanReviewWithClaimStateItem, ...]`;
+  - composição somente-leitura da fila de pendências (`project_pending_human_review_queue`) com o estado factual de claims (`project_human_review_claim_state`);
+  - pending queue estabelecida como conjunto condutor (*driver set*), retendo exclusivamente workflows pendentes;
+  - preservação estrita da ordenação canônica FIFO `(opened_at ASC, workflow_id ASC)` da fila de pendências;
+  - categorização factual de claims por item em `NO_CLAIM`, `SINGLE_CLAIM` e `MULTIPLE_CLAIMS`;
+  - snapshot local único por repositório durante a execução: exatamente uma leitura de `workflow_lifecycle_repository.list_all_events()` e uma leitura global de `claim_repository.list_all()`, eliminando chamadas N+1 a `list_by_workflow_id()`;
+  - validação relacional e fail-closed estrita: invariante `workflow.workflow_id == claim_state.workflow_id`, com propagação direta de exceções de integridade ou persistência sem mascaramento e sem retorno de resultados parciais;
+  - semântica estritamente factual de `sole_claim`: expressa unicamente a cardinalidade factual persistida quando `state == SINGLE_CLAIM`, sem semântica operacional de active claim, owner, assignment, winner, exclusividade ou locking;
+  - limites arquiteturais estritamente respeitados: zero active-claim policy, zero ownership operacional, zero assignment gerencial, zero locking/lease/SLA e zero mutação persistente (operação estritamente de leitura);
+  - teste de integração vertical pós-restart (`tests/test_pending_human_reviews_with_claim_state_use_case_integration.py`) comprovando coordenação completa sobre repositórios JSONL reais (`JsonlWorkflowLifecycleRepository` e `JsonlHumanReviewClaimRepository`) após reinicialização física das instâncias;
+  - símbolos contextuais no módulo da funcionalidade, sem exportação na API pública do pacote raiz `src/agent_lab/__init__.py`.
+
+> [!NOTE]
+> **Weekly Architectural Review #01 (2026-09-04) — Aprendizado de Governança:**
+> A Issue #97 foi o primeiro incremento funcional derivado diretamente da Weekly Architectural Review #01 (2026-09-04). O ciclo de engenharia seguiu rigorosamente a esteira de governança:
+> Weekly Architectural Review → hipótese depurada → Issue #97 → SPEC 0097 → micro-TDD → Pre-PR Gate → Evidence Reconciliation → PR #98 → merge.
+> O processo consolidou a máxima: *“Testes provam comportamento; gates provam prontidão.”*
+> Em particular, o Pre-PR Gate detectou trailing whitespace documental antes da publicação da branch, demonstrando na prática que prontidão arquitetural engloba conformidade e integridade da evidência, não apenas suíte GREEN.
 
 ### 4.3 Limite atual
 
@@ -322,19 +368,37 @@ A versão atual integrada na `main` possui:
 - sem eleição de `latest revision`, `current revision` ou cabeça canônica; sem eleição por timestamp `revised_at`; sem reparo automático ou mutação em disco;
 - conexão de `MaterialRevision` ao pipeline de evidências e recomendações permanece fronteira futura;
 - aplicação automática das correções ao material (`CORRECTION_APPLIED`), mutação automática de `MaterialRecord` e reexecução automática de regras/LLM continuam fora do escopo;
-- três boundaries de Application integrados (`RecordHumanDecisionUseCase`, `ListPendingHumanReviewsUseCase` e `RecordHumanReviewClaimUseCase`) e uma projeção factual de claims integrada (`project_human_review_claim_state`); projeção de claims ativos (`Active Claim Projection`), caso de uso de consulta/leitura de fila com status de claim (`Queue with Claim Status`), garantia de unicidade concorrente/global de claim, locking/checkout, controle de concorrência multiprocesso, atribuição gerencial (*assignment*), *ownership* operacional, operações de *unclaim* / *release*, transferência de titularidade, vigência/exclusividade/desempate/Last-Claim-Wins, expiração/SLA e priorização operacional de fila continuam fora do escopo;
-- interfaces de usuário (Streamlit / `app.py`), APIs REST, CLI, processamento assíncrono / concorrência e otimizações P-07 continuam fora do escopo;
+- quatro boundaries de Application integrados:
+  1. `RecordHumanDecisionUseCase`
+  2. `ListPendingHumanReviewsUseCase`
+  3. `RecordHumanReviewClaimUseCase`
+  4. `ListPendingHumanReviewsWithClaimStateUseCase`
+  e uma projeção factual de claims integrada (`project_human_review_claim_state`); a composição factual da fila pendente com estado de claims está integrada (`pending queue + factual claim state`);
 - execução síncrona/monoprocesso;
-- ausência de locking multiprocesso;
-- ausência de autenticação e autorização real (RBAC);
-- ausência de integração com ERP;
-- ausência de banco de dados relacional ou transacional.
+- permanecem estritamente fora do escopo (não implementados):
+  - projeção ou política de claims ativos (`Active Claim Projection` / policy);
+  - *ownership* operacional;
+  - atribuição gerencial (*assignment*);
+  - eleição de vencedor (*winner*);
+  - exclusividade;
+  - desempate / *Last-Claim-Wins*;
+  - garantia de unicidade concorrente/global de claim;
+  - *locking* / *checkout*;
+  - operações de *release* / *unclaim*;
+  - transferência / *reassignment* de titularidade;
+  - vigência / TTL / *lease* / expiração / SLA;
+  - *enforcement* causal claimant $\rightarrow$ reviewer;
+  - priorização operacional de fila;
+  - interface operacional (UI/Streamlit / `app.py`), APIs REST, CLI;
+  - processamento assíncrono / concorrência multiprocesso e otimizações P-07;
+  - ausência de locking multiprocesso, autenticação/autorização real (RBAC) ou integração com ERP;
+  - ausência de banco de dados relacional ou transacional.
 
 ### 4.4 Próxima âncora
 
-Incremento atual: Issue #94 concluída e integrada na main via PR #95 / merge `f20129f`.
+Incremento atual: Issue #97 concluída e integrada na main via PR #98 / merge `2e763f7`.
 
-Próxima âncora arquitetural: a definir somente após novo planejamento humano.
+Próxima âncora arquitetural: a definir após planejamento humano.
 
 Sequência evolutiva recomendada:
 
@@ -357,7 +421,8 @@ Contrato
   → Human Review Claim Persistence (concluída na #88)
   → Record Human Review Claim Application Use Case (concluído na #91)
   → Human Review Claim State Projection (concluída na #94)
-  → próxima âncora a definir
+  → Pending Human Review Queue with Claim State Application Use Case (concluído na #97)
+  → próxima âncora a definir após planejamento humano
 ```
 
 ## 5. Invariantes constitucionais
@@ -663,13 +728,18 @@ Responsabilidades:
 ```text
 src/agent_lab/human_review_use_case.py
 src/agent_lab/pending_human_reviews_use_case.py
+src/agent_lab/human_review_claim_use_case.py
+src/agent_lab/pending_human_reviews_with_claim_state_use_case.py
 ```
 
 Contratos principais:
 
 - `RecordHumanDecisionResult`: estrutura de retorno imutável contendo os quatro artefatos produzidos (`workflow`, `review`, `audit_event`, `lifecycle_event`);
 - `RecordHumanDecisionUseCase`: caso de uso de aplicação responsável por orquestrar o registro da decisão humana sobre um workflow de governança pendente;
-- `ListPendingHumanReviewsUseCase`: caso de uso de aplicação responsável por consultar workflows que atualmente aguardam revisão humana.
+- `ListPendingHumanReviewsUseCase`: caso de uso de aplicação responsável por consultar workflows que atualmente aguardam revisão humana;
+- `RecordHumanReviewClaimUseCase`: caso de uso de aplicação responsável por coordenar a assunção voluntária de um workflow pendente por especialista e sua persistência append-only;
+- `PendingHumanReviewWithClaimStateItem`: read-model imutável associando deterministicamente um workflow pendente ao seu estado factual de claims;
+- `ListPendingHumanReviewsWithClaimStateUseCase`: caso de uso de aplicação responsável por consultar a fila pendente combinada de forma somente-leitura com o estado factual de claims (`NO_CLAIM`, `SINGLE_CLAIM`, `MULTIPLE_CLAIMS`).
 
 Responsabilidades:
 
@@ -684,7 +754,19 @@ Responsabilidades:
   - retornar diretamente `tuple[GovernanceWorkflow, ...]`, preservando a ordenação canônica FIFO garantida pela projeção;
   - não filtrar, ordenar, reidratar ou decidir na Application;
   - propagar falhas de leitura do repositório ou de integridade da projeção de forma *fail-closed*;
-  - operação somente-leitura, sem estado mutável, sem cache e sem I/O direto fora do repositório (todo acesso persistente permanece encapsulado em `WorkflowLifecycleRepository` e nenhuma lógica de persistência é implementada na Application).
+  - operação somente-leitura, sem estado mutável, sem cache e sem I/O direto fora do repositório;
+- em `RecordHumanReviewClaimUseCase`:
+  - validar estruturalmente o workflow de entrada (`isinstance(workflow, GovernanceWorkflow)`);
+  - delegar a criação do claim ao domínio (`claim_pending_human_review`) garantindo validação em memória com zero I/O;
+  - disparar a persistência append-only via `HumanReviewClaimRepository.append(claim)`;
+  - propagar falhas de domínio e persistência de forma *fail-closed*;
+- em `ListPendingHumanReviewsWithClaimStateUseCase`:
+  - obter fatos históricos através de snapshot local único por repositório (`workflow_lifecycle_repository.list_all_events()` e `claim_repository.list_all()`), eliminando N+1;
+  - compor deterministicamente a fila pendente com o estado factual de claims via `project_pending_human_review_queue` e `project_human_review_claim_state`;
+  - retornar `tuple[PendingHumanReviewWithClaimStateItem, ...]`, preservando a pending queue como driver set FIFO;
+  - garantir a invariante relacional `workflow.workflow_id == claim_state.workflow_id`;
+  - não aplicar policies operacionais de active claim, winner, assignment, lock ou SLA;
+  - propagar exceções de integridade e repositórios de forma *fail-closed*.
 
 ## 7. Comando canônico de testes e baseline
 
@@ -697,7 +779,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 531 tests
+Ran 549 tests
 OK
 ```
 
@@ -732,6 +814,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #91: 509 testes
 - Incremento da Issue #94: +22 testes sobre o baseline de entrada de 509 (19 testes unitários/defensivos em `tests/test_human_review_claim_projection.py` + 3 testes de integração em `tests/test_human_review_claim_projection_integration.py`)
 - Baseline integrado após a Issue #94: 531 testes
+- Incremento da Issue #97: +18 testes sobre o baseline de entrada de 531 (17 testes unitários em `tests/test_pending_human_reviews_with_claim_state_use_case.py` + 1 teste de integração em `tests/test_pending_human_reviews_with_claim_state_use_case_integration.py`)
+- Baseline integrado após a Issue #97: 549 testes
 
 Não assumir `pytest`.
 
@@ -916,7 +1000,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 - autenticação e autorização real (RBAC);
 - papéis e segregação de funções;
 - taxonomia completa de motivos;
-- filas operacionais com persistência de claim, assignment/ownership/lock, priorização e SLAs (a projeção pura da fila PENDING_HUMAN_REVIEW foi integrada na Issue #77, seu boundary de consulta na Application foi integrado na Issue #81, o contrato de domínio em memória de HumanReviewClaim foi integrado na Issue #85, a persistência durável em JSONL foi integrada na Issue #88, o boundary de gravação na Application foi integrado na Issue #91 e a projeção pura factual de estado de claims foi integrada na Issue #94; Active Claim Projection, Queue with Claim Status, vigência/exclusividade/desempate/Last-Claim-Wins e atributos operacionais de gestão de fila permanecem adiados);
+- filas operacionais com active claim, assignment/ownership/lock, priorização e SLAs (a projeção pura da fila PENDING_HUMAN_REVIEW foi integrada na Issue #77, seu boundary de consulta na Application foi integrado na Issue #81, o contrato de domínio em memória de HumanReviewClaim foi integrado na Issue #85, a persistência durável em JSONL foi integrada na Issue #88, o boundary de gravação na Application foi integrado na Issue #91, a projeção pura factual de estado de claims foi integrada na Issue #94 e o caso de uso de composição factual da fila pendente com estado de claims foi integrado na Issue #97; Active Claim Projection / policy, assignment, ownership operacional, winner, exclusividade, Last-Claim-Wins, locking / checkout, release / unclaim, transfer / reassignment, TTL / lease / expiry / SLA, claimant→reviewer enforcement e atributos operacionais de gestão de fila permanecem adiados);
 - notificações e escalonamento;
 - interface do especialista;
 - integração e fila de injeção ERP;
@@ -994,11 +1078,11 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 531 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #94 | Human Review Claim State Projection v1 | PR #95 (merge f20129f).
-- Última SPEC integrada: docs/specs/0094_human_review_claim_state_projection_v1.md.
-- Último PR funcional integrado: PR #95.
-- Último merge funcional: f20129f.
+- Baseline integrado na main: 549 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #97 | Pending Human Review Queue with Claim State Application Use Case v1 | PR #98 (merge 2e763f7).
+- Última SPEC integrada: docs/specs/0097_pending_human_review_queue_with_claim_state_application_use_case_v1.md.
+- Último PR funcional integrado: PR #98.
+- Último merge funcional: 2e763f7.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
@@ -1014,15 +1098,16 @@ MAIN INTEGRADA:
   + contrato de domínio puro em memória para assunção de revisão humana (HumanReviewClaim e claim_pending_human_review) com tipagem estrita, imutabilidade, validação fail-closed de elegibilidade (PENDING_HUMAN_REVIEW) e cronologia, e exports públicos em agent_lab
   + persistência append-only durável em JSONL de HumanReviewClaim via JsonlHumanReviewClaimRepository com schema_version=1 canônico, validação fail-closed e integridade pós-restart
   + boundary de gravação na camada de aplicação via RecordHumanReviewClaimUseCase coordenando validação de domínio em memória (zero I/O) e persistência append-only de claims
-  + projeção pura determinística de estado de claims via project_human_review_claim_state classificando fielmente NO_CLAIM, SINGLE_CLAIM e MULTIPLE_CLAIMS em read-model imutável HumanReviewClaimState com propriedades puramente derivadas e ordenação canônica por (claimed_at ASC, claim_id ASC).
-- Princípios: Application coordena | Domain decide | Repository preserva | Projection interpreta | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | HumanReviewClaim != HumanReview | CLAIMED != REVIEWED | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
-- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro sem reaprender regras do domínio; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional.
+  + projeção pura determinística de estado de claims via project_human_review_claim_state classificando fielmente NO_CLAIM, SINGLE_CLAIM e MULTIPLE_CLAIMS em read-model imutável HumanReviewClaimState com propriedades puramente derivadas e ordenação canônica por (claimed_at ASC, claim_id ASC)
+  + boundary de aplicação para consulta da fila pendente com estado factual de claims via ListPendingHumanReviewsWithClaimStateUseCase compondo deterministicamente project_pending_human_review_queue e project_human_review_claim_state no read-model PendingHumanReviewWithClaimStateItem com snapshot local único por repositório, driver set FIFO, zero N+1 e propagação fail-closed.
+- Princípios: Application coordena | Domain decide | Repository preserva | Projection interpreta | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | HumanReviewClaim != HumanReview | CLAIMED != REVIEWED | Projection factual != Policy operacional | sole_claim != active claim | sole_claim != owner | sole_claim != assignment | sole_claim != winner | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro sem reaprender regras do domínio; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional; ListPendingHumanReviewsWithClaimStateUseCase coordena a composição de fila e claims factuais sem eleger active claim ou impor policy operacional.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM;
-  três boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase e RecordHumanReviewClaimUseCase) e uma projeção factual de claims (project_human_review_claim_state) integrados; Active Claim Projection, Queue with Claim Status, assignment/ownership operacional, lock/checkout, vigência/exclusividade/desempate/Last-Claim-Wins, SLAs operacionais, priorização operacional, UI/Streamlit, APIs REST, CLI, processamento assíncrono e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
+  quatro boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase e ListPendingHumanReviewsWithClaimStateUseCase) e uma projeção factual de claims (project_human_review_claim_state) estão integrados; a composição factual da fila pendente com estado de claims está integrada; Active Claim Projection / policy, assignment/ownership operacional, winner, exclusividade, Last-Claim-Wins, lock/checkout, release/unclaim, transfer/reassignment, vigência/TTL/lease/expiry/SLA, claimant→reviewer enforcement, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
-- Incremento funcional da Issue #94 concluído e integrado na main via PR #95 (merge f20129f); Issue #94 formalmente encerrada.
+- Incremento funcional da Issue #97 concluído e integrado na main via PR #98 (merge 2e763f7); Issue #97 formalmente encerrada.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.
