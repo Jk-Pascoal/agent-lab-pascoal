@@ -7,7 +7,11 @@ import unittest
 
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
-from agent_lab.human_review import VerifiedSpecialistIdentity
+from agent_lab.human_review import (
+    HumanDecision,
+    HumanReview,
+    VerifiedSpecialistIdentity,
+)
 from agent_lab.human_review_claim import HumanReviewClaim
 from agent_lab.human_review_claim_projection import (
     HumanReviewClaimFactState,
@@ -20,25 +24,54 @@ from agent_lab.pending_human_reviews_with_claim_state_use_case import (
 )
 from agent_lab.workflow import GovernanceWorkflow
 from agent_lab.workflow_events import (
+    WorkflowConcluded,
     WorkflowLifecycleEvent,
     WorkflowOpened,
 )
 
 
 class FakeWorkflowLifecycleRepository:
-    def __init__(self, events: Sequence[WorkflowLifecycleEvent] = ()) -> None:
+    def __init__(
+        self,
+        events: Sequence[WorkflowLifecycleEvent] = (),
+        *,
+        fail_with: Exception | None = None,
+    ) -> None:
         self._events = tuple(events)
+        self._fail_with = fail_with
+        self.list_all_events_call_count = 0
 
     def list_all_events(self) -> tuple[WorkflowLifecycleEvent, ...]:
+        self.list_all_events_call_count += 1
+        if self._fail_with is not None:
+            raise self._fail_with
         return self._events
 
 
 class FakeHumanReviewClaimRepository:
-    def __init__(self, claims: Sequence[HumanReviewClaim] = ()) -> None:
+    def __init__(
+        self,
+        claims: Sequence[HumanReviewClaim] = (),
+        *,
+        fail_with: Exception | None = None,
+    ) -> None:
         self._claims = tuple(claims)
+        self._fail_with = fail_with
+        self.list_all_call_count = 0
+        self.list_by_workflow_id_call_count = 0
 
     def list_all(self) -> tuple[HumanReviewClaim, ...]:
+        self.list_all_call_count += 1
+        if self._fail_with is not None:
+            raise self._fail_with
         return self._claims
+
+    def list_by_workflow_id(self, workflow_id: str) -> tuple[HumanReviewClaim, ...]:
+        self.list_by_workflow_id_call_count += 1
+        if self._fail_with is not None:
+            raise self._fail_with
+        return tuple(claim for claim in self._claims if claim.workflow_id == workflow_id)
+
 
 
 class PendingHumanReviewWithClaimStateItemTests(unittest.TestCase):
@@ -284,3 +317,233 @@ class ListPendingHumanReviewsWithClaimStateUseCaseOrchestrationTests(unittest.Te
         # A ordem retornada deve preservar estritamente (opened_at ASC, workflow_id ASC)
         self.assertEqual(result[0].workflow.workflow_id, "WF-A")
         self.assertEqual(result[1].workflow.workflow_id, "WF-B")
+
+
+class ListPendingHumanReviewsWithClaimStateUseCaseScopeAndResilienceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.recommendation_1 = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-001",
+            requires_human_decision=True,
+        )
+        self.recommendation_2 = DecisionRecommendation(
+            material_id="MAT-002",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-002",
+            requires_human_decision=True,
+        )
+        self.recommendation_3 = DecisionRecommendation(
+            material_id="MAT-003",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-003",
+            requires_human_decision=True,
+        )
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 4, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+    def test_claim_for_reviewed_workflow_does_not_produce_queue_item(self) -> None:
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-REV-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        review = HumanReview(
+            review_id="REV-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.REVIEW,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=self.specialist,
+            reviewed_at=datetime(2026, 9, 4, 10, 0, 0, tzinfo=timezone.utc),
+            justification="Aprovado na revisão formal",
+            corrections=(),
+        )
+        concluded = WorkflowConcluded(
+            event_id="EVT-CONC-001",
+            workflow_id="WF-REV-001",
+            review=review,
+        )
+        claim = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-REV-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 4, 9, 30, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened, concluded))
+        claim_repo = FakeHumanReviewClaimRepository(claims=(claim,))
+        use_case = ListPendingHumanReviewsWithClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(result, ())
+
+    def test_orphan_claim_for_non_pending_workflow_does_not_produce_queue_item(self) -> None:
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-PENDING-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        pending_claim = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-PENDING-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 4, 9, 15, 0, tzinfo=timezone.utc),
+        )
+        orphan_claim = HumanReviewClaim(
+            claim_id="CLM-ORPHAN",
+            workflow_id="WF-ORPHAN-999",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 4, 9, 20, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(claims=(pending_claim, orphan_claim))
+        use_case = ListPendingHumanReviewsWithClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].workflow.workflow_id, "WF-PENDING-001")
+        self.assertEqual(result[0].claim_state.workflow_id, "WF-PENDING-001")
+        self.assertEqual(result[0].claim_state.sole_claim, pending_claim)
+
+    def test_single_read_of_workflow_lifecycle_repository_per_execution(self) -> None:
+        opened_1 = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_2 = WorkflowOpened(
+            event_id="EVT-OPEN-002",
+            workflow_id="WF-002",
+            recommendation=self.recommendation_2,
+            opened_at=datetime(2026, 9, 4, 10, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened_1, opened_2))
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        use_case = ListPendingHumanReviewsWithClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 0)
+        use_case.execute()
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+
+    def test_single_read_of_claim_repository_per_execution(self) -> None:
+        opened_1 = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_2 = WorkflowOpened(
+            event_id="EVT-OPEN-002",
+            workflow_id="WF-002",
+            recommendation=self.recommendation_2,
+            opened_at=datetime(2026, 9, 4, 10, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_3 = WorkflowOpened(
+            event_id="EVT-OPEN-003",
+            workflow_id="WF-003",
+            recommendation=self.recommendation_3,
+            opened_at=datetime(2026, 9, 4, 11, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened_1, opened_2, opened_3))
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        use_case = ListPendingHumanReviewsWithClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        self.assertEqual(claim_repo.list_all_call_count, 0)
+        use_case.execute()
+        self.assertEqual(claim_repo.list_all_call_count, 1)
+
+    def test_no_n_plus_one_calls_to_list_by_workflow_id(self) -> None:
+        opened_1 = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_2 = WorkflowOpened(
+            event_id="EVT-OPEN-002",
+            workflow_id="WF-002",
+            recommendation=self.recommendation_2,
+            opened_at=datetime(2026, 9, 4, 10, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_3 = WorkflowOpened(
+            event_id="EVT-OPEN-003",
+            workflow_id="WF-003",
+            recommendation=self.recommendation_3,
+            opened_at=datetime(2026, 9, 4, 11, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened_1, opened_2, opened_3))
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        use_case = ListPendingHumanReviewsWithClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        use_case.execute()
+
+        self.assertEqual(claim_repo.list_by_workflow_id_call_count, 0)
+
+    def test_fail_closed_when_workflow_lifecycle_repository_fails(self) -> None:
+        lifecycle_repo = FakeWorkflowLifecycleRepository(
+            events=(),
+            fail_with=RuntimeError("Lifecycle repository read failure"),
+        )
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        use_case = ListPendingHumanReviewsWithClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            use_case.execute()
+
+        self.assertIn("Lifecycle repository read failure", str(ctx.exception))
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+        self.assertEqual(claim_repo.list_all_call_count, 0)
+
+    def test_fail_closed_when_claim_repository_fails_no_partial_result(self) -> None:
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(
+            claims=(),
+            fail_with=RuntimeError("Claim repository read failure"),
+        )
+        use_case = ListPendingHumanReviewsWithClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            use_case.execute()
+
+        self.assertIn("Claim repository read failure", str(ctx.exception))
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+        self.assertEqual(claim_repo.list_all_call_count, 1)
