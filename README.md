@@ -120,6 +120,7 @@ Os casos de uso de Application oferecem boundaries explícitos de coordenação:
 - **`RecordHumanDecisionUseCase`:** coordena o fluxo de conclusão de uma revisão humana. Executa primeiro a preparação determinística em memória (zero-I/O) e, em seguida, realiza a persistência sequencial explícita: grava primeiro o `AuditEvent` no repositório de auditoria e, em seguida, o `WorkflowConcluded` no repositório de lifecycle. O dual-write desse fluxo é deliberadamente não-atômico (sem 2PC, rollback ou compensação), permitindo verificar eventuais divergências via `verify_dual_write_consistency`. *(Nota: este caso de uso não cria nem grava `MaterialRevision`, que pertence a um contrato e repositório independentes).*
 - **`ListPendingHumanReviewsUseCase`:** expõe a consulta da fila ativa de workflows pendentes de revisão humana através da projeção determinística `project_pending_human_review_queue`.
 - **`RecordHumanReviewClaimUseCase`:** coordena a assunção voluntária de um workflow pendente por especialista verificado (`claim_pending_human_review`) e sua persistência append-only via `HumanReviewClaimRepository`, sem alterar o status do workflow e sem eleger claim ativo.
+- **`ListPendingHumanReviewsWithClaimStateUseCase`:** expõe a consulta da fila ativa de workflows pendentes de revisão humana combinada de forma determinística com o estado factual de claims (`HumanReviewClaimState`) de cada item via `PendingHumanReviewWithClaimStateItem`. Opera com snapshot local único por repositório durante a execução, sem reordenação na camada de aplicação, com validação relacional de `workflow_id` e sem atribuir semântica operacional ou de lock a `sole_claim`.
 
 A fronteira de LLM está desenhada de forma desacoplada de provedores externos via abstração `LLMProvider`, permitindo testes unitários e de integração determinísticos sem custos de rede ou dependências externas.
 
@@ -174,6 +175,8 @@ Após o fechamento da release v0.1.0, o projeto evoluiu continuamente através d
 - **Human Review Claim Persistence (Issue #88):** persistência append-only durável em JSONL (`JsonlHumanReviewClaimRepository`) com serialização canônica versionada (`schema_version = 1`), validação fail-closed estrita, suporte a múltiplos claims por `workflow_id` na ordem física de append, integridade pós-restart e exportação da API pública.
 - **Record Human Review Claim Application Use Case (Issue #91):** caso de uso de aplicação `RecordHumanReviewClaimUseCase` para coordenação explícita da criação determinística e persistência de `HumanReviewClaim` via `HumanReviewClaimRepository`, com integração vertical validada contra `JsonlHumanReviewClaimRepository` e exportação da API pública.
 - **Human Review Claim State Projection (Issue #94):** projeção pura e determinística em memória (`project_human_review_claim_state`) e read-model imutável (`HumanReviewClaimState`) sobre fatos de claims persistidos, classificando fielmente os estados factuais `NO_CLAIM`, `SINGLE_CLAIM` e `MULTIPLE_CLAIMS`, com propriedades puramente derivadas (sem armazenamento redundante de `state` ou `claim_count`), ordenação canônica determinística `(claimed_at ASC, claim_id ASC)` sem autoridade operacional de vencedor ou precedência, validação fail-closed estrita de todos os elementos antes da filtragem, integração vertical pós-restart com `JsonlHumanReviewClaimRepository` e exportação pública no pacote `agent_lab`.
+- **Pending Human Review Queue with Claim State Application Use Case (Issue #97):** caso de uso de aplicação `ListPendingHumanReviewsWithClaimStateUseCase` e read-model imutável `PendingHumanReviewWithClaimStateItem` compondo de forma somente-leitura a fila de pendências (`project_pending_human_review_queue`) com o estado factual de claims (`project_human_review_claim_state`), categorizado em `NO_CLAIM`, `SINGLE_CLAIM` e `MULTIPLE_CLAIMS`. Garante a pending queue como conjunto condutor (driver set), preserva a ordenação FIFO, executa snapshot local único por repositório (`list_all_events()` e `list_all()`), elimina chamadas N+1, propaga falhas de forma fail-closed sem resultados parciais, mantém `sole_claim` como cardinalidade puramente factual (sem semântica de active claim, owner, winner, exclusividade ou lock) e comprova integração vertical JSONL real pós-restart.
+
 
 ## Resultados do baseline
 
@@ -219,7 +222,7 @@ O projeto conta com:
 - SPECs versionadas e detalhadas em `docs/specs/`;
 - desenvolvimento orientado por testes (TDD);
 - GitHub Actions com Python 3.11;
-- **531 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência de claim, casos de uso de aplicação e projeções de claims;
+- **549 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência de claim, casos de uso de aplicação, projeções de claims, composição factual de fila pendente com claims e integração vertical JSONL pós-restart;
 - baseline fundacional da release **v0.1.0** preservado (206 testes);
 - proteção de branch com status check de CI obrigatório antes de qualquer merge;
 - política estrita de Versionamento Semântico e registro de mudanças em `CHANGELOG.md`;
@@ -276,6 +279,7 @@ agent-lab-pascoal/
 │       ├── metrics.py
 │       ├── normalization.py
 │       ├── pending_human_reviews_use_case.py
+│       ├── pending_human_reviews_with_claim_state_use_case.py
 │       ├── rules.py
 │       ├── validator.py
 │       ├── workflow.py
@@ -319,7 +323,7 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 - autenticação e autorização corporativa real (SSO, OAuth2, RBAC);
 - banco de dados relacional remoto ou arquitetura cliente/servidor;
 - controle de concorrência multiprocesso, múltiplos escritores simultâneos ou locking distribuído;
-- projeção de claims ativos, caso de uso de aplicação de claim, atribuição gerencial (assignment) e controle concorrente/ownership de itens na fila de revisão;
+- projeção de claims ativos (Active Claim Projection), atribuição gerencial (assignment), ownership operacional, estados de atendimento, locking / checkout, exclusividade, desempate / Last-Claim-Wins e controle concorrente de itens na fila de revisão (a composição factual da fila pendente com estado de claims já foi entregue na Issue #97);
 - gestão de SLAs, prazos e priorização operacional de atendimento;
 - interface operacional (UI/Web/CLI) para o especialista de governança;
 - validação de carga e escala industrial (pressão arquitetural P-07: throughput, memória sob grandes volumes);
@@ -331,7 +335,9 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 
 ## Próximas frentes
 
-Próxima fase planejada: evoluir o Human-in-the-Loop para operação de PoC — projeção de claims ativos, caso de uso de aplicação, assignment, estados de atendimento, SLA e preparação da interface do especialista — mediante novas Issues pequenas e explicitamente aprovadas.
+Próxima âncora arquitetural: a definir após planejamento humano.
+
+Entre as frentes futuras candidatas permanecem projeção/política de active claim, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.
 
 Frentes evolutivas e pressões arquiteturais no backlog incluem:
 
@@ -368,8 +374,8 @@ A decisão final permanece humana.
 
 ✅ **Módulos 0 a 7 concluídos (Release v0.1.0):** fundação do domínio, baseline determinístico, saída estruturada, Evidence Engine, Human-in-the-Loop v1, persistência auditável durável, identidade verificável e persistência de abertura de workflow.
 
-✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #88):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), caso de uso `RecordHumanDecisionUseCase`, projeção de fila pendente, caso de uso `ListPendingHumanReviewsUseCase`, contrato de domínio `HumanReviewClaim` e persistência de claims (`JsonlHumanReviewClaimRepository`).
+✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #97):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), casos de uso `RecordHumanDecisionUseCase` e `ListPendingHumanReviewsUseCase`, contrato de domínio `HumanReviewClaim`, persistência de claims (`JsonlHumanReviewClaimRepository`), caso de uso `RecordHumanReviewClaimUseCase`, projeção de estado factual de claims (`project_human_review_claim_state`) e caso de uso de aplicação `ListPendingHumanReviewsWithClaimStateUseCase`.
 
-🧪 **503 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0).
+🧪 **549 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0).
 
-➡️ **Próxima etapa:** evoluir o Human-in-the-Loop para operação de PoC — projeção de claims ativos, caso de uso de aplicação, assignment, estados de atendimento, SLA e preparação da interface do especialista — mediante novas Issues pequenas e explicitamente aprovadas.
+➡️ **Próxima âncora arquitetural:** a definir após planejamento humano. Entre as frentes futuras candidatas permanecem projeção/política de active claim, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.
