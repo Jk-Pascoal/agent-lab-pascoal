@@ -215,9 +215,9 @@ O estado de claims exposto no resultado é estritamente factual e derivado das p
 
 > [!CAUTION]
 > **`sole_claim` é Cardinalidade Factual, NÃO Política Operacional.**
-> 
+>
 > Quando `claim_state.state == SINGLE_CLAIM`, a propriedade `sole_claim` expõe a única instância de `HumanReviewClaim` persistida no histórico.
-> 
+>
 > `sole_claim` **NÃO** significa:
 > - Active claim (claim ativo);
 > - Owner (dono);
@@ -227,7 +227,7 @@ O estado de claims exposto no resultado é estritamente factual e derivado das p
 > - Exclusividade de atendimento;
 > - Last-Claim-Wins;
 > - Autorização soberana para emitir parecer humano.
-> 
+>
 > `SINGLE_CLAIM` representa apenas que há um único fato gravado. O laboratório não atribui autoridade ou exclusividade a essa contagem nesta v1.
 
 ---
