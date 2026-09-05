@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import unittest
 
 from agent_lab.human_review import VerifiedSpecialistIdentity
+from agent_lab.human_review_claim import HumanReviewClaim
 from agent_lab.human_review_claim_projection import HumanReviewClaimState
 
 from agent_lab.reviewer_eligibility_policy import (
@@ -131,6 +132,56 @@ class ReviewerEligibilityEvaluationTests(unittest.TestCase):
             ReviewerEligibilityStatus.CLAIM_REQUIRED,
         )
         self.assertIs(decision.is_eligible, False)
+
+    def test_single_claim_matching_stable_principal_is_eligible(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_reviewer_claim_eligibility,
+        )
+
+        claimant_identity = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-001",
+            verified_at=datetime(
+                2026, 9, 5, 12, 0, tzinfo=timezone.utc
+            ),
+        )
+
+        reviewer_identity = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-001",
+            verified_at=datetime(
+                2026, 9, 5, 12, 0, tzinfo=timezone.utc
+            ),
+        )
+
+        claim = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=claimant_identity,
+            claimed_at=datetime(
+                2026, 9, 5, 12, 5, tzinfo=timezone.utc
+            ),
+        )
+
+        claim_state = HumanReviewClaimState(
+            workflow_id="WF-001",
+            claims=(claim,),
+        )
+
+        decision = evaluate_reviewer_claim_eligibility(
+            claim_state,
+            reviewer_identity,
+        )
+
+        self.assertEqual(
+            decision.status,
+            ReviewerEligibilityStatus.ELIGIBLE,
+        )
+        self.assertIs(decision.is_eligible, True)
 
 
 if __name__ == "__main__":

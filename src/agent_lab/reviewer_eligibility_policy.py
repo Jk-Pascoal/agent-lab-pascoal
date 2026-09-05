@@ -60,6 +60,32 @@ def evaluate_reviewer_claim_eligibility(
             status=ReviewerEligibilityStatus.CLAIM_REQUIRED
         )
 
+    if claim_state.state is HumanReviewClaimFactState.SINGLE_CLAIM:
+        sole_claim = claim_state.sole_claim
+        if sole_claim is None:
+            raise AssertionError(
+                "single-claim state must expose a sole claim"
+            )
+
+        claimant = sole_claim.specialist
+
+        same_stable_principal = (
+            claimant.specialist_id == reviewer_identity.specialist_id
+            and claimant.identity_provider
+            == reviewer_identity.identity_provider
+            and claimant.identity_subject
+            == reviewer_identity.identity_subject
+        )
+
+        if same_stable_principal:
+            return ReviewerEligibilityDecision(
+                status=ReviewerEligibilityStatus.ELIGIBLE
+            )
+
+        raise NotImplementedError(
+            "reviewer eligibility for claimant mismatch is not implemented yet"
+        )
+
     raise NotImplementedError(
-        "reviewer eligibility for claimed workflows is not implemented yet"
+        "reviewer eligibility for multiple claims is not implemented yet"
     )
