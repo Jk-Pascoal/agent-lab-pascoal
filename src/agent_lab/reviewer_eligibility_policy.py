@@ -82,8 +82,8 @@ def evaluate_reviewer_claim_eligibility(
                 status=ReviewerEligibilityStatus.ELIGIBLE
             )
 
-        raise NotImplementedError(
-            "reviewer eligibility for claimant mismatch is not implemented yet"
+        return ReviewerEligibilityDecision(
+            status=ReviewerEligibilityStatus.CLAIMANT_MISMATCH
         )
 
     raise NotImplementedError(
