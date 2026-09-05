@@ -86,6 +86,9 @@ def evaluate_reviewer_claim_eligibility(
             status=ReviewerEligibilityStatus.CLAIMANT_MISMATCH
         )
 
-    raise NotImplementedError(
-        "reviewer eligibility for multiple claims is not implemented yet"
-    )
+    if claim_state.state is HumanReviewClaimFactState.MULTIPLE_CLAIMS:
+        return ReviewerEligibilityDecision(
+            status=ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT
+        )
+
+    raise AssertionError("unsupported human review claim fact state")

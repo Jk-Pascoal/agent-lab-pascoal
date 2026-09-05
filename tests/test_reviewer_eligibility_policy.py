@@ -433,6 +433,75 @@ class ReviewerEligibilityEvaluationTests(unittest.TestCase):
         )
         self.assertIs(decision.is_eligible, True)
 
+    def test_multiple_claims_with_different_principals_are_conflict(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_reviewer_claim_eligibility,
+        )
+
+        claimant_1 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-001",
+            verified_at=datetime(
+                2026, 9, 5, 12, 0, tzinfo=timezone.utc
+            ),
+        )
+
+        claimant_2 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-002",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-002",
+            verification_id="VER-002",
+            verified_at=datetime(
+                2026, 9, 5, 12, 0, tzinfo=timezone.utc
+            ),
+        )
+
+        reviewer_identity = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-003",
+            verified_at=datetime(
+                2026, 9, 5, 12, 1, tzinfo=timezone.utc
+            ),
+        )
+
+        claim_1 = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=claimant_1,
+            claimed_at=datetime(
+                2026, 9, 5, 12, 5, tzinfo=timezone.utc
+            ),
+        )
+
+        claim_2 = HumanReviewClaim(
+            claim_id="CLM-002",
+            workflow_id="WF-001",
+            specialist=claimant_2,
+            claimed_at=datetime(
+                2026, 9, 5, 12, 6, tzinfo=timezone.utc
+            ),
+        )
+
+        claim_state = HumanReviewClaimState(
+            workflow_id="WF-001",
+            claims=(claim_1, claim_2),
+        )
+
+        decision = evaluate_reviewer_claim_eligibility(
+            claim_state,
+            reviewer_identity,
+        )
+
+        self.assertEqual(
+            decision.status,
+            ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT,
+        )
+        self.assertIs(decision.is_eligible, False)
+
 
 if __name__ == "__main__":
     unittest.main()
