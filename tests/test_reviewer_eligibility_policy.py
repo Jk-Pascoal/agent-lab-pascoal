@@ -639,5 +639,32 @@ class ReviewerEligibilityEvaluationTests(unittest.TestCase):
                     )
 
 
+class ReviewerEligibilityPublicExportTests(unittest.TestCase):
+    def test_package_root_exports_reviewer_eligibility_symbols(self) -> None:
+        from agent_lab import (
+            ReviewerEligibilityDecision,
+            ReviewerEligibilityStatus,
+            evaluate_reviewer_claim_eligibility,
+        )
+        from agent_lab.reviewer_eligibility_policy import (
+            ReviewerEligibilityDecision as ModuleDecision,
+            ReviewerEligibilityStatus as ModuleStatus,
+            evaluate_reviewer_claim_eligibility as ModuleEvaluate,
+        )
+
+        self.assertIs(
+            ReviewerEligibilityDecision,
+            ModuleDecision,
+        )
+        self.assertIs(
+            ReviewerEligibilityStatus,
+            ModuleStatus,
+        )
+        self.assertIs(
+            evaluate_reviewer_claim_eligibility,
+            ModuleEvaluate,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
