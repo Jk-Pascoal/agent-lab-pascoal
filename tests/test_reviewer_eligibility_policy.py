@@ -6,7 +6,10 @@ import unittest
 
 from agent_lab.human_review import VerifiedSpecialistIdentity
 from agent_lab.human_review_claim import HumanReviewClaim
-from agent_lab.human_review_claim_projection import HumanReviewClaimState
+from agent_lab.human_review_claim_projection import (
+    HumanReviewClaimFactState,
+    HumanReviewClaimState,
+)
 
 from agent_lab.reviewer_eligibility_policy import (
     ReviewerEligibilityDecision,
@@ -489,6 +492,80 @@ class ReviewerEligibilityEvaluationTests(unittest.TestCase):
         claim_state = HumanReviewClaimState(
             workflow_id="WF-001",
             claims=(claim_1, claim_2),
+        )
+
+        decision = evaluate_reviewer_claim_eligibility(
+            claim_state,
+            reviewer_identity,
+        )
+
+        self.assertEqual(
+            decision.status,
+            ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT,
+        )
+        self.assertIs(decision.is_eligible, False)
+
+    def test_multiple_claims_same_principal_remain_conflict(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_reviewer_claim_eligibility,
+        )
+
+        identity_1 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-001",
+            verified_at=datetime(
+                2026, 9, 5, 12, 0, tzinfo=timezone.utc
+            ),
+        )
+
+        identity_2 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-002",
+            verified_at=datetime(
+                2026, 9, 5, 12, 1, tzinfo=timezone.utc
+            ),
+        )
+
+        reviewer_identity = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-003",
+            verified_at=datetime(
+                2026, 9, 5, 12, 2, tzinfo=timezone.utc
+            ),
+        )
+
+        claim_1 = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=identity_1,
+            claimed_at=datetime(
+                2026, 9, 5, 12, 5, tzinfo=timezone.utc
+            ),
+        )
+
+        claim_2 = HumanReviewClaim(
+            claim_id="CLM-002",
+            workflow_id="WF-001",
+            specialist=identity_2,
+            claimed_at=datetime(
+                2026, 9, 5, 12, 6, tzinfo=timezone.utc
+            ),
+        )
+
+        claim_state = HumanReviewClaimState(
+            workflow_id="WF-001",
+            claims=(claim_1, claim_2),
+        )
+
+        self.assertEqual(
+            claim_state.state,
+            HumanReviewClaimFactState.MULTIPLE_CLAIMS,
         )
 
         decision = evaluate_reviewer_claim_eligibility(
