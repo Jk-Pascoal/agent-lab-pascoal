@@ -96,8 +96,15 @@ MaterialRecord
 │  project_human_review_claim_state (Projeção pura determinística)                       │
 │       │                                                                                │
 │       ▼                                                                                │
-│  NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS                                             │
-│  (factual projection != active claim policy / Repository não elege claim ativo)        │
+│  HumanReviewClaimState (NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS)                     │
+│       │                                                                                │
+│       ▼                                                                                │
+│  evaluate_reviewer_claim_eligibility (Policy pura de governança em memória)            │
+│       │                                                                                │
+│       ▼                                                                                │
+│  ReviewerEligibilityDecision (ELIGIBLE / CLAIM_REQUIRED / CLAIMANT_MISMATCH /         │
+│                               MULTIPLE_CLAIMS_CONFLICT)                                │
+│  (Projection factual != Policy normativa / sem active claim / sem runtime enforcement) │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -121,6 +128,12 @@ Os casos de uso de Application oferecem boundaries explícitos de coordenação:
 - **`ListPendingHumanReviewsUseCase`:** expõe a consulta da fila ativa de workflows pendentes de revisão humana através da projeção determinística `project_pending_human_review_queue`.
 - **`RecordHumanReviewClaimUseCase`:** coordena a assunção voluntária de um workflow pendente por especialista verificado (`claim_pending_human_review`) e sua persistência append-only via `HumanReviewClaimRepository`, sem alterar o status do workflow e sem eleger claim ativo.
 - **`ListPendingHumanReviewsWithClaimStateUseCase`:** expõe a consulta da fila ativa de workflows pendentes de revisão humana combinada de forma determinística com o estado factual de claims (`HumanReviewClaimState`) de cada item via `PendingHumanReviewWithClaimStateItem`. Opera com snapshot local único por repositório durante a execução, sem reordenação na camada de aplicação, com validação relacional de `workflow_id` e sem atribuir semântica operacional ou de lock a `sole_claim`.
+
+### Camada de Política e Governança Normativa (Policy Layer)
+
+A camada de Policy introduz regras puras, determinísticas e em memória (zero-I/O), posicionada conceitualmente entre a projeção factual e a coordenação de aplicação (`Repository preserva → Projection interpreta → Policy governa → Application coordena`):
+
+- **`evaluate_reviewer_claim_eligibility`:** avalia deterministicamente se uma identidade verificada (`VerifiedSpecialistIdentity`) possui elegibilidade normativa para revisar um workflow com base no seu estado factual de claims (`HumanReviewClaimState`), retornando um `ReviewerEligibilityDecision` imutável com `status: ReviewerEligibilityStatus` (`ELIGIBLE`, `CLAIM_REQUIRED`, `CLAIMANT_MISMATCH`, `MULTIPLE_CLAIMS_CONFLICT`). Adota equivalência estrita de Principal Estável `(specialist_id, identity_provider, identity_subject)` isolando proveniência de sessão (`verification_id`, `verified_at`), mantém cardinalidade governada pela Projection (`MULTIPLE_CLAIMS` sempre em conflito, inclusive para o mesmo principal estável) e valida defensivamente os tipos de entrada (`TypeError`). *(Nota: a política estabelece autoridade normativa pura em memória; ela não implementa active claim, ownership, assignment, winner election, locking ou SLA, e o caso de uso `RecordHumanDecisionUseCase` permanece sem enforcement em tempo de execução nesta etapa).*
 
 A fronteira de LLM está desenhada de forma desacoplada de provedores externos via abstração `LLMProvider`, permitindo testes unitários e de integração determinísticos sem custos de rede ou dependências externas.
 
@@ -222,7 +235,7 @@ O projeto conta com:
 - SPECs versionadas e detalhadas em `docs/specs/`;
 - desenvolvimento orientado por testes (TDD);
 - GitHub Actions com Python 3.11;
-- **549 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência de claim, casos de uso de aplicação, projeções de claims, composição factual de fila pendente com claims e integração vertical JSONL pós-restart;
+- **569 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência de claim, casos de uso de aplicação, projeções de claims, composição factual de fila pendente com claims, política pura de elegibilidade de revisores e integração vertical JSONL pós-restart;
 - baseline fundacional da release **v0.1.0** preservado (206 testes);
 - proteção de branch com status check de CI obrigatório antes de qualquer merge;
 - política estrita de Versionamento Semântico e registro de mudanças em `CHANGELOG.md`;
@@ -280,6 +293,7 @@ agent-lab-pascoal/
 │       ├── normalization.py
 │       ├── pending_human_reviews_use_case.py
 │       ├── pending_human_reviews_with_claim_state_use_case.py
+│       ├── reviewer_eligibility_policy.py
 │       ├── rules.py
 │       ├── validator.py
 │       ├── workflow.py
@@ -323,7 +337,7 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 - autenticação e autorização corporativa real (SSO, OAuth2, RBAC);
 - banco de dados relacional remoto ou arquitetura cliente/servidor;
 - controle de concorrência multiprocesso, múltiplos escritores simultâneos ou locking distribuído;
-- projeção de claims ativos (Active Claim Projection), atribuição gerencial (assignment), ownership operacional, estados de atendimento, locking / checkout, exclusividade, desempate / Last-Claim-Wins e controle concorrente de itens na fila de revisão (a composição factual da fila pendente com estado de claims já foi entregue na Issue #97);
+- projeção de claims ativos (Active Claim Projection / Active Claim Policy), atribuição gerencial (assignment), ownership operacional, estados de atendimento, locking / checkout, exclusividade, desempate / Last-Claim-Wins, enforcement em tempo de execução claimant→reviewer em RecordHumanDecisionUseCase e controle concorrente de itens na fila de revisão (a composição factual da fila pendente com estado de claims foi entregue na Issue #97 e a política pura normativa de elegibilidade de revisores foi entregue na Issue #100; a política de claim ativo e o enforcement em runtime permanecem estritamente futuros);
 - gestão de SLAs, prazos e priorização operacional de atendimento;
 - interface operacional (UI/Web/CLI) para o especialista de governança;
 - validação de carga e escala industrial (pressão arquitetural P-07: throughput, memória sob grandes volumes);
@@ -337,7 +351,7 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 
 Próxima âncora arquitetural: a definir após planejamento humano.
 
-Entre as frentes futuras candidatas permanecem projeção/política de active claim, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.
+Entre as frentes futuras candidatas permanecem projeção/política de active claim, enforcement causal claimant→reviewer em tempo de execução, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.
 
 Frentes evolutivas e pressões arquiteturais no backlog incluem:
 
@@ -374,8 +388,8 @@ A decisão final permanece humana.
 
 ✅ **Módulos 0 a 7 concluídos (Release v0.1.0):** fundação do domínio, baseline determinístico, saída estruturada, Evidence Engine, Human-in-the-Loop v1, persistência auditável durável, identidade verificável e persistência de abertura de workflow.
 
-✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #97):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), casos de uso `RecordHumanDecisionUseCase` e `ListPendingHumanReviewsUseCase`, contrato de domínio `HumanReviewClaim`, persistência de claims (`JsonlHumanReviewClaimRepository`), caso de uso `RecordHumanReviewClaimUseCase`, projeção de estado factual de claims (`project_human_review_claim_state`) e caso de uso de aplicação `ListPendingHumanReviewsWithClaimStateUseCase`.
+✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #100):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), casos de uso `RecordHumanDecisionUseCase` e `ListPendingHumanReviewsUseCase`, contrato de domínio `HumanReviewClaim`, persistência de claims (`JsonlHumanReviewClaimRepository`), caso de uso `RecordHumanReviewClaimUseCase`, projeção de estado factual de claims (`project_human_review_claim_state`), caso de uso de aplicação `ListPendingHumanReviewsWithClaimStateUseCase` e política pura de elegibilidade de revisores (`Reviewer Claim Eligibility Policy v1`).
 
-🧪 **549 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0).
+🧪 **569 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0).
 
-➡️ **Próxima âncora arquitetural:** a definir após planejamento humano. Entre as frentes futuras candidatas permanecem projeção/política de active claim, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.
+➡️ **Próxima âncora arquitetural:** a definir após planejamento humano. Entre as frentes futuras candidatas permanecem projeção/política de active claim, enforcement causal claimant→reviewer em tempo de execução, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.

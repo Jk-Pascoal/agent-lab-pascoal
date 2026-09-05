@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-09-04
-- **Baseline integrado na main:** 549 testes aprovados
-- **Última entrega funcional integrada na main:** Pending Human Review Queue with Claim State Application Use Case v1
-- **Última Issue funcional integrada na main:** #97
-- **Último PR funcional integrado na main:** #98
-- **Último merge funcional:** `2e763f7` — Merge pull request #98
-- **Última SPEC integrada na main:** `docs/specs/0097_pending_human_review_queue_with_claim_state_application_use_case_v1.md`
+- **Estado registrado em:** 2026-09-05
+- **Baseline integrado na main:** 569 testes aprovados
+- **Última entrega funcional integrada na main:** Reviewer Claim Eligibility Policy v1
+- **Última Issue funcional integrada na main:** #100
+- **Último PR funcional integrado na main:** #101
+- **Último merge funcional:** `92872ad` — Merge pull request #101
+- **Última SPEC integrada na main:** `docs/specs/0100_reviewer_claim_eligibility_policy_v1.md`
 - **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
@@ -79,7 +79,11 @@ Claim JSONL
         ↓
 project_human_review_claim_state
         ↓
-NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS
+NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS (HumanReviewClaimState)
+        ↓
+evaluate_reviewer_claim_eligibility (Policy pura de governança em memória)
+        ↓
+ReviewerEligibilityDecision (ELIGIBLE / CLAIM_REQUIRED / CLAIMANT_MISMATCH / MULTIPLE_CLAIMS_CONFLICT)
 
 4. COMPOSIÇÃO DE APLICAÇÃO (Somente-leitura)
 Workflow Lifecycle JSONL
@@ -103,7 +107,7 @@ Separação conceitual mandatória:
 - **`WorkflowLifecycleEvent ≠ AuditEvent`**
 - **`HumanReviewClaim ≠ HumanReview`**
 - **`CLAIMED ≠ REVIEWED`**
-- **`Projection factual ≠ Policy operacional`**
+- **`Projection factual ≠ Policy normativa`**
 - **`sole_claim ≠ active claim`**
 - **`sole_claim ≠ owner`**
 - **`sole_claim ≠ assignment`**
@@ -115,8 +119,9 @@ Separação conceitual mandatória:
 - **Audit persistence (`AuditEvent`):** preserva a evidência imutável da deliberação do especialista humano pós-decisão;
 - **Human Review Claim persistence (`HumanReviewClaim`):** representa o fato operacional imutável de um especialista assumir voluntariamente um workflow pendente e possui trilha persistente dedicada append-only (`JsonlHumanReviewClaimRepository`), desacoplada de lifecycle e auditoria. Persistir o claim não altera `WorkflowStatus` (`PENDING_HUMAN_REVIEW` preservado), não gera `WorkflowLifecycleEvent`, não gera `AuditEvent` e não constitui decisão humana;
 - **Princípio `Repository ≠ Projection`:** o repositório (`JsonlHumanReviewClaimRepository`) preserva os fatos físicos na ordem de append; a projeção (`project_human_review_claim_state`) interpreta o estado factual (`NO_CLAIM`, `SINGLE_CLAIM`, `MULTIPLE_CLAIMS`) sem criar autoridade operacional, sem eleger claim ativo e sem inventar políticas de vigência, exclusividade ou concorrência;
+- **Reviewer Claim Eligibility Policy (`evaluate_reviewer_claim_eligibility`):** governa a autoridade normativa pura em memória a partir do read-model factual `HumanReviewClaimState` e de `VerifiedSpecialistIdentity`, categorizando deterministicamente em `ELIGIBLE`, `CLAIM_REQUIRED`, `CLAIMANT_MISMATCH` e `MULTIPLE_CLAIMS_CONFLICT`, com base em equivalência textual exata de Principal Estável `(specialist_id, identity_provider, identity_subject)`, isolando proveniência de sessão (`verification_id`, `verified_at`), sem deduplicação de claims e sem eleição de claim ativo ou vencedor;
 - **Application composition read-only (`ListPendingHumanReviewsWithClaimStateUseCase`):** combina de forma puramente determinística e somente-leitura a fila pendente com o estado factual de claims em itens imutáveis `PendingHumanReviewWithClaimStateItem`, utilizando snapshot local único por repositório e preservando a pending queue como driver set FIFO, com invariante relacional estrito `workflow.workflow_id == claim_state.workflow_id`;
-- **Princípio `Repository preserva | Projection interpreta | Application coordena`:** o repositório preserva a integridade física e histórica; a projeção interpreta deterministicamente read-models factuais em memória; a camada de aplicação coordena a interação entre repositórios e projeções sem reinventar regras de negócio nem eleger policies operacionais;
+- **Princípio `Repository preserva → Projection interpreta → Policy governa → Application coordena`:** o repositório preserva a integridade física e histórica na ordem de append; a projeção interpreta deterministicamente read-models factuais em memória; a política governa autoridade normativa e elegibilidade pura sem I/O; a camada de aplicação coordena a interação entre camadas sem reinventar regras de negócio e sem enforcement espúrio em tempo de execução;
 - Não fundir responsabilidades operacionais, de governança, de auditoria ou factuais.
 
 
@@ -343,6 +348,17 @@ O sistema em seu estado integrado atual na `main` representa e valida:
   - limites arquiteturais estritamente respeitados: zero active-claim policy, zero ownership operacional, zero assignment gerencial, zero locking/lease/SLA e zero mutação persistente (operação estritamente de leitura);
   - teste de integração vertical pós-restart (`tests/test_pending_human_reviews_with_claim_state_use_case_integration.py`) comprovando coordenação completa sobre repositórios JSONL reais (`JsonlWorkflowLifecycleRepository` e `JsonlHumanReviewClaimRepository`) após reinicialização física das instâncias;
   - símbolos contextuais no módulo da funcionalidade, sem exportação na API pública do pacote raiz `src/agent_lab/__init__.py`.
+- **Incremento integrado da Issue #100 (Reviewer Claim Eligibility Policy v1):**
+  - módulo `src/agent_lab/reviewer_eligibility_policy.py`: introdução de uma política pura e determinística de governança normativa em memória (zero-I/O), operando na camada de Policy entre Projections e Use Cases (`Repository preserva → Projection interpreta → Policy governa → Application coordena`);
+  - enum canônico `ReviewerEligibilityStatus` com 4 estados discriminados: `ELIGIBLE`, `CLAIM_REQUIRED`, `CLAIMANT_MISMATCH` e `MULTIPLE_CLAIMS_CONFLICT`;
+  - read-model imutável `ReviewerEligibilityDecision` (`frozen=True, slots=True`) com armazenamento estritamente limitado ao fato canônico fundamental (`status: ReviewerEligibilityStatus`);
+  - propriedades puras derivadas `@property is_eligible -> bool` (exclusivamente verdadeira quando `status == ReviewerEligibilityStatus.ELIGIBLE`) e `@property reason -> str` (exposição amigável e imutável da justificativa normativa associada a cada status), garantindo impossibilidade de descompasso interno entre status e razão;
+  - função pura `evaluate_reviewer_claim_eligibility(claim_state: HumanReviewClaimState, reviewer_identity: VerifiedSpecialistIdentity) -> ReviewerEligibilityDecision` operando exclusivamente em memória com zero I/O;
+  - equivalência estrita de Principal Estável: avaliação baseada na tupla textual exata `(specialist_id, identity_provider, identity_subject)` isolando proveniência de sessão (`verification_id`, `verified_at`), permitindo reconhecer como equivalente o reviewer cujo stable principal coincide textualmente com o claimant, independentemente de diferenças em `verification_id` ou `verified_at`;
+  - preservação da autoridade da projeção de claims: `MULTIPLE_CLAIMS` resulta obrigatoriamente em `MULTIPLE_CLAIMS_CONFLICT`, inclusive se múltiplos claims registrados pertencerem ao mesmo principal estável, recusando desempates arbitrários, merges de claims ou eleição de vencedor em conformidade com o princípio de separação de responsabilidades;
+  - validação defensiva *fail-closed*: `TypeError` para `claim_state` que não seja `HumanReviewClaimState` e para `reviewer_identity` que não seja `VerifiedSpecialistIdentity`;
+  - exportação pública canônica dos símbolos `ReviewerEligibilityStatus`, `ReviewerEligibilityDecision` e `evaluate_reviewer_claim_eligibility` no pacote raiz `src/agent_lab/__init__.py`;
+  - pureza arquitetural estritamente preservada: a Policy apenas classifica elegibilidade normativa em memória, com zero I/O, sem garantias de identidade real ou autenticação real, sem ownership, sem exclusividade, sem mutação de entidades e sem enforcement em tempo de execução (`RecordHumanDecisionUseCase` permanece intacto sem restrição de chamador nesta etapa).
 
 > [!NOTE]
 > **Weekly Architectural Review #01 (2026-09-04) — Aprendizado de Governança:**
@@ -350,6 +366,14 @@ O sistema em seu estado integrado atual na `main` representa e valida:
 > Weekly Architectural Review → hipótese depurada → Issue #97 → SPEC 0097 → micro-TDD → Pre-PR Gate → Evidence Reconciliation → PR #98 → merge.
 > O processo consolidou a máxima: *“Testes provam comportamento; gates provam prontidão.”*
 > Em particular, o Pre-PR Gate detectou trailing whitespace documental antes da publicação da branch, demonstrando na prática que prontidão arquitetural engloba conformidade e integridade da evidência, não apenas suíte GREEN.
+
+> [!NOTE]
+> **Issue #100 (2026-09-05) — Aprendizados de Governança e Engenharia:**
+> O ciclo da Issue #100 consolidou importantes lições arquiteturais e de processo:
+> - **Functional completion ≠ Issue completion:** a conclusão de fatias de código e o merge do PR funcional não encerram a Issue; o encerramento canônico de uma Issue de governança requer closeout documental rigoroso e alinhamento do ecossistema.
+> - **Policy normativa ≠ Enforcement em tempo de execução:** uma política de governança pode ser formalizada e testada deterministicamente em memória como regra pura, sem a necessidade de acoplamento prematuro ou enforcement runtime imediato nos casos de uso de aplicação. A Policy apenas classifica elegibilidade normativa em memória, sem conceder garantias de identidade real, autenticação real, ownership ou exclusividade.
+> - **Cardinalidade factual pertence à Projection:** a Policy respeita a autoridade factual da Projection; mesmo que múltiplos claims registrados compartilhem o mesmo principal estável, multiplicidade factual constitui conflito normativo e não deve ser silenciada ou deduplicada arbitrariamente pela política.
+> - **Contract-hardening e preservação de estabilidade:** quando um comportamento já está corretamente generalizado pela implementação, um teste de characterization/contract-hardening pode entrar GREEN; não se degrada produção artificialmente apenas para fabricar um RED.
 
 ### 4.3 Limite atual
 
@@ -373,10 +397,11 @@ A versão atual integrada na `main` possui:
   2. `ListPendingHumanReviewsUseCase`
   3. `RecordHumanReviewClaimUseCase`
   4. `ListPendingHumanReviewsWithClaimStateUseCase`
-  e uma projeção factual de claims integrada (`project_human_review_claim_state`); a composição factual da fila pendente com estado de claims está integrada (`pending queue + factual claim state`);
+  uma projeção factual de claims integrada (`project_human_review_claim_state`), a composição factual da fila pendente com estado de claims integrada (`pending queue + factual claim state`), e um módulo puro de política de governança normativa integrado (`Reviewer Claim Eligibility Policy v1` / `evaluate_reviewer_claim_eligibility`);
 - execução síncrona/monoprocesso;
 - permanecem estritamente fora do escopo (não implementados):
-  - projeção ou política de claims ativos (`Active Claim Projection` / policy);
+  - projeção ou política de claims ativos (`Active Claim Projection` / `Active Claim Policy`);
+  - *enforcement* causal claimant $\rightarrow$ reviewer em tempo de execução no caso de uso de decisão (`RecordHumanDecisionUseCase`);
   - *ownership* operacional;
   - atribuição gerencial (*assignment*);
   - eleição de vencedor (*winner*);
@@ -387,7 +412,6 @@ A versão atual integrada na `main` possui:
   - operações de *release* / *unclaim*;
   - transferência / *reassignment* de titularidade;
   - vigência / TTL / *lease* / expiração / SLA;
-  - *enforcement* causal claimant $\rightarrow$ reviewer;
   - priorização operacional de fila;
   - interface operacional (UI/Streamlit / `app.py`), APIs REST, CLI;
   - processamento assíncrono / concorrência multiprocesso e otimizações P-07;
@@ -396,7 +420,7 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Incremento atual: Issue #97 concluída e integrada na main via PR #98 / merge `2e763f7`.
+Incremento atual: Issue #100 concluída e integrada na main via PR #101 / merge `92872ad`.
 
 Próxima âncora arquitetural: a definir após planejamento humano.
 
@@ -422,6 +446,7 @@ Contrato
   → Record Human Review Claim Application Use Case (concluído na #91)
   → Human Review Claim State Projection (concluída na #94)
   → Pending Human Review Queue with Claim State Application Use Case (concluído na #97)
+  → Reviewer Claim Eligibility Policy v1 (concluída na #100)
   → próxima âncora a definir após planejamento humano
 ```
 
@@ -779,7 +804,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 549 tests
+Ran 569 tests
 OK
 ```
 
@@ -816,6 +841,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #94: 531 testes
 - Incremento da Issue #97: +18 testes sobre o baseline de entrada de 531 (17 testes unitários em `tests/test_pending_human_reviews_with_claim_state_use_case.py` + 1 teste de integração em `tests/test_pending_human_reviews_with_claim_state_use_case_integration.py`)
 - Baseline integrado após a Issue #97: 549 testes
+- Incremento da Issue #100: +20 testes sobre o baseline de entrada de 549 (20 testes unitários em `tests/test_reviewer_eligibility_policy.py`)
+- Baseline integrado após a Issue #100: 569 testes
 
 Não assumir `pytest`.
 
@@ -1000,7 +1027,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 - autenticação e autorização real (RBAC);
 - papéis e segregação de funções;
 - taxonomia completa de motivos;
-- filas operacionais com active claim, assignment/ownership/lock, priorização e SLAs (a projeção pura da fila PENDING_HUMAN_REVIEW foi integrada na Issue #77, seu boundary de consulta na Application foi integrado na Issue #81, o contrato de domínio em memória de HumanReviewClaim foi integrado na Issue #85, a persistência durável em JSONL foi integrada na Issue #88, o boundary de gravação na Application foi integrado na Issue #91, a projeção pura factual de estado de claims foi integrada na Issue #94 e o caso de uso de composição factual da fila pendente com estado de claims foi integrado na Issue #97; Active Claim Projection / policy, assignment, ownership operacional, winner, exclusividade, Last-Claim-Wins, locking / checkout, release / unclaim, transfer / reassignment, TTL / lease / expiry / SLA, claimant→reviewer enforcement e atributos operacionais de gestão de fila permanecem adiados);
+- filas operacionais com active claim, assignment/ownership/lock, priorização e SLAs (a projeção pura da fila PENDING_HUMAN_REVIEW foi integrada na Issue #77, seu boundary de consulta na Application foi integrado na Issue #81, o contrato de domínio em memória de HumanReviewClaim foi integrado na Issue #85, a persistência durável em JSONL foi integrada na Issue #88, o boundary de gravação na Application foi integrado na Issue #91, a projeção pura factual de estado de claims foi integrada na Issue #94, o caso de uso de composição factual da fila pendente com estado de claims foi integrado na Issue #97 e a política pura normativa de elegibilidade de revisores foi integrada na Issue #100; Active Claim Projection / Active Claim Policy, assignment, ownership operacional, winner, exclusividade, Last-Claim-Wins, locking / checkout, release / unclaim, transfer / reassignment, TTL / lease / expiry / SLA, claimant→reviewer runtime enforcement e atributos operacionais de gestão de fila permanecem adiados);
 - notificações e escalonamento;
 - interface do especialista;
 - integração e fila de injeção ERP;
@@ -1078,11 +1105,11 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 549 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #97 | Pending Human Review Queue with Claim State Application Use Case v1 | PR #98 (merge 2e763f7).
-- Última SPEC integrada: docs/specs/0097_pending_human_review_queue_with_claim_state_application_use_case_v1.md.
-- Último PR funcional integrado: PR #98.
-- Último merge funcional: 2e763f7.
+- Baseline integrado na main: 569 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #100 | Reviewer Claim Eligibility Policy v1 | PR #101 (merge 92872ad).
+- Última SPEC integrada: docs/specs/0100_reviewer_claim_eligibility_policy_v1.md.
+- Último PR funcional integrado: PR #101.
+- Último merge funcional: 92872ad.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
@@ -1099,15 +1126,16 @@ MAIN INTEGRADA:
   + persistência append-only durável em JSONL de HumanReviewClaim via JsonlHumanReviewClaimRepository com schema_version=1 canônico, validação fail-closed e integridade pós-restart
   + boundary de gravação na camada de aplicação via RecordHumanReviewClaimUseCase coordenando validação de domínio em memória (zero I/O) e persistência append-only de claims
   + projeção pura determinística de estado de claims via project_human_review_claim_state classificando fielmente NO_CLAIM, SINGLE_CLAIM e MULTIPLE_CLAIMS em read-model imutável HumanReviewClaimState com propriedades puramente derivadas e ordenação canônica por (claimed_at ASC, claim_id ASC)
-  + boundary de aplicação para consulta da fila pendente com estado factual de claims via ListPendingHumanReviewsWithClaimStateUseCase compondo deterministicamente project_pending_human_review_queue e project_human_review_claim_state no read-model PendingHumanReviewWithClaimStateItem com snapshot local único por repositório, driver set FIFO, zero N+1 e propagação fail-closed.
-- Princípios: Application coordena | Domain decide | Repository preserva | Projection interpreta | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | HumanReviewClaim != HumanReview | CLAIMED != REVIEWED | Projection factual != Policy operacional | sole_claim != active claim | sole_claim != owner | sole_claim != assignment | sole_claim != winner | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
-- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro sem reaprender regras do domínio; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional; ListPendingHumanReviewsWithClaimStateUseCase coordena a composição de fila e claims factuais sem eleger active claim ou impor policy operacional.
+  + boundary de aplicação para consulta da fila pendente com estado factual de claims via ListPendingHumanReviewsWithClaimStateUseCase compondo deterministicamente project_pending_human_review_queue e project_human_review_claim_state no read-model PendingHumanReviewWithClaimStateItem com snapshot local único por repositório, driver set FIFO, zero N+1 e propagação fail-closed
+  + camada de política pura de governança normativa em memória via evaluate_reviewer_claim_eligibility(claim_state, reviewer_identity) classificando deterministicamente a elegibilidade em ReviewerEligibilityDecision (ELIGIBLE, CLAIM_REQUIRED, CLAIMANT_MISMATCH, MULTIPLE_CLAIMS_CONFLICT) com comparação textual exata pelo stable principal (specialist_id, identity_provider, identity_subject), excluindo verification_id e verified_at da equivalência de principal, autoridade de cardinalidade da projection, zero I/O e exports públicos no package root.
+- Princípios: Repository preserva → Projection interpreta → Policy governa → Application coordena | Domain decide | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | HumanReviewClaim != HumanReview | CLAIMED != REVIEWED | Projection factual != Policy normativa | sole_claim != active claim | sole_claim != owner | sole_claim != assignment | sole_claim != winner | CorrectionRequest != MaterialRevision (intenção humana != estado factual).
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro sem reaprender regras do domínio; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional; ListPendingHumanReviewsWithClaimStateUseCase coordena a composição de fila e claims factuais sem eleger active claim ou impor policy operacional; evaluate_reviewer_claim_eligibility governa a elegibilidade normativa pura em memória sem conceder garantias de identidade real, autenticação real, ownership ou exclusividade e sem enforcement em tempo de execução.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM;
-  quatro boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase e ListPendingHumanReviewsWithClaimStateUseCase) e uma projeção factual de claims (project_human_review_claim_state) estão integrados; a composição factual da fila pendente com estado de claims está integrada; Active Claim Projection / policy, assignment/ownership operacional, winner, exclusividade, Last-Claim-Wins, lock/checkout, release/unclaim, transfer/reassignment, vigência/TTL/lease/expiry/SLA, claimant→reviewer enforcement, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
+  quatro boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase e ListPendingHumanReviewsWithClaimStateUseCase), uma projeção factual de claims (project_human_review_claim_state) e um módulo de governança de política normativa pura (evaluate_reviewer_claim_eligibility) estão integrados; a composição factual da fila pendente com estado de claims está integrada; Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, Last-Claim-Wins, lock/checkout, release/unclaim, transfer/reassignment, vigência/TTL/lease/expiry/SLA, claimant→reviewer runtime enforcement em RecordHumanDecisionUseCase, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
-- Incremento funcional da Issue #97 concluído e integrado na main via PR #98 (merge 2e763f7); Issue #97 formalmente encerrada.
+- Incremento funcional da Issue #100 concluído e integrado na main via PR #101 (merge 92872ad); Issue #100 em closeout documental.
 
 PRÓXIMA ÂNCORA:
 - Ainda não definida; deve ser escolhida somente após novo planejamento humano.
