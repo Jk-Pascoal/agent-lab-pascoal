@@ -29,6 +29,11 @@ from .human_review_claim_serialization import (
     human_review_claim_to_record,
 )
 from .human_review_claim_use_case import RecordHumanReviewClaimUseCase
+from .reviewer_eligibility_policy import (
+    ReviewerEligibilityDecision,
+    ReviewerEligibilityStatus,
+    evaluate_reviewer_claim_eligibility,
+)
 from .validator import DeterministicGovernanceValidator
 
 __all__ = [
@@ -52,4 +57,7 @@ __all__ = [
     "HumanReviewClaimFactState",
     "HumanReviewClaimState",
     "project_human_review_claim_state",
+    "ReviewerEligibilityDecision",
+    "ReviewerEligibilityStatus",
+    "evaluate_reviewer_claim_eligibility",
 ]
