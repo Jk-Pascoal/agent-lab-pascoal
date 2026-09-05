@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+from datetime import datetime, timezone
 import unittest
+
+from agent_lab.human_review import VerifiedSpecialistIdentity
+from agent_lab.human_review_claim_projection import HumanReviewClaimState
 
 from agent_lab.reviewer_eligibility_policy import (
     ReviewerEligibilityDecision,
@@ -96,6 +100,37 @@ class ReviewerEligibilityContractsTests(unittest.TestCase):
             status=ReviewerEligibilityStatus.ELIGIBLE
         )
         self.assertFalse(hasattr(decision, "__dict__"))
+
+
+class ReviewerEligibilityEvaluationTests(unittest.TestCase):
+    def test_no_claim_requires_claim_before_reviewer_is_eligible(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_reviewer_claim_eligibility,
+        )
+
+        claim_state = HumanReviewClaimState(
+            workflow_id="WF-001",
+            claims=(),
+        )
+
+        reviewer_identity = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc),
+        )
+
+        decision = evaluate_reviewer_claim_eligibility(
+            claim_state,
+            reviewer_identity,
+        )
+
+        self.assertEqual(
+            decision.status,
+            ReviewerEligibilityStatus.CLAIM_REQUIRED,
+        )
+        self.assertIs(decision.is_eligible, False)
 
 
 if __name__ == "__main__":

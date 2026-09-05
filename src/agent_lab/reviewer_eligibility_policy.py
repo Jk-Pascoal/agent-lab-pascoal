@@ -3,6 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from agent_lab.human_review import VerifiedSpecialistIdentity
+from agent_lab.human_review_claim_projection import (
+    HumanReviewClaimFactState,
+    HumanReviewClaimState,
+)
+
 
 class ReviewerEligibilityStatus(str, Enum):
     """Canonical status of a reviewer eligibility evaluation against claim state."""
@@ -43,3 +49,17 @@ class ReviewerEligibilityDecision:
                 "must be resolved externally."
             )
         raise AssertionError("unsupported reviewer eligibility status")
+
+
+def evaluate_reviewer_claim_eligibility(
+    claim_state: HumanReviewClaimState,
+    reviewer_identity: VerifiedSpecialistIdentity,
+) -> ReviewerEligibilityDecision:
+    if claim_state.state is HumanReviewClaimFactState.NO_CLAIM:
+        return ReviewerEligibilityDecision(
+            status=ReviewerEligibilityStatus.CLAIM_REQUIRED
+        )
+
+    raise NotImplementedError(
+        "reviewer eligibility for claimed workflows is not implemented yet"
+    )
