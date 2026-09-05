@@ -579,6 +579,65 @@ class ReviewerEligibilityEvaluationTests(unittest.TestCase):
         )
         self.assertIs(decision.is_eligible, False)
 
+    def test_evaluate_rejects_invalid_claim_state(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_reviewer_claim_eligibility,
+        )
+
+        valid_reviewer_identity = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="subject-001",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc),
+        )
+
+        invalid_claim_states = [
+            None,
+            "WF-001",
+            True,
+            False,
+            123,
+            object(),
+            [],
+        ]
+
+        for invalid in invalid_claim_states:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(TypeError):
+                    evaluate_reviewer_claim_eligibility(
+                        invalid,  # type: ignore[arg-type]
+                        valid_reviewer_identity,
+                    )
+
+    def test_evaluate_rejects_invalid_reviewer_identity(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_reviewer_claim_eligibility,
+        )
+
+        claim_state = HumanReviewClaimState(
+            workflow_id="WF-001",
+            claims=(),
+        )
+
+        invalid_reviewer_identities = [
+            None,
+            "SPEC-001",
+            True,
+            False,
+            123,
+            object(),
+            [],
+        ]
+
+        for invalid in invalid_reviewer_identities:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(TypeError):
+                    evaluate_reviewer_claim_eligibility(
+                        claim_state,
+                        invalid,  # type: ignore[arg-type]
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()

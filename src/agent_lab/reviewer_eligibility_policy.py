@@ -55,6 +55,19 @@ def evaluate_reviewer_claim_eligibility(
     claim_state: HumanReviewClaimState,
     reviewer_identity: VerifiedSpecialistIdentity,
 ) -> ReviewerEligibilityDecision:
+    if not isinstance(claim_state, HumanReviewClaimState):
+        raise TypeError(
+            "claim_state must be a HumanReviewClaimState instance"
+        )
+
+    if not isinstance(
+        reviewer_identity,
+        VerifiedSpecialistIdentity,
+    ):
+        raise TypeError(
+            "reviewer_identity must be a VerifiedSpecialistIdentity instance"
+        )
+
     if claim_state.state is HumanReviewClaimFactState.NO_CLAIM:
         return ReviewerEligibilityDecision(
             status=ReviewerEligibilityStatus.CLAIM_REQUIRED
