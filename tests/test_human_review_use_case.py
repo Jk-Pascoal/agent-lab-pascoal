@@ -483,6 +483,109 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
+    def test_execute_rejects_multiple_claims_from_different_principals(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+
+        other_specialist = VerifiedSpecialistIdentity(
+            specialist_id="spec-002",
+            identity_provider="CORP_IDP",
+            identity_subject="other-specialist@corp.local",
+            verification_id="ver-002",
+            verified_at=self.verified_at,
+        )
+        claim_2 = claim_pending_human_review(
+            self.workflow,
+            claim_id="claim-002",
+            specialist=other_specialist,
+            claimed_at=datetime(2026, 8, 28, 9, 50, 0, tzinfo=timezone.utc),
+        )
+        claim_repo.list_by_workflow_id.return_value = (self.claim, claim_2)
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        with self.assertRaises(ReviewerNotEligibleError) as ctx:
+            use_case.execute(
+                self.workflow,
+                review_id="rev-010",
+                audit_event_id="evt-aud-010",
+                lifecycle_event_id="evt-life-010",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(
+            ctx.exception.decision.status,
+            ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT,
+        )
+
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
+    def test_execute_rejects_multiple_claims_from_same_stable_principal(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+
+        claim_a = claim_pending_human_review(
+            self.workflow,
+            claim_id="claim-003",
+            specialist=self.identity,
+            claimed_at=datetime(2026, 8, 28, 9, 40, 0, tzinfo=timezone.utc),
+        )
+        claim_b = claim_pending_human_review(
+            self.workflow,
+            claim_id="claim-004",
+            specialist=self.identity,
+            claimed_at=datetime(2026, 8, 28, 9, 50, 0, tzinfo=timezone.utc),
+        )
+        claim_repo.list_by_workflow_id.return_value = (claim_a, claim_b)
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        with self.assertRaises(ReviewerNotEligibleError) as ctx:
+            use_case.execute(
+                self.workflow,
+                review_id="rev-011",
+                audit_event_id="evt-aud-011",
+                lifecycle_event_id="evt-life-011",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(
+            ctx.exception.decision.status,
+            ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT,
+        )
+
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
