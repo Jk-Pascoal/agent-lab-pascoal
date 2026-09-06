@@ -11,7 +11,7 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0103` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#103` |
 | **Título da Issue** | `Reviewer Claim Eligibility Runtime Enforcement v1` |
 | **Branch funcional** | `feature/issue-103-reviewer-claim-eligibility-runtime-enforcement` |
@@ -418,28 +418,28 @@ Regressão Canônica Completa:
 
 ## 9. Critérios de Aceite
 
-- [ ] SPEC 0103 aprovada antes de qualquer alteração no código de produção;
-- [ ] Baseline de 569 testes preservado 100% GREEN antes e durante a evolução;
-- [ ] `HumanReviewClaimRepository` injetado como dependência obrigatória no construtor de `RecordHumanDecisionUseCase`;
-- [ ] Construtor e método `execute` rejeitam qualquer modo permissivo ou fallback sem claims;
-- [ ] Reuso estrito de `project_human_review_claim_state` da Issue #94 sem recálculo de cardinalidade na Application;
-- [ ] Reuso estrito de `evaluate_reviewer_claim_eligibility` da Issue #100 sem reaprendizado da regra de principal estável na Application;
-- [ ] `project_human_review_claim_state` e `evaluate_reviewer_claim_eligibility` nunca são mockadas na suíte de testes;
-- [ ] `ReviewerNotEligibleError` implementada preservando o read-model `decision: ReviewerEligibilityDecision`;
-- [ ] `NO_CLAIM` resulta em `ReviewerNotEligibleError` com status `CLAIM_REQUIRED` e zero escritas em Audit e Lifecycle;
-- [ ] `SINGLE_CLAIM` com claimant divergente resulta em `ReviewerNotEligibleError` com status `CLAIMANT_MISMATCH` e zero escritas;
-- [ ] `MULTIPLE_CLAIMS` resulta em `ReviewerNotEligibleError` com status `MULTIPLE_CLAIMS_CONFLICT` e zero escritas (inclusive para o mesmo principal);
-- [ ] `SINGLE_CLAIM` com mesmo principal estável autoriza a escrita e preserva o comportamento anterior do caminho feliz;
-- [ ] Equivalência de principal estável suporta sessões distintas (`verification_id` e `verified_at` diferentes);
-- [ ] Validações determinísticas da Fase 1 (domínio) continuam falhando antes de qualquer leitura no repositório de claims (`0 claim reads → 0 writes`);
-- [ ] Falhas físicas ou de corrupção no repositório de claims propagam de forma *fail-closed* antes de qualquer escrita;
-- [ ] Ordem estrita de dual-write `Audit → Lifecycle` preservada no caminho autorizado;
-- [ ] Dual-write não-atômico preservado e documentado sem transações distribuídas ou compensações artificiais;
-- [ ] Teste de integração vertical validando pipeline completo com persistência real em JSONL, restart e verificação de consistência cruzada;
-- [ ] Teste de integração negativo comprovando que tentativa sem claim preserva o lifecycle com apenas `WorkflowOpened` preexistente e audit intocado;
-- [ ] `RecordHumanDecisionResult` preservado inalterado;
-- [ ] Suíte completa GREEN no comando canônico `python -m unittest discover -s tests -v`;
-- [ ] `git diff --check` limpo, sem erros de whitespace.
+- [x] SPEC 0103 aprovada antes de qualquer alteração no código de produção;
+- [x] Baseline de 569 testes preservado 100% GREEN antes e durante a evolução;
+- [x] `HumanReviewClaimRepository` injetado como dependência obrigatória no construtor de `RecordHumanDecisionUseCase`;
+- [x] Construtor e método `execute` rejeitam qualquer modo permissivo ou fallback sem claims;
+- [x] Reuso estrito de `project_human_review_claim_state` da Issue #94 sem recálculo de cardinalidade na Application;
+- [x] Reuso estrito de `evaluate_reviewer_claim_eligibility` da Issue #100 sem reaprendizado da regra de principal estável na Application;
+- [x] `project_human_review_claim_state` e `evaluate_reviewer_claim_eligibility` nunca são mockadas na suíte de testes;
+- [x] `ReviewerNotEligibleError` implementada preservando o read-model `decision: ReviewerEligibilityDecision`;
+- [x] `NO_CLAIM` resulta em `ReviewerNotEligibleError` com status `CLAIM_REQUIRED` e zero escritas em Audit e Lifecycle;
+- [x] `SINGLE_CLAIM` com claimant divergente resulta em `ReviewerNotEligibleError` com status `CLAIMANT_MISMATCH` e zero escritas;
+- [x] `MULTIPLE_CLAIMS` resulta em `ReviewerNotEligibleError` com status `MULTIPLE_CLAIMS_CONFLICT` e zero escritas (inclusive para o mesmo principal);
+- [x] `SINGLE_CLAIM` com mesmo principal estável autoriza a escrita e preserva o comportamento anterior do caminho feliz;
+- [x] Equivalência de principal estável suporta sessões distintas (`verification_id` e `verified_at` diferentes);
+- [x] Validações determinísticas da Fase 1 (domínio) continuam falhando antes de qualquer leitura no repositório de claims (`0 claim reads → 0 writes`);
+- [x] Falhas físicas ou de corrupção no repositório de claims propagam de forma *fail-closed* antes de qualquer escrita;
+- [x] Ordem estrita de dual-write `Audit → Lifecycle` preservada no caminho autorizado;
+- [x] Dual-write não-atômico preservado e documentado sem transações distribuídas ou compensações artificiais;
+- [x] Teste de integração vertical validando pipeline completo com persistência real em JSONL, restart e verificação de consistência cruzada;
+- [x] Teste de integração negativo comprovando que tentativa sem claim preserva o lifecycle com apenas `WorkflowOpened` preexistente e audit intocado;
+- [x] `RecordHumanDecisionResult` preservado inalterado;
+- [x] Suíte completa GREEN no comando canônico `python -m unittest discover -s tests -v`;
+- [x] `git diff --check` limpo, sem erros de whitespace.
 
 ---
 
