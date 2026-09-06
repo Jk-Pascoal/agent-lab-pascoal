@@ -19,6 +19,9 @@ from agent_lab.human_review_claim_repository import (
     HumanReviewClaimCorruptionError,
     JsonlHumanReviewClaimRepository,
 )
+from agent_lab.human_review_claim_use_case import (
+    RecordHumanReviewClaimUseCase,
+)
 from agent_lab.human_review_use_case import (
     RecordHumanDecisionUseCase,
     ReviewerNotEligibleError,
@@ -242,15 +245,17 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             pending_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
         )
 
-        # 3. Criação de claim real e persistência com primeira instância do repositório
+        # 3. Criação de claim real e persistência com primeira instância do repositório via use case
         claim_repo_1 = JsonlHumanReviewClaimRepository(self.claim_path)
-        claim = claim_pending_human_review(
+        record_claim_use_case = RecordHumanReviewClaimUseCase(
+            claim_repository=claim_repo_1,
+        )
+        claim = record_claim_use_case.execute(
             pending_workflow,
             claim_id="claim-restart-01",
             specialist=self.identity,
             claimed_at=self.claimed_at,
         )
-        claim_repo_1.append(claim)
 
         # 4. Descarte da instância do repositório de claims (simulando encerramento)
         del claim_repo_1
@@ -304,6 +309,15 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
         rehydrated_workflow = rehydrate_workflow(events_after)
         self.assertEqual(rehydrated_workflow.status, WorkflowStatus.REVIEWED)
         self.assertEqual(rehydrated_workflow.review, result.review)
+
+        # 8. Verificação de consistência cruzada dual-write pós-execução
+        report = verify_repositories_consistency(
+            lifecycle_repo=lifecycle_repo,
+            audit_repo=audit_repo,
+        )
+        self.assertTrue(report.is_consistent)
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issues, ())
 
     def test_restart_without_claim_rejects_human_decision_and_preserves_opened_state(
         self,
