@@ -13,6 +13,10 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
+from agent_lab.human_review_claim import claim_pending_human_review
+from agent_lab.human_review_claim_repository import (
+    JsonlHumanReviewClaimRepository,
+)
 from agent_lab.human_review_use_case import RecordHumanDecisionUseCase
 from agent_lab.pending_human_reviews_use_case import (
     ListPendingHumanReviewsUseCase,
@@ -27,6 +31,7 @@ class PendingHumanReviewsUseCaseIntegrationTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.file_path = Path(self.temp_dir.name) / "workflow_lifecycle.jsonl"
         self.audit_path = Path(self.temp_dir.name) / "audit.jsonl"
+        self.claim_path = Path(self.temp_dir.name) / "claims.jsonl"
 
         self.opened_at_1 = datetime(2026, 8, 30, 8, 0, 0, tzinfo=timezone.utc)
         self.reviewed_at_1 = datetime(2026, 8, 30, 8, 30, 0, tzinfo=timezone.utc)
@@ -129,9 +134,19 @@ class PendingHumanReviewsUseCaseIntegrationTests(unittest.TestCase):
         self.assertEqual(pending_before[0].workflow_id, "wf-100")
 
         # 2. Deliberação humana utilizando o workflow obtido diretamente da listagem
+        claim_repository = JsonlHumanReviewClaimRepository(self.claim_path)
+        claim = claim_pending_human_review(
+            pending_before[0],
+            claim_id="claim-100",
+            specialist=self.identity,
+            claimed_at=datetime(2026, 8, 30, 8, 15, 0, tzinfo=timezone.utc),
+        )
+        claim_repository.append(claim)
+
         record_use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repository,
             workflow_lifecycle_repository=lifecycle_repository,
+            claim_repository=claim_repository,
         )
 
         record_use_case.execute(
