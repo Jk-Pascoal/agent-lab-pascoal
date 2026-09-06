@@ -13,6 +13,7 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
+from agent_lab.human_review_claim import claim_pending_human_review
 from agent_lab.human_review_claim_repository import (
     JsonlHumanReviewClaimRepository,
 )
@@ -134,6 +135,14 @@ class PendingHumanReviewsUseCaseIntegrationTests(unittest.TestCase):
 
         # 2. Deliberação humana utilizando o workflow obtido diretamente da listagem
         claim_repository = JsonlHumanReviewClaimRepository(self.claim_path)
+        claim = claim_pending_human_review(
+            pending_before[0],
+            claim_id="claim-100",
+            specialist=self.identity,
+            claimed_at=datetime(2026, 8, 30, 8, 15, 0, tzinfo=timezone.utc),
+        )
+        claim_repository.append(claim)
+
         record_use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repository,
             workflow_lifecycle_repository=lifecycle_repository,

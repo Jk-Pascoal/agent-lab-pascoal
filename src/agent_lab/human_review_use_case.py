@@ -12,10 +12,26 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
+from agent_lab.human_review_claim_projection import (
+    project_human_review_claim_state,
+)
 from agent_lab.human_review_claim_repository import HumanReviewClaimRepository
+from agent_lab.reviewer_eligibility_policy import (
+    ReviewerEligibilityDecision,
+    evaluate_reviewer_claim_eligibility,
+)
 from agent_lab.workflow import GovernanceWorkflow, conclude_governance_workflow
 from agent_lab.workflow_events import WorkflowConcluded
 from agent_lab.workflow_repository import WorkflowLifecycleRepository
+
+
+class ReviewerNotEligibleError(Exception):
+    def __init__(self, decision: ReviewerEligibilityDecision) -> None:
+        self.decision = decision
+        super().__init__(
+            f"Reviewer is not eligible to record decision: "
+            f"{decision.status.value} - {decision.reason}"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,11 +97,29 @@ class RecordHumanDecisionUseCase:
             review=human_review_result.review,
         )
 
-        # Fase 2 — Persistência coordenada em ordem estrita
+        # Fase 2 — Gate de Elegibilidade em Runtime (Read-Only I/O + Policy Pura)
+        claims = self._claim_repository.list_by_workflow_id(
+            workflow.workflow_id
+        )
+
+        claim_state = project_human_review_claim_state(
+            workflow.workflow_id,
+            claims,
+        )
+
+        eligibility = evaluate_reviewer_claim_eligibility(
+            claim_state,
+            reviewer_identity,
+        )
+
+        if not eligibility.is_eligible:
+            raise ReviewerNotEligibleError(eligibility)
+
+        # Fase 3 — Persistência coordenada em ordem estrita
         self._audit_repository.append(human_review_result.audit_event)
         self._workflow_lifecycle_repository.append_concluded(lifecycle_event)
 
-        # Fase 3 — Retorno dos artefatos consolidados
+        # Fase 4 — Retorno dos artefatos consolidados
         return RecordHumanDecisionResult(
             workflow=concluded_workflow,
             review=human_review_result.review,

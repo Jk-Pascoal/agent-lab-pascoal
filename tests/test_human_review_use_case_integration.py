@@ -14,6 +14,7 @@ from agent_lab.human_review import (
     HumanDecision,
     VerifiedSpecialistIdentity,
 )
+from agent_lab.human_review_claim import claim_pending_human_review
 from agent_lab.human_review_claim_repository import (
     JsonlHumanReviewClaimRepository,
 )
@@ -35,6 +36,7 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
 
         self.verified_at = datetime(2026, 8, 28, 8, 0, 0, tzinfo=timezone.utc)
         self.opened_at = datetime(2026, 8, 28, 8, 30, 0, tzinfo=timezone.utc)
+        self.claimed_at = datetime(2026, 8, 28, 9, 0, 0, tzinfo=timezone.utc)
         self.reviewed_at = datetime(2026, 8, 28, 9, 30, 0, tzinfo=timezone.utc)
 
         self.identity = VerifiedSpecialistIdentity(
@@ -92,6 +94,14 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
 
         # 3. Execução do caso de uso de aplicação com repositórios reais
         claim_repo_1 = JsonlHumanReviewClaimRepository(self.claim_path)
+        claim_1 = claim_pending_human_review(
+            pending_workflow,
+            claim_id="claim-mat-001-01",
+            specialist=self.identity,
+            claimed_at=self.claimed_at,
+        )
+        claim_repo_1.append(claim_1)
+
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo_1,
             workflow_lifecycle_repository=lifecycle_repo_1,
@@ -166,6 +176,14 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
 
         # 2. Execução do caso de uso
         claim_repo = JsonlHumanReviewClaimRepository(self.claim_path)
+        claim_2 = claim_pending_human_review(
+            pending_workflow,
+            claim_id="claim-mat-001-02",
+            specialist=self.identity,
+            claimed_at=self.claimed_at,
+        )
+        claim_repo.append(claim_2)
+
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,

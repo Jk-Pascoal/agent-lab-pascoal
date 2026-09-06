@@ -14,10 +14,13 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
+from agent_lab.human_review_claim import claim_pending_human_review
 from agent_lab.human_review_use_case import (
     RecordHumanDecisionResult,
     RecordHumanDecisionUseCase,
+    ReviewerNotEligibleError,
 )
+from agent_lab.reviewer_eligibility_policy import ReviewerEligibilityStatus
 from agent_lab.workflow import GovernanceWorkflow, conclude_governance_workflow
 from agent_lab.workflow_events import WorkflowConcluded
 from agent_lab.workflow_repository import WorkflowPersistenceError
@@ -31,6 +34,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
 
         self.verified_at = datetime(2026, 8, 28, 9, 0, 0, tzinfo=timezone.utc)
         self.opened_at = datetime(2026, 8, 28, 9, 30, 0, tzinfo=timezone.utc)
+        self.claimed_at = datetime(2026, 8, 28, 9, 45, 0, tzinfo=timezone.utc)
         self.reviewed_at = datetime(2026, 8, 28, 10, 0, 0, tzinfo=timezone.utc)
 
         self.identity = VerifiedSpecialistIdentity(
@@ -81,6 +85,16 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             event_id="evt-life-001",
             workflow_id="wf-001",
             review=self.review,
+        )
+
+        self.claim = claim_pending_human_review(
+            self.workflow,
+            claim_id="claim-001",
+            specialist=self.identity,
+            claimed_at=self.claimed_at,
+        )
+        self.dummy_claim_repo.list_by_workflow_id.return_value = (
+            self.claim,
         )
 
     def test_record_human_decision_use_case_initialization(self) -> None:
@@ -183,6 +197,9 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
 
         # 5. Validação da persistência sequencial (ordem e argumentos)
         self.assertEqual(call_order, ["audit", "lifecycle"])
+        self.dummy_claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
         audit_repo.append.assert_called_once_with(result.audit_event)
         lifecycle_repo.append_concluded.assert_called_once_with(
             result.lifecycle_event
@@ -217,6 +234,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
                 corrections=(),
             )
 
+        self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -245,6 +263,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
                 corrections=(),
             )
 
+        self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -273,6 +292,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
                 corrections=(),
             )
 
+        self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -301,6 +321,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
                 corrections=(),
             )
 
+        self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -333,6 +354,9 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
                 corrections=(),
             )
 
+        self.dummy_claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
         audit_repo.append.assert_called_once()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -371,8 +395,47 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             )
 
         self.assertEqual(call_order, ["audit", "lifecycle"])
+        self.dummy_claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
         audit_repo.append.assert_called_once()
         lifecycle_repo.append_concluded.assert_called_once()
+
+    def test_execute_no_claim_does_not_persist_human_decision(self) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+        claim_repo.list_by_workflow_id.return_value = ()
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        with self.assertRaises(ReviewerNotEligibleError) as ctx:
+            use_case.execute(
+                self.workflow,
+                review_id="rev-008",
+                audit_event_id="evt-aud-008",
+                lifecycle_event_id="evt-life-008",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(
+            ctx.exception.decision.status,
+            ReviewerEligibilityStatus.CLAIM_REQUIRED,
+        )
+
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
 
 
 if __name__ == "__main__":
