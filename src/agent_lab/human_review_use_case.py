@@ -12,6 +12,7 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
+from agent_lab.human_review_claim_repository import HumanReviewClaimRepository
 from agent_lab.workflow import GovernanceWorkflow, conclude_governance_workflow
 from agent_lab.workflow_events import WorkflowConcluded
 from agent_lab.workflow_repository import WorkflowLifecycleRepository
@@ -35,9 +36,11 @@ class RecordHumanDecisionUseCase:
         *,
         audit_repository: AuditRepository,
         workflow_lifecycle_repository: WorkflowLifecycleRepository,
+        claim_repository: HumanReviewClaimRepository,
     ) -> None:
         self._audit_repository = audit_repository
         self._workflow_lifecycle_repository = workflow_lifecycle_repository
+        self._claim_repository = claim_repository
 
     def execute(
         self,

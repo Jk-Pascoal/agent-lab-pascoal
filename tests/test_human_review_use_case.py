@@ -27,6 +27,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.dummy_audit_repo = Mock()
         self.dummy_lifecycle_repo = Mock()
+        self.dummy_claim_repo = Mock()
 
         self.verified_at = datetime(2026, 8, 28, 9, 0, 0, tzinfo=timezone.utc)
         self.opened_at = datetime(2026, 8, 28, 9, 30, 0, tzinfo=timezone.utc)
@@ -86,8 +87,16 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=self.dummy_audit_repo,
             workflow_lifecycle_repository=self.dummy_lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
         self.assertIsInstance(use_case, RecordHumanDecisionUseCase)
+
+    def test_initialization_requires_claim_repository(self) -> None:
+        with self.assertRaises(TypeError):
+            RecordHumanDecisionUseCase(
+                audit_repository=self.dummy_audit_repo,
+                workflow_lifecycle_repository=self.dummy_lifecycle_repo,
+            )
 
     def test_record_human_decision_result_structure_and_immutability(self) -> None:
         result = RecordHumanDecisionResult(
@@ -120,6 +129,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
 
         result = use_case.execute(
@@ -187,6 +197,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
 
         reviewed_workflow = conclude_governance_workflow(
@@ -218,6 +229,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
 
         with self.assertRaises(ValueError):
@@ -245,6 +257,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
 
         with self.assertRaises(TypeError):
@@ -272,6 +285,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
 
         with self.assertRaises(ValueError):
@@ -303,6 +317,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
 
         with self.assertRaises(AuditPersistenceError):
@@ -339,6 +354,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=self.dummy_claim_repo,
         )
 
         with self.assertRaises(WorkflowPersistenceError):

@@ -14,6 +14,9 @@ from agent_lab.human_review import (
     HumanDecision,
     VerifiedSpecialistIdentity,
 )
+from agent_lab.human_review_claim_repository import (
+    JsonlHumanReviewClaimRepository,
+)
 from agent_lab.human_review_use_case import RecordHumanDecisionUseCase
 from agent_lab.workflow import WorkflowStatus
 from agent_lab.workflow_events import WorkflowOpened
@@ -28,6 +31,7 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
         self.lifecycle_path = (
             Path(self.temp_dir.name) / "workflow_lifecycle.jsonl"
         )
+        self.claim_path = Path(self.temp_dir.name) / "claims.jsonl"
 
         self.verified_at = datetime(2026, 8, 28, 8, 0, 0, tzinfo=timezone.utc)
         self.opened_at = datetime(2026, 8, 28, 8, 30, 0, tzinfo=timezone.utc)
@@ -87,9 +91,11 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
         )
 
         # 3. Execução do caso de uso de aplicação com repositórios reais
+        claim_repo_1 = JsonlHumanReviewClaimRepository(self.claim_path)
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo_1,
             workflow_lifecycle_repository=lifecycle_repo_1,
+            claim_repository=claim_repo_1,
         )
 
         result = use_case.execute(
@@ -159,9 +165,11 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
         )
 
         # 2. Execução do caso de uso
+        claim_repo = JsonlHumanReviewClaimRepository(self.claim_path)
         use_case = RecordHumanDecisionUseCase(
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
         )
 
         use_case.execute(
