@@ -437,6 +437,52 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
+    def test_execute_rejects_reviewer_when_stable_principal_differs_from_claimant(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+        claim_repo.list_by_workflow_id.return_value = (self.claim,)
+
+        other_reviewer = VerifiedSpecialistIdentity(
+            specialist_id="spec-002",
+            identity_provider="CORP_IDP",
+            identity_subject="other-specialist@corp.local",
+            verification_id="ver-002",
+            verified_at=self.verified_at,
+        )
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        with self.assertRaises(ReviewerNotEligibleError) as ctx:
+            use_case.execute(
+                self.workflow,
+                review_id="rev-009",
+                audit_event_id="evt-aud-009",
+                lifecycle_event_id="evt-life-009",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=other_reviewer,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(
+            ctx.exception.decision.status,
+            ReviewerEligibilityStatus.CLAIMANT_MISMATCH,
+        )
+
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
