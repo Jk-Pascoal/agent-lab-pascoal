@@ -18,9 +18,13 @@ from agent_lab.human_review_claim import claim_pending_human_review
 from agent_lab.human_review_claim_repository import (
     JsonlHumanReviewClaimRepository,
 )
-from agent_lab.human_review_use_case import RecordHumanDecisionUseCase
+from agent_lab.human_review_use_case import (
+    RecordHumanDecisionUseCase,
+    ReviewerNotEligibleError,
+)
+from agent_lab.reviewer_eligibility_policy import ReviewerEligibilityStatus
 from agent_lab.workflow import WorkflowStatus
-from agent_lab.workflow_events import WorkflowOpened
+from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
 from agent_lab.workflow_projection import rehydrate_workflow
 from agent_lab.workflow_repository import JsonlWorkflowLifecycleRepository
 
@@ -214,6 +218,173 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
         self.assertEqual(report.total_audit_review_events, 1)
         self.assertEqual(report.matched_pairs_count, 1)
         self.assertEqual(report.issues, ())
+
+    def test_persisted_claim_survives_restart_and_authorizes_human_decision(
+        self,
+    ) -> None:
+        # 1. Setup inicial de repositórios reais e abertura do workflow
+        lifecycle_repo = JsonlWorkflowLifecycleRepository(self.lifecycle_path)
+        opened = WorkflowOpened(
+            event_id="evt-open-restart-01",
+            workflow_id="wf-restart-01",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+        )
+        lifecycle_repo.append_opened(opened)
+
+        # 2. Obtenção do workflow pendente real
+        events_opened = lifecycle_repo.get_events_by_workflow_id(
+            "wf-restart-01"
+        )
+        pending_workflow = rehydrate_workflow(events_opened)
+        self.assertEqual(
+            pending_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+
+        # 3. Criação de claim real e persistência com primeira instância do repositório
+        claim_repo_1 = JsonlHumanReviewClaimRepository(self.claim_path)
+        claim = claim_pending_human_review(
+            pending_workflow,
+            claim_id="claim-restart-01",
+            specialist=self.identity,
+            claimed_at=self.claimed_at,
+        )
+        claim_repo_1.append(claim)
+
+        # 4. Descarte da instância do repositório de claims (simulando encerramento)
+        del claim_repo_1
+
+        # 5. Nova instância de repositório de claims apontando para o mesmo arquivo JSONL
+        claim_repo_2 = JsonlHumanReviewClaimRepository(self.claim_path)
+        audit_repo = JsonlAuditRepository(self.audit_path)
+
+        # Comprovação de que o claim reidratado do disco é estruturalmente igual, mas não o mesmo objeto em memória
+        rehydrated_claims = claim_repo_2.list_by_workflow_id("wf-restart-01")
+        self.assertEqual(len(rehydrated_claims), 1)
+        self.assertEqual(rehydrated_claims[0].claim_id, claim.claim_id)
+        self.assertEqual(
+            rehydrated_claims[0].specialist.specialist_id,
+            self.identity.specialist_id,
+        )
+        self.assertIsNot(rehydrated_claims[0], claim)
+
+        # 6. Execução da deliberação através do use case com a nova instância
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo_2,
+        )
+
+        result = use_case.execute(
+            pending_workflow,
+            review_id="rev-restart-01",
+            audit_event_id="evt-aud-restart-01",
+            lifecycle_event_id="evt-conc-restart-01",
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=self.identity,
+            reviewed_at=self.reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+
+        # 7. Verificações de persistência física e integridade
+        self.assertEqual(result.workflow.status, WorkflowStatus.REVIEWED)
+        self.assertEqual(result.review.human_decision, HumanDecision.APPROVE)
+
+        persisted_audit = audit_repo.get_by_id("evt-aud-restart-01")
+        self.assertIsNotNone(persisted_audit)
+        self.assertEqual(persisted_audit, result.audit_event)
+
+        events_after = lifecycle_repo.get_events_by_workflow_id("wf-restart-01")
+        self.assertEqual(len(events_after), 2)
+        self.assertIsInstance(events_after[1], WorkflowConcluded)
+        self.assertEqual(events_after[1], result.lifecycle_event)
+
+        rehydrated_workflow = rehydrate_workflow(events_after)
+        self.assertEqual(rehydrated_workflow.status, WorkflowStatus.REVIEWED)
+        self.assertEqual(rehydrated_workflow.review, result.review)
+
+    def test_restart_without_claim_rejects_human_decision_and_preserves_opened_state(
+        self,
+    ) -> None:
+        # 1. Persistência inicial de apenas WorkflowOpened em repositório real
+        lifecycle_repo_1 = JsonlWorkflowLifecycleRepository(self.lifecycle_path)
+        opened = WorkflowOpened(
+            event_id="evt-open-noclaim-01",
+            workflow_id="wf-noclaim-01",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+        )
+        lifecycle_repo_1.append_opened(opened)
+
+        # 2. Simulação de restart descartando instâncias e recriando sobre os arquivos reais
+        del lifecycle_repo_1
+
+        audit_repo_restart = JsonlAuditRepository(self.audit_path)
+        lifecycle_repo_restart = JsonlWorkflowLifecycleRepository(
+            self.lifecycle_path
+        )
+        claim_repo_restart = JsonlHumanReviewClaimRepository(self.claim_path)
+
+        events_before = lifecycle_repo_restart.get_events_by_workflow_id(
+            "wf-noclaim-01"
+        )
+        pending_workflow = rehydrate_workflow(events_before)
+        self.assertEqual(
+            pending_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+
+        # 3. Execução da deliberação sem nenhum claim persistido
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo_restart,
+            workflow_lifecycle_repository=lifecycle_repo_restart,
+            claim_repository=claim_repo_restart,
+        )
+
+        with self.assertRaises(ReviewerNotEligibleError) as ctx:
+            use_case.execute(
+                pending_workflow,
+                review_id="rev-noclaim-01",
+                audit_event_id="evt-aud-noclaim-01",
+                lifecycle_event_id="evt-conc-noclaim-01",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(
+            ctx.exception.decision.status,
+            ReviewerEligibilityStatus.CLAIM_REQUIRED,
+        )
+
+        # 4. Evidência persistente nos arquivos reais JSONL após a rejeição:
+        # a) Audit: nenhum evento de auditoria gravado
+        self.assertEqual(len(audit_repo_restart.list_all()), 0)
+        self.assertIsNone(audit_repo_restart.get_by_id("evt-aud-noclaim-01"))
+
+        # b) Lifecycle: permanece estritamente apenas o WorkflowOpened inicial
+        events_after = lifecycle_repo_restart.get_events_by_workflow_id(
+            "wf-noclaim-01"
+        )
+        self.assertEqual(len(events_after), 1)
+        self.assertEqual(events_after[0], opened)
+        self.assertFalse(
+            any(isinstance(e, WorkflowConcluded) for e in events_after)
+        )
+
+        # c) Claims: continua vazio
+        self.assertEqual(
+            claim_repo_restart.list_by_workflow_id("wf-noclaim-01"), ()
+        )
+
+        # d) Workflow reidratado permanece no status PENDING_HUMAN_REVIEW
+        rehydrated_workflow = rehydrate_workflow(events_after)
+        self.assertEqual(
+            rehydrated_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+        self.assertIsNone(rehydrated_workflow.review)
 
 
 if __name__ == "__main__":
