@@ -16,6 +16,7 @@ from agent_lab.human_review import (
 )
 from agent_lab.human_review_claim import claim_pending_human_review
 from agent_lab.human_review_claim_repository import (
+    HumanReviewClaimCorruptionError,
     JsonlHumanReviewClaimRepository,
 )
 from agent_lab.human_review_use_case import (
@@ -380,6 +381,82 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
         )
 
         # d) Workflow reidratado permanece no status PENDING_HUMAN_REVIEW
+        rehydrated_workflow = rehydrate_workflow(events_after)
+        self.assertEqual(
+            rehydrated_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+        self.assertIsNone(rehydrated_workflow.review)
+
+    def test_corrupted_claim_jsonl_fails_closed_before_human_decision_writes(
+        self,
+    ) -> None:
+        # 1. Setup inicial: workflow aberto em repositório real
+        lifecycle_repo = JsonlWorkflowLifecycleRepository(self.lifecycle_path)
+        opened = WorkflowOpened(
+            event_id="evt-open-corrupt-01",
+            workflow_id="wf-corrupt-01",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+        )
+        lifecycle_repo.append_opened(opened)
+
+        # 2. Obtenção do workflow pendente real
+        events_opened = lifecycle_repo.get_events_by_workflow_id(
+            "wf-corrupt-01"
+        )
+        pending_workflow = rehydrate_workflow(events_opened)
+        self.assertEqual(
+            pending_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+
+        # 3. Criação física do arquivo de claims com conteúdo JSON corrompido
+        self.claim_path.write_text(
+            '{"schema_version": 1, "claim_id": \n',
+            encoding="utf-8",
+        )
+
+        # 4. Nova instância do repositório de claims apontando para o arquivo corrompido
+        claim_repo = JsonlHumanReviewClaimRepository(self.claim_path)
+        audit_repo = JsonlAuditRepository(self.audit_path)
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        # 5. Execução do caso de uso falha com a exceção real de corrupção do repositório
+        with self.assertRaises(HumanReviewClaimCorruptionError) as ctx:
+            use_case.execute(
+                pending_workflow,
+                review_id="rev-corrupt-01",
+                audit_event_id="evt-aud-corrupt-01",
+                lifecycle_event_id="evt-conc-corrupt-01",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(ctx.exception.line_number, 1)
+
+        # 6. Comprovação física de fail-closed e zero escritas nos repositórios:
+        # a) Audit: nenhum evento gravado
+        self.assertEqual(len(audit_repo.list_all()), 0)
+        self.assertIsNone(audit_repo.get_by_id("evt-aud-corrupt-01"))
+
+        # b) Lifecycle: permanece estritamente apenas o WorkflowOpened inicial
+        events_after = lifecycle_repo.get_events_by_workflow_id(
+            "wf-corrupt-01"
+        )
+        self.assertEqual(len(events_after), 1)
+        self.assertEqual(events_after[0], opened)
+        self.assertFalse(
+            any(isinstance(e, WorkflowConcluded) for e in events_after)
+        )
+
+        # c) Workflow reidratado permanece no status PENDING_HUMAN_REVIEW
         rehydrated_workflow = rehydrate_workflow(events_after)
         self.assertEqual(
             rehydrated_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
