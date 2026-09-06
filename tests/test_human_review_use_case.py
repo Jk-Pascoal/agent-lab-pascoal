@@ -586,6 +586,58 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
+    def test_execute_allows_same_stable_principal_with_refreshed_verification(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+        claim_repo.list_by_workflow_id.return_value = (self.claim,)
+
+        call_order: list[str] = []
+        audit_repo.append.side_effect = lambda event: call_order.append("audit")
+        lifecycle_repo.append_concluded.side_effect = (
+            lambda event: call_order.append("lifecycle")
+        )
+
+        refreshed_identity = VerifiedSpecialistIdentity(
+            specialist_id=self.identity.specialist_id,
+            identity_provider=self.identity.identity_provider,
+            identity_subject=self.identity.identity_subject,
+            verification_id="ver-refreshed-001",
+            verified_at=datetime(2026, 8, 28, 9, 50, 0, tzinfo=timezone.utc),
+        )
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        result = use_case.execute(
+            self.workflow,
+            review_id="rev-012",
+            audit_event_id="evt-aud-012",
+            lifecycle_event_id="evt-life-012",
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=refreshed_identity,
+            reviewed_at=self.reviewed_at,
+            justification=None,
+            corrections=(),
+        )
+
+        self.assertEqual(call_order, ["audit", "lifecycle"])
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_called_once_with(result.audit_event)
+        lifecycle_repo.append_concluded.assert_called_once_with(
+            result.lifecycle_event
+        )
+        self.assertEqual(result.workflow.status.value, "REVIEWED")
+        self.assertEqual(result.review.reviewer_identity, refreshed_identity)
+        self.assertIs(result.workflow.review, result.review)
+
 
 if __name__ == "__main__":
     unittest.main()
