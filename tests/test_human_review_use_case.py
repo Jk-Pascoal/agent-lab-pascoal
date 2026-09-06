@@ -15,6 +15,9 @@ from agent_lab.human_review import (
     VerifiedSpecialistIdentity,
 )
 from agent_lab.human_review_claim import claim_pending_human_review
+from agent_lab.human_review_claim_repository import (
+    HumanReviewClaimPersistenceError,
+)
 from agent_lab.human_review_use_case import (
     RecordHumanDecisionResult,
     RecordHumanDecisionUseCase,
@@ -637,6 +640,43 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         self.assertEqual(result.workflow.status.value, "REVIEWED")
         self.assertEqual(result.review.reviewer_identity, refreshed_identity)
         self.assertIs(result.workflow.review, result.review)
+
+    def test_execute_propagates_claim_repository_failure_before_any_write(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+        claim_repo.list_by_workflow_id.side_effect = (
+            HumanReviewClaimPersistenceError(
+                "Simulated claim storage read failure"
+            )
+        )
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+        )
+
+        with self.assertRaises(HumanReviewClaimPersistenceError):
+            use_case.execute(
+                self.workflow,
+                review_id="rev-013",
+                audit_event_id="evt-aud-013",
+                lifecycle_event_id="evt-life-013",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
 
 
 if __name__ == "__main__":
