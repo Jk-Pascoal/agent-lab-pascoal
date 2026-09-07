@@ -112,3 +112,59 @@ def claim_pending_human_review(
         specialist=specialist,
         claimed_at=claimed_at,
     )
+
+
+def release_human_review_claim(
+    workflow: GovernanceWorkflow,
+    claim: HumanReviewClaim,
+    *,
+    release_id: str,
+    releasing_specialist: VerifiedSpecialistIdentity,
+    released_at: datetime,
+) -> HumanReviewClaimRelease:
+    if not isinstance(workflow, GovernanceWorkflow):
+        raise TypeError("workflow must be a GovernanceWorkflow")
+
+    if not isinstance(claim, HumanReviewClaim):
+        raise TypeError("claim must be a HumanReviewClaim")
+
+    if not isinstance(releasing_specialist, VerifiedSpecialistIdentity):
+        raise TypeError(
+            "releasing_specialist must be a VerifiedSpecialistIdentity"
+        )
+
+    if not isinstance(released_at, datetime):
+        raise TypeError("released_at must be a datetime")
+
+    if released_at.tzinfo is None or released_at.utcoffset() is None:
+        raise ValueError("released_at must be timezone-aware")
+
+    if workflow.workflow_id != claim.workflow_id:
+        raise ValueError("workflow_id mismatch between workflow and claim")
+
+    if workflow.status is not WorkflowStatus.PENDING_HUMAN_REVIEW:
+        raise ValueError("workflow must be pending human review to release claim")
+
+    is_same_principal = (
+        releasing_specialist.specialist_id == claim.specialist.specialist_id
+        and releasing_specialist.identity_provider
+        == claim.specialist.identity_provider
+        and releasing_specialist.identity_subject
+        == claim.specialist.identity_subject
+    )
+
+    if not is_same_principal:
+        raise ValueError(
+            "releasing specialist stable principal must match claimant stable principal"
+        )
+
+    if released_at < claim.claimed_at:
+        raise ValueError("released_at must not be before claim claimed_at")
+
+    return HumanReviewClaimRelease(
+        release_id=release_id,
+        claim_id=claim.claim_id,
+        workflow_id=claim.workflow_id,
+        released_by=releasing_specialist,
+        released_at=released_at,
+    )
