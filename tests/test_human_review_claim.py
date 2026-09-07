@@ -294,6 +294,14 @@ class HumanReviewClaimTests(unittest.TestCase):
             agent_lab.claim_pending_human_review,
             claim_pending_human_review,
         )
+        self.assertIs(
+            agent_lab.HumanReviewClaimRelease,
+            HumanReviewClaimRelease,
+        )
+        self.assertIs(
+            agent_lab.release_human_review_claim,
+            release_human_review_claim,
+        )
 
     def test_human_review_claim_rejects_invalid_claim_id_type(self) -> None:
         with self.assertRaises(TypeError):

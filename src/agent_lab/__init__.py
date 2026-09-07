@@ -10,7 +10,9 @@ from .domain import (
 )
 from .human_review_claim import (
     HumanReviewClaim,
+    HumanReviewClaimRelease,
     claim_pending_human_review,
+    release_human_review_claim,
 )
 from .human_review_claim_repository import (
     DuplicateHumanReviewClaimError,
@@ -45,7 +47,9 @@ __all__ = [
     "MaterialRecord",
     "DeterministicGovernanceValidator",
     "HumanReviewClaim",
+    "HumanReviewClaimRelease",
     "claim_pending_human_review",
+    "release_human_review_claim",
     "human_review_claim_to_record",
     "human_review_claim_from_record",
     "HumanReviewClaimPersistenceError",
