@@ -13,6 +13,7 @@ from agent_lab.human_review import (
 )
 from agent_lab.human_review_claim import (
     HumanReviewClaim,
+    HumanReviewClaimRelease,
     claim_pending_human_review,
 )
 from agent_lab.workflow import (
@@ -330,6 +331,222 @@ class HumanReviewClaimTests(unittest.TestCase):
 
         with self.assertRaises(FrozenInstanceError):
             claim.claim_id = "CLAIM-002"  # type: ignore[misc]
+
+
+class HumanReviewClaimReleaseTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.verified_at = datetime(
+            2026,
+            9,
+            7,
+            8,
+            30,
+            0,
+            tzinfo=timezone.utc,
+        )
+        self.released_at = datetime(
+            2026,
+            9,
+            7,
+            9,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="spec-001",
+            identity_provider="corp-idp",
+            identity_subject="specialist@corp.local",
+            verification_id="ver-12345",
+            verified_at=self.verified_at,
+        )
+
+    def test_nominal_creation_and_fields(self) -> None:
+        release = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLAIM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist,
+            released_at=self.released_at,
+        )
+
+        self.assertIsInstance(release, HumanReviewClaimRelease)
+        self.assertEqual(release.release_id, "REL-001")
+        self.assertEqual(release.claim_id, "CLAIM-001")
+        self.assertEqual(release.workflow_id, "WF-001")
+        self.assertEqual(release.released_by, self.specialist)
+        self.assertEqual(release.released_at, self.released_at)
+
+    def test_is_immutable_and_slots(self) -> None:
+        release = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLAIM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist,
+            released_at=self.released_at,
+        )
+
+        with self.assertRaises(FrozenInstanceError):
+            release.release_id = "REL-002"  # type: ignore[misc]
+
+        self.assertFalse(hasattr(release, "__dict__"))
+        self.assertTrue(hasattr(release, "__slots__"))
+        self.assertEqual(
+            set(release.__slots__),
+            {
+                "release_id",
+                "claim_id",
+                "workflow_id",
+                "released_by",
+                "released_at",
+            },
+        )
+
+    def test_sanitizes_only_release_id(self) -> None:
+        release = HumanReviewClaimRelease(
+            release_id="  REL-001  ",
+            claim_id="CLAIM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist,
+            released_at=self.released_at,
+        )
+        self.assertEqual(release.release_id, "REL-001")
+        self.assertEqual(release.claim_id, "CLAIM-001")
+        self.assertEqual(release.workflow_id, "WF-001")
+        self.assertEqual(release.released_by, self.specialist)
+        self.assertEqual(release.released_at, self.released_at)
+
+        for invalid_id in ("", "   ", "\t\n"):
+            with self.assertRaises(ValueError):
+                HumanReviewClaimRelease(
+                    release_id=invalid_id,
+                    claim_id="CLAIM-001",
+                    workflow_id="WF-001",
+                    released_by=self.specialist,
+                    released_at=self.released_at,
+                )
+
+        for invalid_type in (None, 123, True, False, ["REL-001"]):
+            with self.assertRaises(TypeError):
+                HumanReviewClaimRelease(
+                    release_id=invalid_type,  # type: ignore[arg-type]
+                    claim_id="CLAIM-001",
+                    workflow_id="WF-001",
+                    released_by=self.specialist,
+                    released_at=self.released_at,
+                )
+
+    def test_preserves_claim_id_and_workflow_id_without_strip(self) -> None:
+        raw_claim_id = "  CLAIM-001  "
+        raw_workflow_id = "  WF-001  "
+        release = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id=raw_claim_id,
+            workflow_id=raw_workflow_id,
+            released_by=self.specialist,
+            released_at=self.released_at,
+        )
+        self.assertEqual(release.claim_id, raw_claim_id)
+        self.assertEqual(release.workflow_id, raw_workflow_id)
+
+        for invalid_claim_id in ("", "   ", "\t"):
+            with self.assertRaises(ValueError):
+                HumanReviewClaimRelease(
+                    release_id="REL-001",
+                    claim_id=invalid_claim_id,
+                    workflow_id="WF-001",
+                    released_by=self.specialist,
+                    released_at=self.released_at,
+                )
+
+        for invalid_wf_id in ("", "   ", "\t"):
+            with self.assertRaises(ValueError):
+                HumanReviewClaimRelease(
+                    release_id="REL-001",
+                    claim_id="CLAIM-001",
+                    workflow_id=invalid_wf_id,
+                    released_by=self.specialist,
+                    released_at=self.released_at,
+                )
+
+        for invalid_type in (None, 123, True, False, ["ID"]):
+            with self.assertRaises(TypeError):
+                HumanReviewClaimRelease(
+                    release_id="REL-001",
+                    claim_id=invalid_type,  # type: ignore[arg-type]
+                    workflow_id="WF-001",
+                    released_by=self.specialist,
+                    released_at=self.released_at,
+                )
+            with self.assertRaises(TypeError):
+                HumanReviewClaimRelease(
+                    release_id="REL-001",
+                    claim_id="CLAIM-001",
+                    workflow_id=invalid_type,  # type: ignore[arg-type]
+                    released_by=self.specialist,
+                    released_at=self.released_at,
+                )
+
+    def test_validates_released_by(self) -> None:
+        for invalid_specialist in (None, "spec-001", 123, True, False, object()):
+            with self.assertRaises(TypeError):
+                HumanReviewClaimRelease(
+                    release_id="REL-001",
+                    claim_id="CLAIM-001",
+                    workflow_id="WF-001",
+                    released_by=invalid_specialist,  # type: ignore[arg-type]
+                    released_at=self.released_at,
+                )
+
+    def test_validates_released_at_timezone_aware(self) -> None:
+        for invalid_date in (None, "2026-09-07T09:00:00Z", 123, True):
+            with self.assertRaises(TypeError):
+                HumanReviewClaimRelease(
+                    release_id="REL-001",
+                    claim_id="CLAIM-001",
+                    workflow_id="WF-001",
+                    released_by=self.specialist,
+                    released_at=invalid_date,  # type: ignore[arg-type]
+                )
+
+        naive_dt = datetime(2026, 9, 7, 9, 0, 0)
+        with self.assertRaises(ValueError):
+            HumanReviewClaimRelease(
+                release_id="REL-001",
+                claim_id="CLAIM-001",
+                workflow_id="WF-001",
+                released_by=self.specialist,
+                released_at=naive_dt,
+            )
+
+    def test_validates_released_by_verified_at_consistency(self) -> None:
+        future_verified_specialist = VerifiedSpecialistIdentity(
+            specialist_id="spec-001",
+            identity_provider="corp-idp",
+            identity_subject="specialist@corp.local",
+            verification_id="ver-12345",
+            verified_at=datetime(2026, 9, 7, 9, 30, 0, tzinfo=timezone.utc),
+        )
+
+        with self.assertRaises(ValueError):
+            HumanReviewClaimRelease(
+                release_id="REL-001",
+                claim_id="CLAIM-001",
+                workflow_id="WF-001",
+                released_by=future_verified_specialist,
+                released_at=self.released_at,
+            )
+
+        boundary_release = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLAIM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist,
+            released_at=self.verified_at,
+        )
+        self.assertEqual(
+            boundary_release.released_at, boundary_release.released_by.verified_at
+        )
 
 
 if __name__ == "__main__":

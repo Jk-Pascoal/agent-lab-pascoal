@@ -42,6 +42,52 @@ class HumanReviewClaim:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class HumanReviewClaimRelease:
+    release_id: str
+    claim_id: str
+    workflow_id: str
+    released_by: VerifiedSpecialistIdentity
+    released_at: datetime
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.release_id, str):
+            raise TypeError("release_id must be a string")
+
+        sanitized_release_id = self.release_id.strip()
+        if not sanitized_release_id:
+            raise ValueError("release_id must not be empty")
+
+        if self.release_id != sanitized_release_id:
+            object.__setattr__(self, "release_id", sanitized_release_id)
+
+        if not isinstance(self.claim_id, str):
+            raise TypeError("claim_id must be a string")
+
+        if not self.claim_id.strip():
+            raise ValueError("claim_id must not be empty")
+
+        if not isinstance(self.workflow_id, str):
+            raise TypeError("workflow_id must be a string")
+
+        if not self.workflow_id.strip():
+            raise ValueError("workflow_id must not be empty")
+
+        if not isinstance(self.released_by, VerifiedSpecialistIdentity):
+            raise TypeError("released_by must be a VerifiedSpecialistIdentity")
+
+        if not isinstance(self.released_at, datetime):
+            raise TypeError("released_at must be a datetime")
+
+        if self.released_at.tzinfo is None or self.released_at.utcoffset() is None:
+            raise ValueError("released_at must be timezone-aware")
+
+        if self.released_by.verified_at > self.released_at:
+            raise ValueError(
+                "released_by verification must not be after released_at"
+            )
+
+
 def claim_pending_human_review(
     workflow: GovernanceWorkflow,
     *,
