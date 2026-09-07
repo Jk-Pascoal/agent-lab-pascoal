@@ -10,15 +10,17 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0106` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#106` |
 | **Título da Issue** | `Human Review Claim Release Domain Contract v1` |
 | **Branch funcional** | `feature/issue-106-human-review-claim-release-domain-contract` |
+| **PR funcional** | `#107` (merged via commit `f093ae9`) |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-07` |
 | **Data do ambiente** | `2026-09-07` |
 | **Última atualização** | `2026-09-07` |
 | **Baseline de entrada** | `579 testes aprovados` (100% GREEN) |
+| **Baseline final** | `595 testes aprovados` (100% GREEN) |
 | **Runner oficial** | `$env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v` |
 
 ---
@@ -345,3 +347,43 @@ A implementação será estritamente guiada por testes em `tests/test_human_revi
 3. **Testes Unitários Abrangentes:** Testes explícitos cobrindo cada ramo de validação, boundary e caso nominal definido nesta SPEC em `tests/test_human_review_claim.py`;
 4. **Regressão 100% GREEN:** Execução de `$env:PYTHONPATH="src"; py -3.11 -m unittest discover -s tests -v` com todos os 579 testes do baseline + novos testes unitários aprovados;
 5. **Respeito aos Limites:** Zero linhas de código de persistência, projeção, use case, políticas de active claim ou mutação em workflow.
+
+---
+
+## 11. Registro de Implementação e Evidências
+
+A implementação da SPEC 0106 foi concluída com êxito através de três fatias (slices) orientadas a TDD estrito e integrada à branch `main` via PR funcional [#107](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/107) (merge commit `f093ae9`):
+
+### 11.1 Slices Entregues
+1. **Slice 1 — Fato Causal Imutável (`HumanReviewClaimRelease`):**
+   - Dataclass pura `@dataclass(frozen=True, slots=True)` com 5 campos canônicos (`release_id`, `claim_id`, `workflow_id`, `released_by`, `released_at`);
+   - Sanitização de `release_id` (`.strip()`);
+   - Preservação estrita dos identificadores causais `claim_id` e `workflow_id` sem mutação ou `.strip()`;
+   - Validação fail-closed de timezone-awareness para `released_at` e monotonicidade temporal da identidade (`released_by.verified_at <= released_at`);
+   - Testes unitários dedicados em `HumanReviewClaimReleaseTests`.
+   - Commit: `bd36e59` (`feat: add human review claim release domain fact`).
+2. **Slice 2 — Operação Pura de Domínio (`release_human_review_claim`):**
+   - Função pura `release_human_review_claim(workflow, claim, *, release_id, releasing_specialist, released_at) -> HumanReviewClaimRelease`;
+   - Ordem fail-closed rigorosa: tipos nominais $\rightarrow$ timezone-awareness de `released_at` pré-comparação $\rightarrow$ coerência causal `workflow.workflow_id == claim.workflow_id` $\rightarrow$ estado obrigatório do workflow (`PENDING_HUMAN_REVIEW`) $\rightarrow$ equivalência estrita de **Stable Principal** `(specialist_id, identity_provider, identity_subject)` $\rightarrow$ ordenação temporal `released_at >= claim.claimed_at`;
+   - Imutabilidade absoluta comprovada de `workflow` e `claim`;
+   - Testes unitários dedicados em `ReleaseHumanReviewClaimFunctionTests`.
+   - Commit: `4e8e5bc` (`feat: add human review claim release domain operation`).
+3. **Slice 3 — Exposição Pública:**
+   - Exportação canônica de `HumanReviewClaimRelease` e `release_human_review_claim` no módulo raiz `src/agent_lab/__init__.py` e inclusão em `__all__`;
+   - Testes unitários atualizados em `HumanReviewClaimTests`.
+   - Commit: `b7b246e` (`feat: export human review claim release domain contract`).
+
+### 11.2 Baseline Final Integrado
+- **Total de testes:** `595/595 GREEN` (100% aprovados com runner oficial Python 3.11 / unittest).
+- **Sem regressões:** 579 testes preexistentes + 16 novos testes unitários adicionados na trilha de claim release.
+
+### 11.3 Preservação Integral do Escopo Negativo
+- Zero persistência durável de releases;
+- Zero serialização/versionamento de releases;
+- Zero caso de uso de aplicação (Application Use Case de release);
+- Zero projeção de *Active Claim* ou leitor de claim ativo;
+- Zero política de *Active Claim*;
+- Zero locking, lease, TTL, expiry ou SLA;
+- Zero assignment, ownership, winner ou exclusividade;
+- Zero liberação forçada (*force-release*) ou transferência (*transfer/reassignment*);
+- Zero novo estado em `WorkflowStatus` e zero emissão de `WorkflowLifecycleEvent` ou `AuditEvent`.
