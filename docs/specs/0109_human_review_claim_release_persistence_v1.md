@@ -183,7 +183,7 @@ def human_review_claim_release_from_record(
 3. **Duplicidade Lógica no Append:**
    - `DuplicateHumanReviewClaimReleaseError(HumanReviewClaimReleasePersistenceError)`: levantada quando o `release_id` a ser gravado já existe em arquivo íntegro (zero escritas).
 4. **Corrupção de Conteúdo Persistido:**
-   - `HumanReviewClaimReleaseCorruptionError(HumanReviewClaimReleasePersistenceError)`: levantada ao encontrar linhas vazias, JSON malformado, formato não-dicionário, violações de schema ou IDs duplicados no arquivo em disco, contendo obrigatoriamente `line_number: int` (1-based).
+   - `HumanReviewClaimReleaseCorruptionError(HumanReviewClaimReleasePersistenceError)`: levantada ao encontrar sequências de bytes UTF-8 inválidas, linhas vazias, JSON malformado, formato não-dicionário, violações de schema ou IDs duplicados no arquivo em disco, contendo obrigatoriamente `line_number: int` (1-based).
 
 #### Protocolo Abstrato
 ```python
@@ -212,26 +212,28 @@ class HumanReviewClaimReleaseRepository(Protocol):
 
 #### Implementação Concreta: `JsonlHumanReviewClaimReleaseRepository`
 - Construtor recebe `path: Path`;
-- Leitura interna `_read_all() -> list[HumanReviewClaimRelease]`:
-  - Se arquivo não existe ou tamanho zero: retorna lista vazia `[]`;
-  - Tratamento de `OSError`: encapsulado em `HumanReviewClaimReleasePersistenceError(f"Failed to read file {self._path}: {exc}") from exc`;
-  - Itera sobre linhas físicas (1-based);
+- Leitura e validação integral `list_all() -> tuple[HumanReviewClaimRelease, ...]`:
+  - Se arquivo não existe ou tamanho zero: retorna tupla vazia `()`;
+  - Tratamento de `OSError`: encapsulado em `HumanReviewClaimReleasePersistenceError(f"Failed to inspect/read file {self._path}: {exc}") from exc`;
+  - Itera sobre linhas físicas em modo binário (1-based);
+  - Decodifica cada linha em UTF-8, convertendo `UnicodeDecodeError` em `HumanReviewClaimReleaseCorruptionError(..., line_number=line_number)`;
   - Rejeita linhas vazias ou puramente em branco com `HumanReviewClaimReleaseCorruptionError(..., line_number=line_number)`;
   - Decodifica JSON (`json.loads`), rejeitando malformações com `HumanReviewClaimReleaseCorruptionError(..., line_number=line_number)`;
   - Exige dicionário (`isinstance(record, dict)`), rejeitando outros tipos com `HumanReviewClaimReleaseCorruptionError(..., line_number=line_number)`;
   - Desserializa via `human_review_claim_release_from_record(record)`, capturando `ValueError` e convertendo em `HumanReviewClaimReleaseCorruptionError(..., line_number=line_number)`;
   - Rastreia conjunto de `seen_release_ids`: se `release.release_id in seen_release_ids`, levanta `HumanReviewClaimReleaseCorruptionError(f"Duplicate release_id '{release.release_id}' detected at line {line_number}", line_number=line_number)`;
-  - Retorna a lista completa de instâncias;
+  - Retorna tupla imutável `tuple[HumanReviewClaimRelease, ...]` na ordem física de append;
 - Procedimento Estrito de `append(release)`:
   1. Valida tipo de entrada `isinstance(release, HumanReviewClaimRelease)` e `not isinstance(release, bool)` (`ValueError` / `TypeError`);
-  2. Valida integralmente o arquivo existente em disco executando `_read_all()`; qualquer anomalia física ou estrutural aborta o append imediatamente (zero escritas);
+  2. Valida integralmente o arquivo existente em disco executando `list_all()`; qualquer anomalia física ou estrutural aborta o append imediatamente (zero escritas);
   3. Verifica unicidade lógica: se algum registro existente possuir `r.release_id == release.release_id`, levanta `DuplicateHumanReviewClaimReleaseError` (zero escritas);
   4. Prepara e valida o novo registro serializado em memória (`record = human_review_claim_release_to_record(release)`) e formata linha JSON (`line = json.dumps(record)`);
   5. Somente após a validação bem-sucedida do registro e do arquivo existente, cria diretórios pais (`self._path.parent.mkdir(parents=True, exist_ok=True)`);
-  6. Abre o arquivo em modo `"a"` com codificação UTF-8, escreve a linha, executa `file.flush()` e `os.fsync(file.fileno())`; falhas de E/S capturadas como `OSError` propagam como `HumanReviewClaimReleasePersistenceError` via `from exc`.
+  6. Se o arquivo preexistente possuir tamanho superior a zero e seu último byte não for quebra de linha LF (`\n`), insere delimitador `\n` antes do novo registro (`\n{line}\n`), preservando os bytes anteriores intactos (inclusive em arquivos com terminação CR isolada ou sem newline); abre o arquivo em modo `"a"` com codificação UTF-8 e `newline="\n"` para prevenir conversões de quebra de linha dependentes do sistema operacional, escreve o registro formatado, executa `file.flush()` e `os.fsync(file.fileno())`; falhas de E/S capturadas como `OSError` propagam como `HumanReviewClaimReleasePersistenceError` via `from exc`.
 - Consultas `get_by_id`, `list_by_claim_id`, `list_by_workflow_id`:
   - Validam que o parâmetro de busca é string não-vazia (`isinstance(val, str) and not isinstance(val, bool) and bool(val.strip())`), mas utilizam o valor exato original sem strip para a comparação textual;
-  - Invocam `_read_all()`, garantindo varredura e validação integral do arquivo;
+  - Invocam `list_all()`, garantindo varredura e validação integral do arquivo;
+  - Retornam `()` (ou `None` no caso de `get_by_id`) quando o arquivo for inexistente ou vazio;
   - `get_by_id` retorna a instância correspondente ou `None`;
   - `list_by_claim_id` e `list_by_workflow_id` retornam tuplas imutáveis na ordem física exata de append.
 

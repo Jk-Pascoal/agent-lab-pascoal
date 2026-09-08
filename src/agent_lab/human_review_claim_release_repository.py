@@ -44,6 +44,18 @@ class HumanReviewClaimReleaseRepository(Protocol):
         """Retrieve a HumanReviewClaimRelease by exact release_id or return None."""
         ...
 
+    def list_by_claim_id(
+        self, claim_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        """Return all persisted releases for a given claim_id in physical append order."""
+        ...
+
+    def list_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        """Return all persisted releases for a given workflow_id in physical append order."""
+        ...
+
     def list_all(self) -> tuple[HumanReviewClaimRelease, ...]:
         """Return all persisted releases in physical append order."""
         ...
@@ -89,9 +101,18 @@ class JsonlHumanReviewClaimReleaseRepository:
         line = json.dumps(record)
 
         try:
+            needs_leading_newline = False
+            if self._path.exists() and self._path.stat().st_size > 0:
+                with open(self._path, "rb") as f_check:
+                    f_check.seek(-1, os.SEEK_END)
+                    last_byte = f_check.read(1)
+                    if last_byte != b"\n":
+                        needs_leading_newline = True
+
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._path, "a", encoding="utf-8") as file:
-                file.write(f"{line}\n")
+            with open(self._path, "a", encoding="utf-8", newline="\n") as file:
+                prefix = "\n" if needs_leading_newline else ""
+                file.write(f"{prefix}{line}\n")
                 file.flush()
                 os.fsync(file.fileno())
         except OSError as exc:
@@ -106,6 +127,28 @@ class JsonlHumanReviewClaimReleaseRepository:
             if release.release_id == valid_id:
                 return release
         return None
+
+    def list_by_claim_id(
+        self, claim_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        """Return all persisted releases for a given claim_id in physical append order."""
+        valid_id = _require_valid_id(claim_id, "claim_id")
+        return tuple(
+            release
+            for release in self.list_all()
+            if release.claim_id == valid_id
+        )
+
+    def list_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        """Return all persisted releases for a given workflow_id in physical append order."""
+        valid_id = _require_valid_id(workflow_id, "workflow_id")
+        return tuple(
+            release
+            for release in self.list_all()
+            if release.workflow_id == valid_id
+        )
 
     def list_all(self) -> tuple[HumanReviewClaimRelease, ...]:
         """Return all releases in strict physical append order, fail-closed."""
@@ -124,8 +167,16 @@ class JsonlHumanReviewClaimReleaseRepository:
         seen_release_ids: set[str] = set()
 
         try:
-            with open(self._path, "r", encoding="utf-8") as file:
-                for line_number, raw_line in enumerate(file, start=1):
+            with open(self._path, "rb") as file:
+                for line_number, raw_line_bytes in enumerate(file, start=1):
+                    try:
+                        raw_line = raw_line_bytes.decode("utf-8")
+                    except UnicodeDecodeError as exc:
+                        raise HumanReviewClaimReleaseCorruptionError(
+                            f"Invalid UTF-8 byte sequence at line {line_number}: {exc}",
+                            line_number=line_number,
+                        ) from exc
+
                     stripped = raw_line.strip()
                     if not stripped:
                         raise HumanReviewClaimReleaseCorruptionError(
