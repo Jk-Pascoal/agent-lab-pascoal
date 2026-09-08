@@ -21,6 +21,13 @@ from .human_review_claim_repository import (
     HumanReviewClaimRepository,
     JsonlHumanReviewClaimRepository,
 )
+from .human_review_claim_release_repository import (
+    DuplicateHumanReviewClaimReleaseError,
+    HumanReviewClaimReleaseCorruptionError,
+    HumanReviewClaimReleasePersistenceError,
+    HumanReviewClaimReleaseRepository,
+    JsonlHumanReviewClaimReleaseRepository,
+)
 from .human_review_claim_projection import (
     HumanReviewClaimFactState,
     HumanReviewClaimState,
@@ -29,6 +36,10 @@ from .human_review_claim_projection import (
 from .human_review_claim_serialization import (
     human_review_claim_from_record,
     human_review_claim_to_record,
+)
+from .human_review_claim_release_serialization import (
+    human_review_claim_release_from_record,
+    human_review_claim_release_to_record,
 )
 from .human_review_claim_use_case import RecordHumanReviewClaimUseCase
 from .reviewer_eligibility_policy import (
@@ -57,6 +68,13 @@ __all__ = [
     "HumanReviewClaimCorruptionError",
     "HumanReviewClaimRepository",
     "JsonlHumanReviewClaimRepository",
+    "human_review_claim_release_to_record",
+    "human_review_claim_release_from_record",
+    "HumanReviewClaimReleasePersistenceError",
+    "DuplicateHumanReviewClaimReleaseError",
+    "HumanReviewClaimReleaseCorruptionError",
+    "HumanReviewClaimReleaseRepository",
+    "JsonlHumanReviewClaimReleaseRepository",
     "RecordHumanReviewClaimUseCase",
     "HumanReviewClaimFactState",
     "HumanReviewClaimState",
