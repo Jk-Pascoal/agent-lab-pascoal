@@ -286,8 +286,8 @@ class HumanReviewClaimReleaseRepository(Protocol):
 | Risco ou Limitação | Impacto | Controle e Mitigação |
 |---|---|---|
 | Escrita física interrompida abruptamente no SO (queda de energia / processo terminado) | Alto | `file.flush()` seguido de `os.fsync()` força a sincronização pelo SO, mas falhas durante o ciclo de gravação física podem deixar registros truncados em disco. Não há rollback automático; a leitura subsequente diagnostica o registro truncado como corrupção fail-closed (`HumanReviewClaimReleaseCorruptionError`), impedindo leituras e escritas adicionais. |
-| Consulta ignorar corrupção no final do arquivo | Alto | `_read_all()` realiza varredura integral obrigatória de todas as linhas do arquivo antes de retornar qualquer consulta pontual ou filtrada. |
-| Gravação sobre arquivo corrompido | Alto | `append` executa `_read_all()` antes de preparar diretórios ou abrir o arquivo para escrita; se houver corrupção, a operação aborta sem gravar novos dados. |
+| Consulta ignorar corrupção no final do arquivo | Alto | `list_all()` realiza varredura integral obrigatória de todas as linhas do arquivo antes de retornar qualquer consulta pontual ou filtrada. |
+| Gravação sobre arquivo corrompido | Alto | `append` executa `list_all()` antes de preparar diretórios ou abrir o arquivo para escrita; se houver corrupção, a operação aborta sem gravar novos dados. |
 | Múltiplos processos gravando no mesmo arquivo | Alto | Limitação formal declarada: projeto single-process, sem garantias de concorrência multiprocesso nesta fase. |
 
 ---
@@ -302,19 +302,19 @@ O trecho residual na Seção 17 do [PROJECT_COMPASS.md](file:///C:/Users/Adminis
 
 ## 11. Critérios de Aceite Globais
 
-- [ ] SPEC-0109 revisada e formalizada na branch `feature/issue-109-human-review-claim-release-persistence`;
-- [ ] Serialização versionada v1 de `HumanReviewClaimRelease` com round-trip comprovado sem mutação de tipos ou valores;
-- [ ] `schema_version` validado estritamente como inteiro `1` (rejeitando bool, float, str e ausência);
-- [ ] Envelope root e mapeamento `released_by` validados como closed-schema estrito;
-- [ ] Repositório JSONL append-only grava duravelmente com `flush` e `os.fsync`;
-- [ ] Validação e preparação do registro em memória antes de criar diretórios ou abrir arquivo para append;
-- [ ] Tentativa de gravar `release_id` duplicado em arquivo íntegro levanta `DuplicateHumanReviewClaimReleaseError` sem escrita;
-- [ ] Arquivo com linhas vazias, JSON malformado, schemas inválidos ou duplicidade física de `release_id` acusa fail-closed imediato com `HumanReviewClaimReleaseCorruptionError` contendo `line_number` 1-based;
-- [ ] Qualquer leitura ou verificação de append valida integralmente o arquivo; registros válidos anteriores a linhas corrompidas não mascaram o erro;
-- [ ] Tentativa de append sobre arquivo previamente corrompido falha sem gravar novos dados;
-- [ ] `get_by_id` retorna `HumanReviewClaimRelease | None`;
-- [ ] `list_by_claim_id`, `list_by_workflow_id` e `list_all` retornam tuplas imutáveis preservando a ordem física de append;
-- [ ] Múltiplos releases para o mesmo `claim_id` são permitidos no repositório desde que possuam `release_id`s distintos;
-- [ ] Teste de integração comprova recuperação fiel de valores contratuais por nova instância fresca do repositório lendo arquivo persistido em disco;
-- [ ] Símbolos públicos exportados canonicamente no pacote `src/agent_lab/__init__.py`;
-- [ ] 100% GREEN no baseline de testes com runner canônico (`python -m unittest discover -s tests -v`), preservando os 595 testes existentes sem regressões.
+- [x] SPEC-0109 revisada e formalizada na branch `feature/issue-109-human-review-claim-release-persistence`;
+- [x] Serialização versionada v1 de `HumanReviewClaimRelease` com round-trip comprovado sem mutação de tipos ou valores;
+- [x] `schema_version` validado estritamente como inteiro `1` (rejeitando bool, float, str e ausência);
+- [x] Envelope root e mapeamento `released_by` validados como closed-schema estrito;
+- [x] Repositório JSONL append-only grava duravelmente com `flush` e `os.fsync`;
+- [x] Validação e preparação do registro em memória antes de criar diretórios ou abrir arquivo para append;
+- [x] Tentativa de gravar `release_id` duplicado em arquivo íntegro levanta `DuplicateHumanReviewClaimReleaseError` sem escrita;
+- [x] Arquivo com linhas vazias, JSON malformado, schemas inválidos ou duplicidade física de `release_id` acusa fail-closed imediato com `HumanReviewClaimReleaseCorruptionError` contendo `line_number` 1-based;
+- [x] Qualquer leitura ou verificação de append valida integralmente o arquivo; registros válidos anteriores a linhas corrompidas não mascaram o erro;
+- [x] Tentativa de append sobre arquivo previamente corrompido falha sem gravar novos dados;
+- [x] `get_by_id` retorna `HumanReviewClaimRelease | None`;
+- [x] `list_by_claim_id`, `list_by_workflow_id` e `list_all` retornam tuplas imutáveis preservando a ordem física de append;
+- [x] Múltiplos releases para o mesmo `claim_id` são permitidos no repositório desde que possuam `release_id`s distintos;
+- [x] Teste de integração comprova recuperação fiel de valores contratuais por nova instância fresca do repositório lendo arquivo persistido em disco;
+- [x] Símbolos públicos exportados canonicamente no pacote `src/agent_lab/__init__.py`;
+- [x] 100% GREEN no baseline de testes com runner canônico (`python -m unittest discover -s tests -v`), preservando os 595 testes existentes sem regressões.
