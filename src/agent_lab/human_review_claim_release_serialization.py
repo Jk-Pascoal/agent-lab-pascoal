@@ -86,8 +86,11 @@ def _parse_specialist(data: Any) -> VerifiedSpecialistIdentity:
 
     unknown = actual_keys - _SPECIALIST_REQUIRED_FIELDS
     if unknown:
+        sorted_unknown = sorted(
+            unknown, key=lambda k: (type(k).__name__, str(k))
+        )
         raise ValueError(
-            f"Unknown specialist field(s) detected: {sorted(unknown)}"
+            f"Unknown specialist field(s) detected: {sorted_unknown}"
         )
 
     specialist_id = _require_sanitized_non_empty_str(
@@ -154,7 +157,10 @@ def human_review_claim_release_from_record(
 
     unknown = actual_keys - _ROOT_REQUIRED_FIELDS
     if unknown:
-        raise ValueError(f"Unknown field(s) detected: {sorted(unknown)}")
+        sorted_unknown = sorted(
+            unknown, key=lambda k: (type(k).__name__, str(k))
+        )
+        raise ValueError(f"Unknown field(s) detected: {sorted_unknown}")
 
     schema_version = record["schema_version"]
     if (
