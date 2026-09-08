@@ -10,7 +10,7 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0109` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#109` |
 | **Título da Issue** | `Human Review Claim Release Persistence v1` |
 | **Branch funcional** | `feature/issue-109-human-review-claim-release-persistence` |
@@ -30,12 +30,12 @@ O **Agent Lab Pascoal** consolida uma esteira de governança assistida de cadast
 Repository preserva → Projection interpreta → Policy governa → Application coordena e aplica
 ```
 
-O baseline atual integrado na branch `main` conta com **595 testes aprovados** (Python 3.11.9 / `unittest`).
+No baseline de entrada da SPEC-0109, a branch `main` contava com **595 testes aprovados** (Python 3.11.9 / `unittest`).
 Na trilha de assunção operacional de revisão humana (*Human Review Claim*), o sistema entregou recentemente a **Issue #106** (PR funcional #107, merge `f093ae9`; PR documental #108, merge `6948708`), que introduziu o contrato puro de domínio em memória:
 - Dataclass imutável `HumanReviewClaimRelease` (`release_id`, `claim_id`, `workflow_id`, `released_by: VerifiedSpecialistIdentity`, `released_at: datetime`);
 - Operação pura de domínio `release_human_review_claim(workflow, claim, *, release_id, releasing_specialist, released_at) -> HumanReviewClaimRelease`.
 
-Atualmente, o fato `HumanReviewClaimRelease` existe estritamente em memória. Para que o fluxo de governança operacional possua rastreabilidade histórica durável e viabilize reconstituição consistente após interrupções de serviço, faz-se necessário implementar sua persistência durável em trilha append-only dedicada.
+Antes da implementação da SPEC-0109, o fato `HumanReviewClaimRelease` existia estritamente em memória. Para que o fluxo de governança operacional possua rastreabilidade histórica durável e viabilize reconstituição consistente após interrupções de serviço, faz-se necessário implementar sua persistência durável em trilha append-only dedicada.
 
 ---
 
