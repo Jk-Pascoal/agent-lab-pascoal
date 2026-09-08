@@ -12,14 +12,14 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-09-07
+- **Estado registrado em:** 2026-09-08
 - **Baseline integrado na main:** 595 testes aprovados
 - **Última entrega funcional integrada na main:** Human Review Claim Release Domain Contract v1
 - **Última Issue funcional integrada na main:** #106
 - **Último PR funcional integrado na main:** #107
 - **Último merge funcional:** `f093ae9` — Merge pull request #107
 - **Última SPEC integrada na main:** `docs/specs/0106_human_review_claim_release_domain_contract_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano
+- **Incremento funcional atual:** Issue #109 — Human Review Claim Release Persistence v1 (em formalização documental na branch `feature/issue-109-human-review-claim-release-persistence`)
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -1183,10 +1183,11 @@ MAIN INTEGRADA:
   quatro boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase e ListPendingHumanReviewsWithClaimStateUseCase), uma projeção factual de claims (project_human_review_claim_state), um módulo de governança de política normativa pura (evaluate_reviewer_claim_eligibility), o gate de elegibilidade em tempo de execução em RecordHumanDecisionUseCase e o contrato puro de domínio em memória de release de claim (HumanReviewClaimRelease e release_human_review_claim) estão integrados; a composição factual da fila pendente com estado de claims está integrada; persistência durável de releases, serialização/versionamento de releases, Application Use Case de release, Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, First-Claim-Wins / Last-Claim-Wins, lock/checkout, force-release, transfer/reassignment, vigência/TTL/lease/expiry/SLA, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
-- Incremento funcional da Issue #106 concluído e integrado na main via PR #107 (merge f093ae9); Issue #106 em closeout documental (permanece aberta até o merge do PR documental). Nenhum incremento funcional aberto.
+- Issue #109 — Human Review Claim Release Persistence v1 (em formalização documental na branch `feature/issue-109-human-review-claim-release-persistence`).
+- Pendência documental vinculada à #106 saneada: a Issue anterior #106 foi concluída e fechada com a integração funcional no PR #107 (merge f093ae9) e o closeout documental no PR #108 (merge 6948708).
 
 PRÓXIMA ÂNCORA:
-- Ainda não definida; deve ser escolhida somente após novo planejamento humano.
+- Issue #109 em andamento (Human Review Claim Release Persistence v1); próxima âncora funcional a definir após planejamento humano pós-conclusão da #109.
 
 Comando oficial:
 python -m unittest discover -s tests -v
