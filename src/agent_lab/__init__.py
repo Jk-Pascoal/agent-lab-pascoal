@@ -42,6 +42,9 @@ from .human_review_claim_release_serialization import (
     human_review_claim_release_to_record,
 )
 from .human_review_claim_use_case import RecordHumanReviewClaimUseCase
+from .human_review_claim_release_use_case import (
+    ReleaseHumanReviewClaimUseCase,
+)
 from .reviewer_eligibility_policy import (
     ReviewerEligibilityDecision,
     ReviewerEligibilityStatus,
@@ -76,6 +79,7 @@ __all__ = [
     "HumanReviewClaimReleaseRepository",
     "JsonlHumanReviewClaimReleaseRepository",
     "RecordHumanReviewClaimUseCase",
+    "ReleaseHumanReviewClaimUseCase",
     "HumanReviewClaimFactState",
     "HumanReviewClaimState",
     "project_human_review_claim_state",
