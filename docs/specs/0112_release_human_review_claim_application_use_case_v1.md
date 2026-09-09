@@ -10,14 +10,17 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0112` |
-| **Status** | `APPROVED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#112` |
 | **Título da Issue** | `Release Human Review Claim Application Use Case v1` |
 | **Branch funcional** | `feature/issue-112-release-human-review-claim-use-case` |
+| **PR funcional** | `#113` |
+| **Merge commit funcional** | `59d577c` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-09` |
 | **Última atualização** | `2026-09-09` |
 | **Baseline de entrada** | `646 testes aprovados` (100% GREEN) |
+| **Baseline final integrado** | `661 testes aprovados` (100% GREEN) |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11.9) |
 
 ---
@@ -364,15 +367,15 @@ Essa responsabilidade analítica pertence exclusivamente a uma futura **Active C
 
 ## 13. Critérios de Aceitação e Definition of Done
 
-A entrega da Issue #112 será considerada concluída somente quando todos os seguintes critérios forem atendidos:
+A entrega da Issue #112 tem os seguintes critérios de aceitação e status de execução:
 
-1. [ ] **SPEC Aprovada**: `SPEC-0112` formalmente aprovada pela revisão humana antes do início da implementação;
-2. [ ] **Isolamento de Branch**: Todo o trabalho desenvolvido exclusivamente na branch `feature/issue-112-release-human-review-claim-use-case`;
-3. [ ] **Micro-TDD**: Desenvolvimento orientado a testes respeitando rigorosamente as 7 fatias planejadas;
-4. [ ] **Casos de Uso e Persistência**: Implementação canônica de `ReleaseHumanReviewClaimUseCase` no módulo `src/agent_lab/human_review_claim_release_use_case.py`;
-5. [ ] **Integração Real**: Testes de integração vertical comprovando persistência e reconstituição fiel via `JsonlHumanReviewClaimReleaseRepository`;
-6. [ ] **Preservação de Baseline**: Suíte de testes completa executando 100% GREEN (baseline de 646 testes preservado integralmente, acrescido dos novos testes);
-7. [ ] **Higiene Git**: `git diff --check` executando com sucesso e sem violações de whitespace;
-8. [ ] **Auditoria Pré-PR**: Auditoria humana confirmando ausência de acoplamento indevido ou desvios de escopo (*scope creep*);
-9. [ ] **Pull Request Funcional**: PR aberto contra `main` e aprovado em CI;
-10. [ ] **Closeout Documental Separado**: Atualização de status da SPEC para `IMPLEMENTED`, atualização de `PROJECT_COMPASS` e realização de `README Audit` obrigatório (alterando o README somente se o audit indicar `UPDATE REQUIRED`) em PR documental próprio pós-merge funcional.
+1. [x] **SPEC Aprovada**: `SPEC-0112` formalmente aprovada pela revisão humana antes do início da implementação;
+2. [x] **Isolamento de Branch**: Todo o trabalho desenvolvido exclusivamente na branch `feature/issue-112-release-human-review-claim-use-case`;
+3. [x] **Micro-TDD**: Desenvolvimento orientado a testes respeitando rigorosamente as 7 fatias planejadas;
+4. [x] **Casos de Uso e Persistência**: Implementação canônica de `ReleaseHumanReviewClaimUseCase` no módulo `src/agent_lab/human_review_claim_release_use_case.py`;
+5. [x] **Integração Real**: Testes de integração vertical comprovando persistência e reconstituição fiel via `JsonlHumanReviewClaimReleaseRepository`;
+6. [x] **Preservação de Baseline**: Suíte de testes completa executando 100% GREEN (baseline de 646 testes preservado integralmente, acrescido dos novos 15 testes, totalizando 661 testes);
+7. [x] **Higiene Git**: `git diff --check` executando com sucesso e sem violações de whitespace;
+8. [x] **Auditoria Pré-PR**: Auditoria humana confirmando ausência de acoplamento indevido ou desvios de escopo (*scope creep*);
+9. [x] **Pull Request Funcional**: PR #113 aberto contra `main` e aprovado em CI; integrado via merge commit `59d577c`;
+10. [ ] **Closeout Documental Separado**: Atualização de status da SPEC para `IMPLEMENTED`, atualização de `PROJECT_COMPASS` e realização de `README Audit` obrigatório (alterando o README somente se o audit indicar `UPDATE REQUIRED`) em PR documental próprio pós-merge funcional (em andamento na branch `docs/issue-112-closeout`).
