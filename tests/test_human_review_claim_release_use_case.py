@@ -17,6 +17,10 @@ from agent_lab.human_review_claim import (
     claim_pending_human_review,
     release_human_review_claim,
 )
+from agent_lab.human_review_claim_release_repository import (
+    DuplicateHumanReviewClaimReleaseError,
+    HumanReviewClaimReleasePersistenceError,
+)
 from agent_lab.human_review_claim_release_use_case import (
     ReleaseHumanReviewClaimUseCase,
 )
@@ -52,6 +56,34 @@ class FakeHumanReviewClaimReleaseRepository:
 
     def list_all(self) -> tuple[HumanReviewClaimRelease, ...]:
         return tuple(self.appended_releases)
+
+
+class FailingHumanReviewClaimReleaseRepository:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+        self.append_call_count = 0
+        self.last_attempted_release: HumanReviewClaimRelease | None = None
+
+    def append(self, release: HumanReviewClaimRelease) -> None:
+        self.append_call_count += 1
+        self.last_attempted_release = release
+        raise self.error
+
+    def get_by_id(self, release_id: str) -> HumanReviewClaimRelease | None:
+        return None
+
+    def list_by_claim_id(
+        self, claim_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        return ()
+
+    def list_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        return ()
+
+    def list_all(self) -> tuple[HumanReviewClaimRelease, ...]:
+        return ()
 
 
 class ReleaseHumanReviewClaimUseCaseSlice1Tests(unittest.TestCase):
@@ -363,3 +395,127 @@ class ReleaseHumanReviewClaimUseCaseSlice2DomainDelegationTests(
 
             mock_release.assert_called_once()
             self.assertEqual(len(self.repository.appended_releases), 0)
+
+
+class ReleaseHumanReviewClaimUseCaseSlice3PersistenceFailureTests(
+    unittest.TestCase
+):
+    def setUp(self) -> None:
+        self.verified_at = datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc)
+        self.opened_at = datetime(2026, 9, 2, 9, 30, 0, tzinfo=timezone.utc)
+        self.claimed_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=timezone.utc)
+        self.released_at = datetime(2026, 9, 2, 10, 30, 0, tzinfo=timezone.utc)
+
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=self.verified_at,
+        )
+
+        self.recommendation = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Necessária revisão cadastral",
+            requires_human_decision=True,
+        )
+
+        self.workflow = GovernanceWorkflow(
+            workflow_id="WF-001",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            review=None,
+        )
+
+        self.claim = claim_pending_human_review(
+            self.workflow,
+            claim_id="CLM-001",
+            specialist=self.specialist,
+            claimed_at=self.claimed_at,
+        )
+
+    def test_execute_propagates_duplicate_release_persistence_error_without_retry_or_masking(
+        self,
+    ) -> None:
+        expected_error = DuplicateHumanReviewClaimReleaseError(
+            "duplicate release"
+        )
+        repository = FailingHumanReviewClaimReleaseRepository(expected_error)
+        use_case = ReleaseHumanReviewClaimUseCase(
+            claim_release_repository=repository
+        )
+
+        with self.assertRaises(DuplicateHumanReviewClaimReleaseError) as cm:
+            use_case.execute(
+                self.workflow,
+                self.claim,
+                release_id="REL-001",
+                releasing_specialist=self.specialist,
+                released_at=self.released_at,
+            )
+
+        self.assertIs(cm.exception, expected_error)
+        self.assertEqual(repository.append_call_count, 1)
+        self.assertIsInstance(
+            repository.last_attempted_release, HumanReviewClaimRelease
+        )
+        assert repository.last_attempted_release is not None
+        self.assertEqual(
+            repository.last_attempted_release.release_id, "REL-001"
+        )
+        self.assertEqual(
+            repository.last_attempted_release.claim_id, "CLM-001"
+        )
+        self.assertEqual(
+            repository.last_attempted_release.workflow_id, "WF-001"
+        )
+        self.assertEqual(
+            repository.last_attempted_release.released_by, self.specialist
+        )
+        self.assertEqual(
+            repository.last_attempted_release.released_at, self.released_at
+        )
+
+    def test_execute_propagates_generic_persistence_error_without_retry_or_masking(
+        self,
+    ) -> None:
+        expected_error = HumanReviewClaimReleasePersistenceError(
+            "storage unavailable"
+        )
+        repository = FailingHumanReviewClaimReleaseRepository(expected_error)
+        use_case = ReleaseHumanReviewClaimUseCase(
+            claim_release_repository=repository
+        )
+
+        with self.assertRaises(HumanReviewClaimReleasePersistenceError) as cm:
+            use_case.execute(
+                self.workflow,
+                self.claim,
+                release_id="REL-001",
+                releasing_specialist=self.specialist,
+                released_at=self.released_at,
+            )
+
+        self.assertIs(cm.exception, expected_error)
+        self.assertEqual(repository.append_call_count, 1)
+        self.assertIsInstance(
+            repository.last_attempted_release, HumanReviewClaimRelease
+        )
+        assert repository.last_attempted_release is not None
+        self.assertEqual(
+            repository.last_attempted_release.release_id, "REL-001"
+        )
+        self.assertEqual(
+            repository.last_attempted_release.claim_id, "CLM-001"
+        )
+        self.assertEqual(
+            repository.last_attempted_release.workflow_id, "WF-001"
+        )
+        self.assertEqual(
+            repository.last_attempted_release.released_by, self.specialist
+        )
+        self.assertEqual(
+            repository.last_attempted_release.released_at, self.released_at
+        )
