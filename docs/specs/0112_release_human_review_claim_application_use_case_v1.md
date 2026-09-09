@@ -378,4 +378,4 @@ A entrega da Issue #112 tem os seguintes critérios de aceitação e status de e
 7. [x] **Higiene Git**: `git diff --check` executando com sucesso e sem violações de whitespace;
 8. [x] **Auditoria Pré-PR**: Auditoria humana confirmando ausência de acoplamento indevido ou desvios de escopo (*scope creep*);
 9. [x] **Pull Request Funcional**: PR #113 aberto contra `main` e aprovado em CI; integrado via merge commit `59d577c`;
-10. [ ] **Closeout Documental Separado**: Atualização de status da SPEC para `IMPLEMENTED`, atualização de `PROJECT_COMPASS` e realização de `README Audit` obrigatório (alterando o README somente se o audit indicar `UPDATE REQUIRED`) em PR documental próprio pós-merge funcional (em andamento na branch `docs/issue-112-closeout`).
+10. [x] **Closeout Documental Separado**: Atualização de status da SPEC para `IMPLEMENTED`, atualização de `PROJECT_COMPASS` e realização de `README Audit` obrigatório, consolidadas no PR documental #114, aberto contra `main` após o merge funcional.
