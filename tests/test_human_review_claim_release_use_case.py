@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import copy
 import unittest
 from unittest.mock import patch
 
@@ -639,3 +640,105 @@ class ReleaseHumanReviewClaimUseCaseSlice4MultipleReleaseFactsTests(
 
         self.assertEqual(first_release.released_at, released_at_1)
         self.assertEqual(second_release.released_at, released_at_2)
+
+
+class ReleaseHumanReviewClaimUseCaseSlice5ImmutabilityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.verified_at = datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc)
+        self.opened_at = datetime(2026, 9, 2, 9, 30, 0, tzinfo=timezone.utc)
+        self.claimed_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=timezone.utc)
+        self.released_at = datetime(2026, 9, 2, 10, 30, 0, tzinfo=timezone.utc)
+
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=self.verified_at,
+        )
+
+        self.recommendation = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Necessária revisão cadastral",
+            requires_human_decision=True,
+        )
+
+        self.workflow = GovernanceWorkflow(
+            workflow_id="WF-001",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            review=None,
+        )
+
+        self.claim = claim_pending_human_review(
+            self.workflow,
+            claim_id="CLM-001",
+            specialist=self.specialist,
+            claimed_at=self.claimed_at,
+        )
+
+    def test_execute_preserves_workflow_and_claim_without_mutation(
+        self,
+    ) -> None:
+        repository = FakeHumanReviewClaimReleaseRepository()
+        use_case = ReleaseHumanReviewClaimUseCase(
+            claim_release_repository=repository
+        )
+
+        workflow_snapshot = copy.deepcopy(self.workflow)
+        claim_snapshot = copy.deepcopy(self.claim)
+        workflow_status_before = self.workflow.status
+        workflow_review_before = self.workflow.review
+
+        result = use_case.execute(
+            self.workflow,
+            self.claim,
+            release_id="REL-001",
+            releasing_specialist=self.specialist,
+            released_at=self.released_at,
+        )
+
+        self.assertEqual(self.workflow, workflow_snapshot)
+        self.assertEqual(self.claim, claim_snapshot)
+        self.assertEqual(self.workflow.status, workflow_status_before)
+        self.assertIs(self.workflow.review, workflow_review_before)
+        self.assertIsNone(self.workflow.review)
+
+        self.assertEqual(len(repository.appended_releases), 1)
+        self.assertIs(repository.appended_releases[0], result)
+        self.assertIsInstance(result, HumanReviewClaimRelease)
+
+    def test_execute_preserves_workflow_and_claim_when_persistence_fails(
+        self,
+    ) -> None:
+        expected_error = HumanReviewClaimReleasePersistenceError(
+            "storage unavailable"
+        )
+        repository = FailingHumanReviewClaimReleaseRepository(expected_error)
+        use_case = ReleaseHumanReviewClaimUseCase(
+            claim_release_repository=repository
+        )
+
+        workflow_snapshot = copy.deepcopy(self.workflow)
+        claim_snapshot = copy.deepcopy(self.claim)
+        workflow_status_before = self.workflow.status
+        workflow_review_before = self.workflow.review
+
+        with self.assertRaises(HumanReviewClaimReleasePersistenceError) as cm:
+            use_case.execute(
+                self.workflow,
+                self.claim,
+                release_id="REL-001",
+                releasing_specialist=self.specialist,
+                released_at=self.released_at,
+            )
+
+        self.assertIs(cm.exception, expected_error)
+        self.assertEqual(self.workflow, workflow_snapshot)
+        self.assertEqual(self.claim, claim_snapshot)
+        self.assertEqual(self.workflow.status, workflow_status_before)
+        self.assertIs(self.workflow.review, workflow_review_before)
+        self.assertIsNone(self.workflow.review)
+        self.assertEqual(repository.append_call_count, 1)
