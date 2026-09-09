@@ -33,6 +33,12 @@ class ReleaseHumanReviewClaimUseCase:
         releasing_specialist: VerifiedSpecialistIdentity,
         released_at: datetime,
     ) -> HumanReviewClaimRelease:
+        if not isinstance(workflow, GovernanceWorkflow):
+            raise TypeError("workflow must be a GovernanceWorkflow")
+
+        if not isinstance(claim, HumanReviewClaim):
+            raise TypeError("claim must be a HumanReviewClaim")
+
         release = release_human_review_claim(
             workflow,
             claim,
