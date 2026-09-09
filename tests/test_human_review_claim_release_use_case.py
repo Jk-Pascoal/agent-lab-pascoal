@@ -86,6 +86,38 @@ class FailingHumanReviewClaimReleaseRepository:
         return ()
 
 
+class NoHistoryLookupHumanReviewClaimReleaseRepository:
+    def __init__(self) -> None:
+        self.appended_releases: list[HumanReviewClaimRelease] = []
+
+    def append(self, release: HumanReviewClaimRelease) -> None:
+        self.appended_releases.append(release)
+
+    def get_by_id(self, release_id: str) -> HumanReviewClaimRelease | None:
+        raise AssertionError(
+            "Application must not perform historical release lookup"
+        )
+
+    def list_by_claim_id(
+        self, claim_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        raise AssertionError(
+            "Application must not perform historical release lookup"
+        )
+
+    def list_by_workflow_id(
+        self, workflow_id: str
+    ) -> tuple[HumanReviewClaimRelease, ...]:
+        raise AssertionError(
+            "Application must not perform historical release lookup"
+        )
+
+    def list_all(self) -> tuple[HumanReviewClaimRelease, ...]:
+        raise AssertionError(
+            "Application must not perform historical release lookup"
+        )
+
+
 class ReleaseHumanReviewClaimUseCaseSlice1Tests(unittest.TestCase):
     def setUp(self) -> None:
         self.repository = FakeHumanReviewClaimReleaseRepository()
@@ -519,3 +551,91 @@ class ReleaseHumanReviewClaimUseCaseSlice3PersistenceFailureTests(
         self.assertEqual(
             repository.last_attempted_release.released_at, self.released_at
         )
+
+
+class ReleaseHumanReviewClaimUseCaseSlice4MultipleReleaseFactsTests(
+    unittest.TestCase
+):
+    def setUp(self) -> None:
+        self.verified_at = datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc)
+        self.opened_at = datetime(2026, 9, 2, 9, 30, 0, tzinfo=timezone.utc)
+        self.claimed_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=timezone.utc)
+
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=self.verified_at,
+        )
+
+        self.recommendation = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Necessária revisão cadastral",
+            requires_human_decision=True,
+        )
+
+        self.workflow = GovernanceWorkflow(
+            workflow_id="WF-001",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            review=None,
+        )
+
+        self.claim = claim_pending_human_review(
+            self.workflow,
+            claim_id="CLM-001",
+            specialist=self.specialist,
+            claimed_at=self.claimed_at,
+        )
+
+    def test_execute_allows_multiple_distinct_release_facts_for_same_claim_without_history_lookup(
+        self,
+    ) -> None:
+        repository = NoHistoryLookupHumanReviewClaimReleaseRepository()
+        use_case = ReleaseHumanReviewClaimUseCase(
+            claim_release_repository=repository
+        )
+
+        released_at_1 = datetime(2026, 9, 2, 10, 30, 0, tzinfo=timezone.utc)
+        released_at_2 = datetime(2026, 9, 2, 10, 45, 0, tzinfo=timezone.utc)
+
+        first_release = use_case.execute(
+            self.workflow,
+            self.claim,
+            release_id="REL-001",
+            releasing_specialist=self.specialist,
+            released_at=released_at_1,
+        )
+
+        second_release = use_case.execute(
+            self.workflow,
+            self.claim,
+            release_id="REL-002",
+            releasing_specialist=self.specialist,
+            released_at=released_at_2,
+        )
+
+        self.assertIsInstance(first_release, HumanReviewClaimRelease)
+        self.assertIsInstance(second_release, HumanReviewClaimRelease)
+        self.assertIsNot(first_release, second_release)
+
+        self.assertEqual(len(repository.appended_releases), 2)
+        self.assertIs(repository.appended_releases[0], first_release)
+        self.assertIs(repository.appended_releases[1], second_release)
+
+        self.assertEqual(first_release.release_id, "REL-001")
+        self.assertEqual(second_release.release_id, "REL-002")
+
+        self.assertEqual(first_release.claim_id, "CLM-001")
+        self.assertEqual(second_release.claim_id, "CLM-001")
+        self.assertEqual(first_release.workflow_id, "WF-001")
+        self.assertEqual(second_release.workflow_id, "WF-001")
+
+        self.assertEqual(first_release.released_by, self.specialist)
+        self.assertEqual(second_release.released_by, self.specialist)
+
+        self.assertEqual(first_release.released_at, released_at_1)
+        self.assertEqual(second_release.released_at, released_at_2)
