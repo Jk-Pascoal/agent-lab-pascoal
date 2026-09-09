@@ -6,7 +6,11 @@ from unittest.mock import patch
 
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
-from agent_lab.human_review import VerifiedSpecialistIdentity
+from agent_lab.human_review import (
+    HumanDecision,
+    HumanReview,
+    VerifiedSpecialistIdentity,
+)
 from agent_lab.human_review_claim import (
     HumanReviewClaim,
     HumanReviewClaimRelease,
@@ -16,7 +20,7 @@ from agent_lab.human_review_claim import (
 from agent_lab.human_review_claim_release_use_case import (
     ReleaseHumanReviewClaimUseCase,
 )
-from agent_lab.workflow import GovernanceWorkflow
+from agent_lab.workflow import GovernanceWorkflow, conclude_governance_workflow
 
 
 class FakeHumanReviewClaimReleaseRepository:
@@ -193,4 +197,169 @@ class ReleaseHumanReviewClaimUseCaseSlice2BoundaryTests(unittest.TestCase):
                 )
 
             mock_release.assert_not_called()
+            self.assertEqual(len(self.repository.appended_releases), 0)
+
+
+class ReleaseHumanReviewClaimUseCaseSlice2DomainDelegationTests(
+    unittest.TestCase
+):
+    def setUp(self) -> None:
+        self.repository = FakeHumanReviewClaimReleaseRepository()
+        self.use_case = ReleaseHumanReviewClaimUseCase(
+            claim_release_repository=self.repository
+        )
+
+        self.verified_at = datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc)
+        self.opened_at = datetime(2026, 9, 2, 9, 30, 0, tzinfo=timezone.utc)
+        self.claimed_at = datetime(2026, 9, 2, 10, 0, 0, tzinfo=timezone.utc)
+        self.released_at = datetime(2026, 9, 2, 10, 30, 0, tzinfo=timezone.utc)
+
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=self.verified_at,
+        )
+
+        self.recommendation = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Necessária revisão cadastral",
+            requires_human_decision=True,
+        )
+
+        self.workflow = GovernanceWorkflow(
+            workflow_id="WF-001",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            review=None,
+        )
+
+        self.claim = claim_pending_human_review(
+            self.workflow,
+            claim_id="CLM-001",
+            specialist=self.specialist,
+            claimed_at=self.claimed_at,
+        )
+
+    def test_execute_propagates_workflow_claim_mismatch_from_domain_with_zero_writes(
+        self,
+    ) -> None:
+        mismatched_workflow = GovernanceWorkflow(
+            workflow_id="WF-999",
+            recommendation=self.recommendation,
+            opened_at=self.opened_at,
+            review=None,
+        )
+        with patch(
+            "agent_lab.human_review_claim_release_use_case.release_human_review_claim",
+            wraps=release_human_review_claim,
+        ) as mock_release:
+            with self.assertRaises(ValueError):
+                self.use_case.execute(
+                    mismatched_workflow,
+                    self.claim,
+                    release_id="REL-001",
+                    releasing_specialist=self.specialist,
+                    released_at=self.released_at,
+                )
+
+            mock_release.assert_called_once()
+            self.assertEqual(len(self.repository.appended_releases), 0)
+
+    def test_execute_propagates_non_pending_workflow_rejection_from_domain_with_zero_writes(
+        self,
+    ) -> None:
+        review = HumanReview(
+            review_id="REV-001",
+            material_id=self.workflow.material_id,
+            system_recommendation=self.workflow.recommendation.decision,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=self.specialist,
+            reviewed_at=datetime(2026, 9, 2, 10, 15, 0, tzinfo=timezone.utc),
+        )
+        concluded_workflow = conclude_governance_workflow(self.workflow, review)
+
+        with patch(
+            "agent_lab.human_review_claim_release_use_case.release_human_review_claim",
+            wraps=release_human_review_claim,
+        ) as mock_release:
+            with self.assertRaises(ValueError):
+                self.use_case.execute(
+                    concluded_workflow,
+                    self.claim,
+                    release_id="REL-001",
+                    releasing_specialist=self.specialist,
+                    released_at=self.released_at,
+                )
+
+            mock_release.assert_called_once()
+            self.assertEqual(len(self.repository.appended_releases), 0)
+
+    def test_execute_propagates_divergent_stable_principal_from_domain_with_zero_writes(
+        self,
+    ) -> None:
+        divergent_specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-999",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=self.verified_at,
+        )
+        with patch(
+            "agent_lab.human_review_claim_release_use_case.release_human_review_claim",
+            wraps=release_human_review_claim,
+        ) as mock_release:
+            with self.assertRaises(ValueError):
+                self.use_case.execute(
+                    self.workflow,
+                    self.claim,
+                    release_id="REL-001",
+                    releasing_specialist=divergent_specialist,
+                    released_at=self.released_at,
+                )
+
+            mock_release.assert_called_once()
+            self.assertEqual(len(self.repository.appended_releases), 0)
+
+    def test_execute_propagates_naive_released_at_rejection_from_domain_with_zero_writes(
+        self,
+    ) -> None:
+        naive_released_at = datetime(2026, 9, 2, 10, 30, 0)
+        with patch(
+            "agent_lab.human_review_claim_release_use_case.release_human_review_claim",
+            wraps=release_human_review_claim,
+        ) as mock_release:
+            with self.assertRaises(ValueError):
+                self.use_case.execute(
+                    self.workflow,
+                    self.claim,
+                    release_id="REL-001",
+                    releasing_specialist=self.specialist,
+                    released_at=naive_released_at,
+                )
+
+            mock_release.assert_called_once()
+            self.assertEqual(len(self.repository.appended_releases), 0)
+
+    def test_execute_propagates_chronology_violation_from_domain_with_zero_writes(
+        self,
+    ) -> None:
+        earlier_released_at = datetime(2026, 9, 2, 9, 59, 0, tzinfo=timezone.utc)
+        with patch(
+            "agent_lab.human_review_claim_release_use_case.release_human_review_claim",
+            wraps=release_human_review_claim,
+        ) as mock_release:
+            with self.assertRaises(ValueError):
+                self.use_case.execute(
+                    self.workflow,
+                    self.claim,
+                    release_id="REL-001",
+                    releasing_specialist=self.specialist,
+                    released_at=earlier_released_at,
+                )
+
+            mock_release.assert_called_once()
             self.assertEqual(len(self.repository.appended_releases), 0)
