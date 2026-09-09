@@ -742,3 +742,15 @@ class ReleaseHumanReviewClaimUseCaseSlice5ImmutabilityTests(unittest.TestCase):
         self.assertIs(self.workflow.review, workflow_review_before)
         self.assertIsNone(self.workflow.review)
         self.assertEqual(repository.append_call_count, 1)
+
+
+class ReleaseHumanReviewClaimUseCaseSlice7PublicApiTests(unittest.TestCase):
+    def test_release_human_review_claim_use_case_is_available_from_public_package(
+        self,
+    ) -> None:
+        from agent_lab import ReleaseHumanReviewClaimUseCase as PublicUseCase
+
+        self.assertIs(
+            PublicUseCase,
+            ReleaseHumanReviewClaimUseCase,
+        )
