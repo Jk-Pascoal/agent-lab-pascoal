@@ -19,7 +19,7 @@
 - **Último PR funcional integrado na main:** #113
 - **Último merge funcional:** `59d577c` — Merge pull request #113
 - **Última SPEC integrada na main:** `docs/specs/0112_release_human_review_claim_application_use_case_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano
+- **Incremento funcional atual:** Issue #115 — Ground Truth Evaluation Contract v1 (implementação concluída na branch `feature/issue-115-ground-truth-evaluation-contract` no commit `913aba3`; 720 testes aprovados 100% GREEN; Architectural Alignment Gate PASS; pronta para PR; issue não mergeada e não fechada)
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
@@ -453,9 +453,9 @@ A versão atual integrada na `main` possui:
 
 Último incremento funcional concluído: Issue #112 integrada na main via PR #113 / merge `59d577c`.
 
-Incremento funcional atual: nenhum.
+Incremento funcional atual: Issue #115 — Ground Truth Evaluation Contract v1 (implementação concluída na branch `feature/issue-115-ground-truth-evaluation-contract` no commit `913aba3`; 720 testes aprovados 100% GREEN; Architectural Alignment Gate PASS; pronta para PR; issue não mergeada e não fechada).
 
-Próxima âncora arquitetural: a definir após planejamento humano.
+Próxima âncora arquitetural: abertura do PR funcional da Issue #115, execução/validação de CI e revisão; merge na main somente após aprovação desses gates.
 
 Sequência evolutiva recomendada:
 
@@ -484,7 +484,8 @@ Contrato
   → Human Review Claim Release Domain Contract v1 (concluído na #106)
   → Human Review Claim Release Persistence v1 (concluída na #109)
   → Release Human Review Claim Application Use Case v1 (implementação funcional integrada na #112 via PR #113 / merge 59d577c; closeout documental separado conforme governança do projeto)
-  → próxima âncora a definir após planejamento humano
+  → Ground Truth Evaluation Contract v1 (implementação concluída na #115 / branch feature/issue-115-ground-truth-evaluation-contract / commit 913aba3; 720 testes GREEN; Architectural Alignment Gate PASS; pronta para PR)
+  → PR funcional da Issue #115 → CI/revisão → merge na main somente após aprovação dos gates
 ```
 
 ## 5. Invariantes constitucionais
@@ -893,6 +894,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #109: 646 testes
 - Incremento da Issue #112: +15 testes sobre o baseline de entrada de 646 (14 testes unitários/Application em `tests/test_human_review_claim_release_use_case.py` e 1 teste de integração vertical JSONL em `tests/test_human_review_claim_release_use_case_integration.py`)
 - Baseline integrado após a Issue #112: 661 testes (100% GREEN)
+- Incremento da Issue #115: +59 testes sobre o baseline de entrada de 661 (59 testes unitários/defensivos em `tests/test_ground_truth.py` cobrindo LabelProvenance, MaterialRuleGroundTruth, DuplicatePairGroundTruth, DecisionRecommendationGroundTruth e exports públicos canônicos)
+- Baseline da branch feature/issue-115-ground-truth-evaluation-contract: 720 testes (100% GREEN; pronta para PR; não integrado na main)
 
 Não assumir `pytest`.
 
@@ -1189,11 +1192,11 @@ MAIN INTEGRADA:
   cinco boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase, ListPendingHumanReviewsWithClaimStateUseCase e ReleaseHumanReviewClaimUseCase), uma projeção factual de claims (project_human_review_claim_state), um módulo de governança de política normativa pura (evaluate_reviewer_claim_eligibility), o gate de elegibilidade em tempo de execução em RecordHumanDecisionUseCase, o contrato puro de domínio em memória de release de claim (HumanReviewClaimRelease e release_human_review_claim) e a persistência durável append-only em JSONL de releases com serialização versionada v1 (JsonlHumanReviewClaimReleaseRepository) estão integrados; a composição factual da fila pendente com estado de claims está integrada; Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, First-Claim-Wins / Last-Claim-Wins, lock/checkout, force-release, transfer/reassignment, vigência/TTL/lease/expiry/SLA, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano.
+- Issue #115: Ground Truth Evaluation Contract v1 — implementação concluída na branch feature/issue-115-ground-truth-evaluation-contract (commit 913aba3 | 720 testes aprovados 100% GREEN | Architectural Alignment Gate PASS | pronta para PR | não mergeada na main | issue aberta).
 - Issue #112: implementação funcional integrada na main via PR #113 / merge 59d577c; closeout documental separado conforme governança do projeto.
 
 PRÓXIMA ÂNCORA:
-- A definir após planejamento humano.
+- Abertura do PR funcional da Issue #115, execução/validação de CI e revisão; merge na main somente após aprovação desses gates.
 
 Comando oficial:
 python -m unittest discover -s tests -v

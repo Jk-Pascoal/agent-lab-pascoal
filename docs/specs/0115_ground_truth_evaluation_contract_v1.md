@@ -10,7 +10,7 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0115` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#115` |
 | **Título da Issue** | `Ground Truth Evaluation Contract v1` |
 | **Branch funcional** | `feature/issue-115-ground-truth-evaluation-contract` |
@@ -18,6 +18,7 @@
 | **Data de criação** | `2026-09-10` |
 | **Última atualização** | `2026-09-10` |
 | **Baseline de entrada** | `661 testes aprovados` (100% GREEN) |
+| **Baseline verificado** | `720 testes aprovados` (100% GREEN, +59 testes) |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
 ---
@@ -480,20 +481,20 @@ Por se tratar de um incremento puramente aditivo em módulo isolado (`src/agent_
 
 ## 13. Critérios de aceite
 
-- [ ] Issue #115 criada no GitHub e vinculada a esta SPEC;
-- [ ] Branch `feature/issue-115-ground-truth-evaluation-contract` criada a partir de `aeef2f2`;
-- [ ] Módulo `src/agent_lab/ground_truth.py` implementado contendo `LabelProvenance`, `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth` e `DecisionRecommendationGroundTruth`;
-- [ ] Separação estrita de escopo: `POSSIBLE_DUPLICATE` proibido em `MaterialRuleGroundTruth` com `ValueError`;
-- [ ] Canonicidade determinística de `expected_issue_types` validada e normalizada por `IssueType.value`;
-- [ ] Duplicidade canônica fail-closed $A < B$ validada em `DuplicatePairGroundTruth` com `ValueError`;
-- [ ] Proveniência mínima explícita e auditável para v1 validada com `VerifiedSpecialistIdentity` condicional e validação de tipo estrito de `provenance` com `TypeError`;
-- [ ] Compulsoriedade de `source_reference` e `rationale` validada;
-- [ ] `evaluation_case_id` e `ground_truth_id` presentes e distintos conceitualmente nos 3 contratos;
-- [ ] Testes unitários defensivos em `tests/test_ground_truth.py` cobrindo cenários válidos, inválidos e imutabilidade;
-- [ ] Baseline de 661 testes anteriores mantido 100% GREEN;
-- [ ] `git diff --check` aprovado sem trailing whitespace;
-- [ ] Nenhum código de `data_io.py`, `baseline.py`, `rules.py`, `duplicates.py`, `decision.py` ou `PROJECT_COMPASS.md` alterado;
-- [ ] Revisão humana prévia da SPEC aprovada antes de qualquer implementação.
+- [x] Issue #115 criada no GitHub e vinculada a esta SPEC;
+- [x] Branch `feature/issue-115-ground-truth-evaluation-contract` criada a partir de `aeef2f2`;
+- [x] Módulo `src/agent_lab/ground_truth.py` implementado contendo `LabelProvenance`, `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth` e `DecisionRecommendationGroundTruth`;
+- [x] Separação estrita de escopo: `POSSIBLE_DUPLICATE` proibido em `MaterialRuleGroundTruth` com `ValueError`;
+- [x] Canonicidade determinística de `expected_issue_types` validada e normalizada por `IssueType.value`;
+- [x] Duplicidade canônica fail-closed $A < B$ validada em `DuplicatePairGroundTruth` com `ValueError`;
+- [x] Proveniência mínima explícita e auditável para v1 validada com `VerifiedSpecialistIdentity` condicional e validação de tipo estrito de `provenance` com `TypeError`;
+- [x] Compulsoriedade de `source_reference` e `rationale` validada;
+- [x] `evaluation_case_id` e `ground_truth_id` presentes e distintos conceitualmente nos 3 contratos;
+- [x] Testes unitários defensivos em `tests/test_ground_truth.py` cobrindo cenários válidos, inválidos e imutabilidade;
+- [x] Baseline de 661 testes anteriores mantido 100% GREEN (totalizando 720 testes aprovados);
+- [x] `git diff --check` aprovado sem trailing whitespace;
+- [x] Nenhum código de `data_io.py`, `baseline.py`, `rules.py`, `duplicates.py` ou `decision.py` foi alterado pela implementação funcional; `PROJECT_COMPASS.md` permaneceu intacto durante a implementação e é atualizado somente neste closeout documental;
+- [x] Revisão humana prévia da SPEC aprovada antes de qualquer implementação.
 
 ---
 
@@ -514,3 +515,4 @@ Por se tratar de um incremento puramente aditivo em módulo isolado (`src/agent_
 | `2026-09-10` | Segregação entre `evaluation_case_id` e `ground_truth_id` nos três contratos | Preservar a identidade do caso experimental separada da anotação produzida. | `Jk-Pascoal` |
 | `2026-09-10` | Preservação intocada da metrologia legada (`data_io.py` / `baseline.py`) | Evitar acoplamento prematuro e manter migração para etapa posterior formal. | `Jk-Pascoal` |
 | `2026-09-10` | Revisão documental pré-TDD: ground truth não restrito a humano, separação canônica de expected_issue_types e política inequívoca de exceções | Blindagem metrológica e eliminação de ambiguidades antes do primeiro teste RED. | `Jk-Pascoal` |
+| `2026-09-10` | Conclusão da implementação funcional e aprovação no Architectural Alignment Gate | 59/59 testes específicos GREEN, 720/720 suíte completa GREEN, exports canônicos verificados, branch 913aba3 pronta para PR. | `Jk-Pascoal` |
