@@ -874,5 +874,59 @@ class GroundTruthSlice18DecisionRecommendationImmutabilityTests(
             gt.material_id = "MAT-9999"  # type: ignore[misc]
 
 
+class GroundTruthSlice19PublicExportsTests(unittest.TestCase):
+    def test_label_provenance_is_publicly_exported(self) -> None:
+        from agent_lab import LabelProvenance as PublicLabelProvenance
+        from agent_lab.ground_truth import (
+            LabelProvenance as GroundTruthLabelProvenance,
+        )
+
+        self.assertIs(
+            PublicLabelProvenance,
+            GroundTruthLabelProvenance,
+        )
+
+    def test_material_rule_ground_truth_is_publicly_exported(self) -> None:
+        from agent_lab import (
+            MaterialRuleGroundTruth as PublicMaterialRuleGroundTruth,
+        )
+        from agent_lab.ground_truth import (
+            MaterialRuleGroundTruth as GroundTruthMaterialRuleGroundTruth,
+        )
+
+        self.assertIs(
+            PublicMaterialRuleGroundTruth,
+            GroundTruthMaterialRuleGroundTruth,
+        )
+
+    def test_duplicate_pair_ground_truth_is_publicly_exported(self) -> None:
+        from agent_lab import (
+            DuplicatePairGroundTruth as PublicDuplicatePairGroundTruth,
+        )
+        from agent_lab.ground_truth import (
+            DuplicatePairGroundTruth as GroundTruthDuplicatePairGroundTruth,
+        )
+
+        self.assertIs(
+            PublicDuplicatePairGroundTruth,
+            GroundTruthDuplicatePairGroundTruth,
+        )
+
+    def test_decision_recommendation_ground_truth_is_publicly_exported(
+        self,
+    ) -> None:
+        from agent_lab import (
+            DecisionRecommendationGroundTruth as PublicDecisionRecommendationGroundTruth,
+        )
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruth as GroundTruthDecisionRecommendationGroundTruth,
+        )
+
+        self.assertIs(
+            PublicDecisionRecommendationGroundTruth,
+            GroundTruthDecisionRecommendationGroundTruth,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
