@@ -60,6 +60,34 @@ def _validate_provenance_annotator(
             )
 
 
+def _validate_label_temporal_consistency(
+    provenance: LabelProvenance,
+    annotator: VerifiedSpecialistIdentity | None,
+    labeled_at: object,
+) -> None:
+    if not isinstance(labeled_at, datetime):
+        raise TypeError(
+            "labeled_at must be a datetime"
+        )
+
+    if (
+        labeled_at.tzinfo is None
+        or labeled_at.utcoffset() is None
+    ):
+        raise ValueError(
+            "labeled_at must be timezone-aware"
+        )
+
+    if (
+        provenance == LabelProvenance.SPECIALIST_CURATED
+        and annotator is not None
+        and annotator.verified_at > labeled_at
+    ):
+        raise ValueError(
+            "annotator.verified_at cannot be after labeled_at"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class MaterialRuleGroundTruth:
     evaluation_case_id: str
@@ -117,20 +145,11 @@ class MaterialRuleGroundTruth:
             self.annotator,
         )
 
-        if not isinstance(self.labeled_at, datetime):
-            raise TypeError("labeled_at must be a datetime")
-
-        if self.labeled_at.tzinfo is None or self.labeled_at.utcoffset() is None:
-            raise ValueError("labeled_at must be timezone-aware")
-
-        if (
-            self.provenance == LabelProvenance.SPECIALIST_CURATED
-            and self.annotator is not None
-            and self.annotator.verified_at > self.labeled_at
-        ):
-            raise ValueError(
-                "annotator.verified_at cannot be after labeled_at"
-            )
+        _validate_label_temporal_consistency(
+            self.provenance,
+            self.annotator,
+            self.labeled_at,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,20 +202,8 @@ class DuplicatePairGroundTruth:
             self.annotator,
         )
 
-        if not isinstance(self.labeled_at, datetime):
-            raise TypeError("labeled_at must be a datetime")
-
-        if (
-            self.labeled_at.tzinfo is None
-            or self.labeled_at.utcoffset() is None
-        ):
-            raise ValueError("labeled_at must be timezone-aware")
-
-        if (
-            self.provenance == LabelProvenance.SPECIALIST_CURATED
-            and self.annotator is not None
-            and self.annotator.verified_at > self.labeled_at
-        ):
-            raise ValueError(
-                "annotator.verified_at cannot be after labeled_at"
-            )
+        _validate_label_temporal_consistency(
+            self.provenance,
+            self.annotator,
+            self.labeled_at,
+        )
