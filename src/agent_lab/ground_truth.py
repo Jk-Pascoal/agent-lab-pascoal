@@ -13,6 +13,25 @@ class LabelProvenance(StrEnum):
     SYNTHETIC_SPECIFIED = "SYNTHETIC_SPECIFIED"
 
 
+def _normalize_required_text(
+    value: object,
+    field_name: str,
+) -> str:
+    if not isinstance(value, str):
+        raise TypeError(
+            f"{field_name} must be a str"
+        )
+
+    normalized = value.strip()
+
+    if not normalized:
+        raise ValueError(
+            f"{field_name} must not be empty or whitespace"
+        )
+
+    return normalized
+
+
 @dataclass(frozen=True, slots=True)
 class MaterialRuleGroundTruth:
     evaluation_case_id: str
@@ -34,13 +53,14 @@ class MaterialRuleGroundTruth:
             "rationale",
         )
         for field_name in text_fields:
-            val = getattr(self, field_name)
-            if not isinstance(val, str):
-                raise TypeError(f"{field_name} must be a str")
-            normalized = val.strip()
-            if not normalized:
-                raise ValueError(f"{field_name} must not be empty or whitespace")
-            object.__setattr__(self, field_name, normalized)
+            object.__setattr__(
+                self,
+                field_name,
+                _normalize_required_text(
+                    getattr(self, field_name),
+                    field_name,
+                ),
+            )
 
         if not isinstance(self.expected_issue_types, tuple):
             raise TypeError("expected_issue_types must be a tuple")
@@ -119,13 +139,14 @@ class DuplicatePairGroundTruth:
             "rationale",
         )
         for field_name in text_fields:
-            val = getattr(self, field_name)
-            if not isinstance(val, str):
-                raise TypeError(f"{field_name} must be a str")
-            normalized = val.strip()
-            if not normalized:
-                raise ValueError(f"{field_name} must not be empty or whitespace")
-            object.__setattr__(self, field_name, normalized)
+            object.__setattr__(
+                self,
+                field_name,
+                _normalize_required_text(
+                    getattr(self, field_name),
+                    field_name,
+                ),
+            )
 
         if not isinstance(self.is_duplicate, bool):
             raise TypeError("is_duplicate must be a bool")
