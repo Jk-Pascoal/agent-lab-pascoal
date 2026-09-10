@@ -8,6 +8,12 @@ from .domain import (
     IssueType,
     MaterialRecord,
 )
+from .ground_truth import (
+    DecisionRecommendationGroundTruth,
+    DuplicatePairGroundTruth,
+    LabelProvenance,
+    MaterialRuleGroundTruth,
+)
 from .human_review_claim import (
     HumanReviewClaim,
     HumanReviewClaimRelease,
@@ -86,4 +92,8 @@ __all__ = [
     "ReviewerEligibilityDecision",
     "ReviewerEligibilityStatus",
     "evaluate_reviewer_claim_eligibility",
+    "DecisionRecommendationGroundTruth",
+    "DuplicatePairGroundTruth",
+    "LabelProvenance",
+    "MaterialRuleGroundTruth",
 ]
