@@ -4,13 +4,13 @@ import unittest
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 
-from agent_lab.domain import IssueType
+from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DuplicatePairGroundTruth,
     LabelProvenance,
     MaterialRuleGroundTruth,
 )
-from agent_lab.human_review import VerifiedSpecialistIdentity
+from agent_lab.human_review import HumanDecision, VerifiedSpecialistIdentity
 
 
 class GroundTruthSlice1Tests(unittest.TestCase):
@@ -532,6 +532,346 @@ class GroundTruthSlice12DuplicatePairImmutabilityTests(unittest.TestCase):
         gt = _make_valid_duplicate_pair_gt()
         with self.assertRaises(FrozenInstanceError):
             gt.material_id_a = "MAT-9999"  # type: ignore[misc]
+
+
+class GroundTruthSlice13DecisionRecommendationNominalTests(unittest.TestCase):
+    def test_decision_recommendation_ground_truth_synthetic_minimal_valid(
+        self,
+    ) -> None:
+        from agent_lab.ground_truth import DecisionRecommendationGroundTruth
+
+        gt = DecisionRecommendationGroundTruth(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1001",
+            expected_recommendation=GovernanceDecision.APPROVE,
+            provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+            source_reference="synthetic://spec-0115/decision/001",
+            annotator=None,
+            labeled_at=datetime(
+                2026,
+                9,
+                10,
+                9,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            rationale="Synthetic governed recommendation reference.",
+        )
+
+        self.assertEqual(
+            gt.expected_recommendation,
+            GovernanceDecision.APPROVE,
+        )
+        self.assertEqual(
+            gt.material_id,
+            "MAT-1001",
+        )
+        self.assertEqual(
+            gt.provenance,
+            LabelProvenance.SYNTHETIC_SPECIFIED,
+        )
+
+
+class GroundTruthSlice14DecisionRecommendationExpectedRecommendationTests(unittest.TestCase):
+    def test_expected_recommendation_rejects_string_equivalent(self) -> None:
+        from agent_lab.ground_truth import DecisionRecommendationGroundTruth
+
+        with self.assertRaises(TypeError):
+            DecisionRecommendationGroundTruth(
+                evaluation_case_id="CASE-DEC-001",
+                ground_truth_id="GT-DEC-001",
+                material_id="MAT-1001",
+                expected_recommendation="APPROVE",
+                provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+                source_reference="synthetic://spec-0115/decision/001",
+                annotator=None,
+                labeled_at=datetime(
+                    2026,
+                    9,
+                    10,
+                    9,
+                    0,
+                    tzinfo=timezone.utc,
+                ),
+                rationale="Synthetic governed recommendation reference.",
+            )
+
+    def test_expected_recommendation_rejects_human_decision(self) -> None:
+        from agent_lab.ground_truth import DecisionRecommendationGroundTruth
+
+        with self.assertRaises(TypeError):
+            DecisionRecommendationGroundTruth(
+                evaluation_case_id="CASE-DEC-001",
+                ground_truth_id="GT-DEC-001",
+                material_id="MAT-1001",
+                expected_recommendation=HumanDecision.APPROVE,
+                provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+                source_reference="synthetic://spec-0115/decision/001",
+                annotator=None,
+                labeled_at=datetime(
+                    2026,
+                    9,
+                    10,
+                    9,
+                    0,
+                    tzinfo=timezone.utc,
+                ),
+                rationale="Synthetic governed recommendation reference.",
+            )
+
+
+def _make_valid_decision_recommendation_gt(
+    **overrides: object,
+):
+    from agent_lab.ground_truth import DecisionRecommendationGroundTruth
+
+    values: dict[str, object] = {
+        "evaluation_case_id": "CASE-DEC-001",
+        "ground_truth_id": "GT-DEC-001",
+        "material_id": "MAT-1001",
+        "expected_recommendation": GovernanceDecision.APPROVE,
+        "provenance": LabelProvenance.SYNTHETIC_SPECIFIED,
+        "source_reference": "synthetic://spec-0115/decision/001",
+        "annotator": None,
+        "labeled_at": datetime(
+            2026,
+            9,
+            10,
+            9,
+            0,
+            tzinfo=timezone.utc,
+        ),
+        "rationale": "Synthetic governed recommendation reference.",
+    }
+    values.update(overrides)
+    return DecisionRecommendationGroundTruth(**values)  # type: ignore[arg-type]
+
+
+class GroundTruthSlice15DecisionRecommendationTextFieldsTests(unittest.TestCase):
+    def test_decision_recommendation_text_fields_reject_non_str(self) -> None:
+        field_names = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id",
+            "source_reference",
+            "rationale",
+        )
+        for field_name in field_names:
+            with self.subTest(field_name=field_name):
+                with self.assertRaises(TypeError):
+                    _make_valid_decision_recommendation_gt(
+                        **{field_name: 123}
+                    )
+
+    def test_decision_recommendation_text_fields_reject_empty_or_whitespace(
+        self,
+    ) -> None:
+        field_names = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id",
+            "source_reference",
+            "rationale",
+        )
+        for field_name in field_names:
+            with self.subTest(field_name=field_name):
+                with self.assertRaises(ValueError):
+                    _make_valid_decision_recommendation_gt(
+                        **{field_name: "   "}
+                    )
+
+    def test_decision_recommendation_text_fields_stripped(self) -> None:
+        gt = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="  CASE-DEC-001  ",
+            ground_truth_id="  GT-DEC-001  ",
+            material_id="  MAT-1001  ",
+            source_reference="  synthetic://spec-0115/decision/001  ",
+            rationale="  Synthetic governed recommendation reference.  ",
+        )
+        self.assertEqual(
+            gt.evaluation_case_id,
+            "CASE-DEC-001",
+        )
+        self.assertEqual(
+            gt.ground_truth_id,
+            "GT-DEC-001",
+        )
+        self.assertEqual(
+            gt.material_id,
+            "MAT-1001",
+        )
+        self.assertEqual(
+            gt.source_reference,
+            "synthetic://spec-0115/decision/001",
+        )
+        self.assertEqual(
+            gt.rationale,
+            "Synthetic governed recommendation reference.",
+        )
+
+
+class GroundTruthSlice16DecisionRecommendationProvenanceAnnotatorTests(
+    unittest.TestCase
+):
+    def test_decision_recommendation_provenance_rejects_string_equivalent(
+        self,
+    ) -> None:
+        with self.assertRaises(TypeError):
+            _make_valid_decision_recommendation_gt(
+                provenance="SYNTHETIC_SPECIFIED",
+            )
+
+    def test_decision_recommendation_specialist_curated_rejects_none_annotator(
+        self,
+    ) -> None:
+        with self.assertRaises(ValueError):
+            _make_valid_decision_recommendation_gt(
+                provenance=LabelProvenance.SPECIALIST_CURATED,
+                annotator=None,
+            )
+
+    def test_decision_recommendation_specialist_curated_rejects_non_specialist_annotator(
+        self,
+    ) -> None:
+        with self.assertRaises(TypeError):
+            _make_valid_decision_recommendation_gt(
+                provenance=LabelProvenance.SPECIALIST_CURATED,
+                annotator="SPEC-001",
+            )
+
+    def test_decision_recommendation_synthetic_specified_rejects_present_annotator(
+        self,
+    ) -> None:
+        specialist = _make_verified_specialist_at(
+            datetime(
+                2026,
+                9,
+                10,
+                8,
+                0,
+                tzinfo=timezone.utc,
+            )
+        )
+        with self.assertRaises(ValueError):
+            _make_valid_decision_recommendation_gt(
+                provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+                annotator=specialist,
+            )
+
+    def test_decision_recommendation_specialist_curated_valid(self) -> None:
+        specialist = _make_verified_specialist_at(
+            datetime(
+                2026,
+                9,
+                10,
+                8,
+                0,
+                tzinfo=timezone.utc,
+            )
+        )
+        gt = _make_valid_decision_recommendation_gt(
+            provenance=LabelProvenance.SPECIALIST_CURATED,
+            annotator=specialist,
+        )
+        self.assertEqual(
+            gt.provenance,
+            LabelProvenance.SPECIALIST_CURATED,
+        )
+        self.assertEqual(
+            gt.annotator,
+            specialist,
+        )
+
+
+class GroundTruthSlice17DecisionRecommendationTemporalTests(
+    unittest.TestCase
+):
+    def test_decision_recommendation_labeled_at_rejects_non_datetime(
+        self,
+    ) -> None:
+        with self.assertRaises(TypeError):
+            _make_valid_decision_recommendation_gt(
+                labeled_at="2026-09-10T09:00:00Z",
+            )
+
+    def test_decision_recommendation_labeled_at_rejects_naive_datetime(
+        self,
+    ) -> None:
+        with self.assertRaises(ValueError):
+            _make_valid_decision_recommendation_gt(
+                labeled_at=datetime(
+                    2026,
+                    9,
+                    10,
+                    9,
+                    0,
+                ),
+            )
+
+    def test_decision_recommendation_specialist_verified_at_cannot_be_after_labeled_at(
+        self,
+    ) -> None:
+        labeled_at = datetime(
+            2026,
+            9,
+            10,
+            9,
+            0,
+            tzinfo=timezone.utc,
+        )
+        specialist = _make_verified_specialist_at(
+            datetime(
+                2026,
+                9,
+                10,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            )
+        )
+        with self.assertRaises(ValueError):
+            _make_valid_decision_recommendation_gt(
+                provenance=LabelProvenance.SPECIALIST_CURATED,
+                annotator=specialist,
+                labeled_at=labeled_at,
+            )
+
+    def test_decision_recommendation_specialist_verified_at_equal_to_labeled_at_is_valid(
+        self,
+    ) -> None:
+        timestamp = datetime(
+            2026,
+            9,
+            10,
+            9,
+            0,
+            tzinfo=timezone.utc,
+        )
+        specialist = _make_verified_specialist_at(timestamp)
+        gt = _make_valid_decision_recommendation_gt(
+            provenance=LabelProvenance.SPECIALIST_CURATED,
+            annotator=specialist,
+            labeled_at=timestamp,
+        )
+        self.assertEqual(
+            gt.labeled_at,
+            timestamp,
+        )
+        self.assertEqual(
+            gt.annotator,
+            specialist,
+        )
+
+
+class GroundTruthSlice18DecisionRecommendationImmutabilityTests(
+    unittest.TestCase
+):
+    def test_decision_recommendation_ground_truth_is_immutable(self) -> None:
+        gt = _make_valid_decision_recommendation_gt()
+
+        with self.assertRaises(FrozenInstanceError):
+            gt.material_id = "MAT-9999"  # type: ignore[misc]
 
 
 if __name__ == "__main__":

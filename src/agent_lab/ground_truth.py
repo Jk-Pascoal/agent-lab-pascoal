@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from .domain import IssueType
+from .domain import GovernanceDecision, IssueType
 from .human_review import VerifiedSpecialistIdentity
 
 
@@ -195,6 +195,57 @@ class DuplicatePairGroundTruth:
         if self.material_id_a > self.material_id_b:
             raise ValueError(
                 "material_id_a must be less than material_id_b"
+            )
+
+        _validate_provenance_annotator(
+            self.provenance,
+            self.annotator,
+        )
+
+        _validate_label_temporal_consistency(
+            self.provenance,
+            self.annotator,
+            self.labeled_at,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DecisionRecommendationGroundTruth:
+    evaluation_case_id: str
+    ground_truth_id: str
+    material_id: str
+    expected_recommendation: GovernanceDecision
+    provenance: LabelProvenance
+    source_reference: str
+    annotator: VerifiedSpecialistIdentity | None
+    labeled_at: datetime
+    rationale: str
+
+    def __post_init__(self) -> None:
+        text_fields = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id",
+            "source_reference",
+            "rationale",
+        )
+
+        for field_name in text_fields:
+            object.__setattr__(
+                self,
+                field_name,
+                _normalize_required_text(
+                    getattr(self, field_name),
+                    field_name,
+                ),
+            )
+
+        if not isinstance(
+            self.expected_recommendation,
+            GovernanceDecision,
+        ):
+            raise TypeError(
+                "expected_recommendation must be a GovernanceDecision"
             )
 
         _validate_provenance_annotator(
