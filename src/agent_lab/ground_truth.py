@@ -32,6 +32,34 @@ def _normalize_required_text(
     return normalized
 
 
+def _validate_provenance_annotator(
+    provenance: object,
+    annotator: object,
+) -> None:
+    if not isinstance(provenance, LabelProvenance):
+        raise TypeError(
+            "provenance must be a LabelProvenance"
+        )
+
+    if provenance == LabelProvenance.SPECIALIST_CURATED:
+        if annotator is None:
+            raise ValueError(
+                "annotator is required for SPECIALIST_CURATED"
+            )
+        if not isinstance(
+            annotator,
+            VerifiedSpecialistIdentity,
+        ):
+            raise TypeError(
+                "annotator must be a VerifiedSpecialistIdentity"
+            )
+    elif provenance == LabelProvenance.SYNTHETIC_SPECIFIED:
+        if annotator is not None:
+            raise ValueError(
+                "annotator must be None for SYNTHETIC_SPECIFIED"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class MaterialRuleGroundTruth:
     evaluation_case_id: str
@@ -84,21 +112,10 @@ class MaterialRuleGroundTruth:
         )
         object.__setattr__(self, "expected_issue_types", canonical)
 
-        if not isinstance(self.provenance, LabelProvenance):
-            raise TypeError("provenance must be a LabelProvenance")
-
-        if self.provenance == LabelProvenance.SPECIALIST_CURATED:
-            if self.annotator is None:
-                raise ValueError("annotator is required for SPECIALIST_CURATED")
-            if not isinstance(self.annotator, VerifiedSpecialistIdentity):
-                raise TypeError(
-                    "annotator must be a VerifiedSpecialistIdentity"
-                )
-        elif self.provenance == LabelProvenance.SYNTHETIC_SPECIFIED:
-            if self.annotator is not None:
-                raise ValueError(
-                    "annotator must be None for SYNTHETIC_SPECIFIED"
-                )
+        _validate_provenance_annotator(
+            self.provenance,
+            self.annotator,
+        )
 
         if not isinstance(self.labeled_at, datetime):
             raise TypeError("labeled_at must be a datetime")
@@ -161,21 +178,10 @@ class DuplicatePairGroundTruth:
                 "material_id_a must be less than material_id_b"
             )
 
-        if not isinstance(self.provenance, LabelProvenance):
-            raise TypeError("provenance must be a LabelProvenance")
-
-        if self.provenance == LabelProvenance.SPECIALIST_CURATED:
-            if self.annotator is None:
-                raise ValueError("annotator is required for SPECIALIST_CURATED")
-            if not isinstance(self.annotator, VerifiedSpecialistIdentity):
-                raise TypeError(
-                    "annotator must be a VerifiedSpecialistIdentity"
-                )
-        elif self.provenance == LabelProvenance.SYNTHETIC_SPECIFIED:
-            if self.annotator is not None:
-                raise ValueError(
-                    "annotator must be None for SYNTHETIC_SPECIFIED"
-                )
+        _validate_provenance_annotator(
+            self.provenance,
+            self.annotator,
+        )
 
         if not isinstance(self.labeled_at, datetime):
             raise TypeError("labeled_at must be a datetime")
