@@ -123,6 +123,12 @@ Separação conceitual mandatória:
 - **`release factual ≠ active claim semantics`**
 - **`release factual ≠ release repository`**
 - **`release factual ≠ release application use case`**
+- **`Ground Truth ≠ Prediction`**
+- **`Dataset ≠ Metric`**
+- **`Evaluation Contract ≠ Benchmark Result`**
+- **`GovernanceDecision ≠ HumanDecision`**
+- **`domain contract ≠ persistence`**
+- **`new typed ground truth ≠ legacy baseline`**
 - **Workflow lifecycle persistence (`WorkflowOpened`, `WorkflowConcluded`):** preserva os fatos do ciclo temporal de governança operacional e viabiliza a reidratação determinística de workflows nos estados `PENDING_HUMAN_REVIEW` e `REVIEWED` após reinicialização do processo;
 - **Audit persistence (`AuditEvent`):** preserva a evidência imutável da deliberação do especialista humano pós-decisão;
 - **Human Review Claim persistence (`HumanReviewClaim`):** representa o fato operacional imutável de um especialista assumir voluntariamente um workflow pendente e possui trilha persistente dedicada append-only (`JsonlHumanReviewClaimRepository`), desacoplada de lifecycle e auditoria. Persistir o claim não altera `WorkflowStatus` (`PENDING_HUMAN_REVIEW` preservado), não gera `WorkflowLifecycleEvent`, não gera `AuditEvent` e não constitui decisão humana;
@@ -131,6 +137,7 @@ Separação conceitual mandatória:
 - **Reviewer Claim Eligibility Policy (`evaluate_reviewer_claim_eligibility`):** governa a autoridade normativa pura em memória a partir do read-model factual `HumanReviewClaimState` e de `VerifiedSpecialistIdentity`, categorizando deterministicamente em `ELIGIBLE`, `CLAIM_REQUIRED`, `CLAIMANT_MISMATCH` e `MULTIPLE_CLAIMS_CONFLICT`, com base em equivalência textual exata de Principal Estável `(specialist_id, identity_provider, identity_subject)`, isolando metadados de verificação (`verification_id`, `verified_at`), sem deduplicação de claims e sem eleição de claim ativo ou vencedor;
 - **Runtime Enforcement Gate (`RecordHumanDecisionUseCase`):** aplica a política de elegibilidade em tempo de execução como gate pré-write obrigatório sobre claims persistidos: se `ELIGIBLE`, autoriza a gravação do dual-write sequencial não-atômico (`Audit → Lifecycle`); se diferente de `ELIGIBLE`, interrompe imediatamente com `ReviewerNotEligibleError` garantindo zero escritas (`0 writes`); falhas físicas ou corrupção do repositório de claims propagam a exceção original de forma fail-closed (`0 writes`);
 - **Application composition read-only (`ListPendingHumanReviewsWithClaimStateUseCase`):** combina de forma puramente determinística e somente-leitura a fila pendente com o estado factual de claims em itens imutáveis `PendingHumanReviewWithClaimStateItem`, utilizando snapshot local único por repositório e preservando a pending queue como driver set FIFO, com invariante relacional estrito `workflow.workflow_id == claim_state.workflow_id`;
+- **Ground Truth Evaluation Contracts (`LabelProvenance`, `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth`, `DecisionRecommendationGroundTruth`):** estabelecem contratos de domínio puros e imutáveis em memória para padronizar expectativas e proveniência de testes de avaliação (Ground Truth) em v1, com proveniência mínima explícita e auditável (`LabelProvenance.SPECIALIST_CURATED` com `VerifiedSpecialistIdentity` ou `LabelProvenance.SYNTHETIC_SPECIFIED`), canonicidade determinística de issues esperadas (`tuple[IssueType, ...]`), ordenação relacional canônica fail-closed de pares (`material_id_a < material_id_b`), tipagem nominal estrita e validação cronológica, desacoplados de persistência, de mecanismos de execução de métricas e do baseline legado;
 - **Princípio `Repository preserva → Projection interpreta → Policy governa → Application coordena e aplica`:** o repositório preserva a integridade física e histórica na ordem de append; a projeção interpreta deterministicamente read-models factuais em memória; a política governa autoridade normativa e elegibilidade pura sem I/O; a camada de aplicação coordena a interação entre camadas e aplica as decisões normativas como gate pré-write em tempo de execução sem reinventar regras de negócio;
 - Não fundir responsabilidades operacionais, de governança, de auditoria ou factuais.
 
@@ -406,6 +413,17 @@ O sistema em seu estado integrado atual na `main` representa e valida:
 > - **Policy normativa ≠ Enforcement em tempo de execução:** uma política de governança pode ser formalizada e testada deterministicamente em memória como regra pura, sem a necessidade de acoplamento prematuro ou enforcement runtime imediato nos casos de uso de aplicação. A Policy apenas classifica elegibilidade normativa em memória, sem conceder garantias de identidade real, autenticação real, ownership ou exclusividade.
 > - **Cardinalidade factual pertence à Projection:** a Policy respeita a autoridade factual da Projection; mesmo que múltiplos claims registrados compartilhem o mesmo principal estável, multiplicidade factual constitui conflito normativo e não deve ser silenciada ou deduplicada arbitrariamente pela política.
 > - **Contract-hardening e preservação de estabilidade:** quando um comportamento já está corretamente generalizado pela implementação, um teste de characterization/contract-hardening pode entrar GREEN; não se degrada produção artificialmente apenas para fabricar um RED.
+
+- **Incremento integrado da Issue #115 (Ground Truth Evaluation Contract v1):**
+  - módulo `src/agent_lab/ground_truth.py`: introdução de contratos de domínio puros e imutáveis em memória para padronizar expectativas e proveniência de testes de avaliação (Ground Truth) em v1;
+  - enum canônico `LabelProvenance` com modalidades `SPECIALIST_CURATED` (exige `annotator: VerifiedSpecialistIdentity` e `annotator.verified_at <= labeled_at`) e `SYNTHETIC_SPECIFIED` (exige `annotator is None`);
+  - dataclass imutável `MaterialRuleGroundTruth` (`frozen=True, slots=True`) unindo `evaluation_case_id`, `ground_truth_id`, `material_id`, `expected_issue_types: tuple[IssueType, ...]`, `provenance`, `source_reference`, `annotator`, `labeled_at` e `rationale`, com ordenação determinística interna de `expected_issue_types`, bloqueio estrito de `IssueType.POSSIBLE_DUPLICATE` e validação contra duplicidades;
+  - dataclass imutável `DuplicatePairGroundTruth` (`frozen=True, slots=True`) unindo `evaluation_case_id`, `ground_truth_id`, `material_id_a`, `material_id_b`, `is_duplicate: bool`, `provenance`, `source_reference`, `annotator`, `labeled_at` e `rationale`, com ordenação relacional canônica fail-closed de IDs (`material_id_a < material_id_b`) impedindo auto-pares e ambiguidades de ordenação;
+  - dataclass imutável `DecisionRecommendationGroundTruth` (`frozen=True, slots=True`) unindo `evaluation_case_id`, `ground_truth_id`, `material_id`, `expected_recommendation: GovernanceDecision`, `provenance`, `source_reference`, `annotator`, `labeled_at` e `rationale`;
+  - validações estruturais rigorosas *fail-closed*: normalização de strings não-vazias via `.strip()`, rejeição de vazios/whitespace, tipagem nominal estrita (`TypeError`), validação de datas timezone-aware e rejeição de anomalias com `ValueError`;
+  - pureza estrita em memória com zero I/O, zero persistência própria, zero computação de métricas (Precision, Recall, F1) e zero acoplamento ou interferência com o baseline legado de testes ou pipeline de execução de regras;
+  - exportação pública canônica de todos os símbolos de Ground Truth no pacote raiz `src/agent_lab/__init__.py` e inclusão em `__all__`;
+  - baseline integrado elevado de 661 para 720 testes aprovados (100% GREEN) com a inclusão de 59 testes unitários e defensivos em `tests/test_ground_truth.py`.
 
 ### 4.3 Limite atual
 
@@ -787,7 +805,27 @@ Responsabilidades:
 - validar entradas *fail-closed* contra tipos não-`Sequence`, itens não-`MaterialRevision`, sequências vazias, mistura de `material_id` e identificadores duplicados;
 - produzir diagnóstico determinístico e imutável sem realizar I/O, mutação de instâncias ou eleição de "revisão atual".
 
-### 6.13 Camada de Aplicação / Use Cases
+### 6.13 Avaliação de Ground Truth (Contratos de Domínio)
+
+```text
+src/agent_lab/ground_truth.py
+```
+
+Contratos principais:
+
+- `LabelProvenance`;
+- `MaterialRuleGroundTruth`;
+- `DuplicatePairGroundTruth`;
+- `DecisionRecommendationGroundTruth`.
+
+Responsabilidades:
+
+- representar metadados mínimos auditáveis e tipados de proveniência (`LabelProvenance`);
+- padronizar expectativas normativas para conformidade de regras materiais (`MaterialRuleGroundTruth`), pares duplicados (`DuplicatePairGroundTruth`) e recomendações de governança (`DecisionRecommendationGroundTruth`);
+- garantir imutabilidade estrita (`frozen=True, slots=True`), validações estruturais defensivas e *fail-closed*, canonicidade determinística de issues esperadas (`tuple[IssueType, ...]`) e ordenação relacional canônica de pares de materiais (`material_id_a < material_id_b`);
+- operar puramente em memória com zero I/O e zero persistência própria, sem acoplamento com o baseline legado de testes ou motores de execução.
+
+### 6.14 Camada de Aplicação / Use Cases
 
 ```text
 src/agent_lab/human_review_use_case.py
@@ -1073,6 +1111,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 - aplicação automática das `CorrectionRequest` ao material (`CORRECTION_APPLIED`) e mutação automática de `MaterialRecord` continuam adiadas;
 - campos `diff`/`changed_fields` persistidos, eleição de `latest revision` / `current revision` / `canonical head` e ordenação semântica por timestamp `revised_at` continuam adiados (a persistência JSONL append-only de `MaterialRevision` foi integrada na Issue #68 e a projeção pura de linhagem determinística sem eleição de head foi integrada na Issue #71);
 - conexão de `MaterialRevision` ao pipeline de evidências (`EvidenceCollection`) e recomendações (`DecisionRecommendation`), e reexecução automática de regras/LLM após revisão continuam adiadas;
+- persistência de ground truth, computação de métricas (Precision, Recall, F1), carga de datasets externos, calibração de thresholds e consenso/adjudicação continuam adiadas (os contratos de domínio puro de Ground Truth v1 foram integrados na Issue #115);
 - atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura foram integrados na Issue #55; intervenções ativas em disco continuam adiadas);
 - persistência em banco de dados relacional ou transacional;
 - proteção física ou criptográfica contra adulteração do histórico;
