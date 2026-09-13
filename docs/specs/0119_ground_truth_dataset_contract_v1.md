@@ -16,7 +16,7 @@
 | **Branch funcional** | `feature/issue-119-ground-truth-dataset-contract` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-12` |
-| **Última atualização** | `2026-09-12` |
+| **Última atualização** | `2026-09-13` |
 | **Baseline de entrada** | `720 testes aprovados` (100% GREEN) |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
@@ -36,6 +36,58 @@ Com os contratos atômicos consolidados e validados na branch `main`, a etapa se
 
 ### Diretriz de Preservação e Isolamento da Metrologia Legada
 Assim como deliberado na Issue #115, a metrologia embrionária legada presente em `src/agent_lab/data_io.py` (`LabeledMaterial`) e `src/agent_lab/baseline.py` (`evaluate_baseline`, `BaselineReport`) **NÃO** deve ser alterada, removida ou adaptada nesta Issue. Os novos contratos de dataset constituem a fundação canônica formal em memória, sem qualquer acoplamento com o código legado.
+
+### Autoridade das Fontes de Ground Truth
+
+Os contratos atômicos de Ground Truth não representam afirmações arbitrárias.
+Cada gabarito deve ser sustentado por uma fonte de autoridade identificável
+por `source_reference`.
+
+As principais famílias de fontes reconhecidas nesta fase são:
+
+1. Dicionários de termos e taxonomias
+   - nomes canônicos;
+   - categorias;
+   - atributos;
+   - classificações;
+   - vocabulários controlados.
+
+2. Regras de negócio invioláveis
+   - restrições normativas do domínio;
+   - exemplo:
+     um parafuso de aço pode utilizar unidade compatível como `UN` ou `KG`,
+     mas não uma unidade semanticamente incompatível como `LITRO`.
+
+3. Dados históricos saneados
+   - registros legados previamente revisados;
+   - corrigidos e aprovados por especialistas humanos / Data Stewards;
+   - podem servir como evidência empírica de referência para casos futuros.
+
+Princípio:
+
+`Source Authority != Label Provenance`
+
+Explicação:
+
+- Source Authority descreve QUAL base normativa ou empírica sustenta
+  o gabarito.
+- Label Provenance descreve COMO o gabarito foi estabelecido.
+
+Portanto:
+
+- uma taxonomia ou regra de negócio NÃO é automaticamente
+  `SYNTHETIC_SPECIFIED`;
+- um registro histórico NÃO é automaticamente
+  `SPECIALIST_CURATED`;
+- a proveniência continua determinada pelo processo efetivo de criação
+  do label conforme SPEC-0115.
+
+Exemplos válidos:
+
+- uma regra formal convertida em fixture controlada pode fundamentar
+  `SYNTHETIC_SPECIFIED`;
+- um cadastro histórico revisado por especialista verificado pode
+  fundamentar `SPECIALIST_CURATED`.
 
 ---
 
@@ -167,7 +219,14 @@ Explicitamente **NÃO** incluir no v1:
 - Thresholds de similaridade ou runners de benchmark;
 - Binding de predições de runtime com ground truth (`prediction binding`);
 - Alteração, adaptação ou migração da metrologia legada (`data_io.py`, `baseline.py`);
-- Alteração dos contratos individuais integrados na Issue #115 (`MaterialRuleGroundTruth`, `DuplicatePairGroundTruth`, `DecisionRecommendationGroundTruth`, `LabelProvenance`).
+- Alteração dos contratos individuais integrados na Issue #115 (`MaterialRuleGroundTruth`, `DuplicatePairGroundTruth`, `DecisionRecommendationGroundTruth`, `LabelProvenance`);
+- Modelagem dessas fontes de autoridade como contratos first-class;
+- Versionamento de taxonomias;
+- Versionamento de regras de negócio;
+- Repositório de Reference Data;
+- Ingestão automática de históricos saneados.
+
+Esses temas permanecem candidatos a evolução futura e **NÃO** fazem parte do Dataset Contract v1.
 
 ---
 
@@ -386,3 +445,4 @@ Por se tratar de um incremento puramente aditivo em módulo isolado:
 | `2026-09-12` | Decisão sobre dataset vazio: permitir `items == ()` no contrato v1 | Princípio `Dataset != Metric`: coleção vazia é estruturalmente válida; rejeição por falta de amostras cabe à camada estatística. | `Jk-Pascoal` |
 | `2026-09-12` | Ordenação determinística compulsória por `(evaluation_case_id, ground_truth_id)` | Eliminar variação arbitrária na iteração e garantir representação determinística independente da ordem de entrada. | `Jk-Pascoal` |
 | `2026-09-12` | Exclusão estrita de loaders, I/O, métricas e lookups em v1 | Preservar a pureza de dados em memória e evitar acoplamento prematuro. | `Jk-Pascoal` |
+| `2026-09-13` | Separação explícita: `Source Authority != Label Provenance` | Registrar formalmente que a base normativa ou empírica de autoridade (o que sustenta) não se confunde com o processo de geração do rótulo (como foi gerado, SPEC-0115). | `Jk-Pascoal` |
