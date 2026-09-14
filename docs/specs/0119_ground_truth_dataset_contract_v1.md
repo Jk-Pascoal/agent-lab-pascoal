@@ -10,13 +10,13 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0119` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#119` |
 | **Título da Issue** | `Ground Truth Dataset Contract v1` |
-| **Branch funcional** | `feature/issue-119-ground-truth-dataset-contract` |
+| **Branch funcional** | `feature/issue-119-ground-truth-dataset-implementation` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-12` |
-| **Última atualização** | `2026-09-13` |
+| **Última atualização** | `2026-09-14` |
 | **Baseline de entrada** | `720 testes aprovados` (100% GREEN) |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
@@ -411,22 +411,22 @@ Por se tratar de um incremento puramente aditivo em módulo isolado:
 
 ## 14. Critérios de aceite (Acceptance Criteria)
 
-- [ ] Issue #119 criada no GitHub e vinculada a esta SPEC;
-- [ ] Branch funcional dedicada `feature/issue-119-ground-truth-dataset-contract` criada a partir da `main`;
-- [ ] Especificação técnica `SPEC-0119` documentada e aprovada prévia à implementação;
-- [ ] Classes `MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset` e `DecisionRecommendationGroundTruthDataset` implementadas com `frozen=True, slots=True`;
-- [ ] Sanitização defensiva de `dataset_id` com `.strip()` e rejeição de strings vazias ou whitespace (`ValueError`);
-- [ ] Validação estrita de tipos com `TypeError` para `dataset_id`, contêiner `items` e cada elemento individual de `items`;
-- [ ] Suporte a datasets vazios (`items == ()`) validado;
-- [ ] Verificação de unicidade de `ground_truth_id` dentro do dataset com `ValueError`;
-- [ ] Verificação de unicidade de `evaluation_case_id` dentro do dataset com `ValueError` (decisão v1);
-- [ ] Ordenação determinística de `items` por `(evaluation_case_id, ground_truth_id)` validada;
-- [ ] Imutabilidade estrita pós-instanciação comprovada com `FrozenInstanceError`;
-- [ ] Exportação pública canônica dos 3 novos contratos em `src/agent_lab/__init__.py`;
-- [ ] Bateria de testes unitários defensivos implementada em `tests/test_ground_truth.py`;
-- [ ] Baseline de 720 testes mantido 100% GREEN (totalizando 720 + N testes);
-- [ ] `git diff --check` aprovado sem trailing whitespace;
-- [ ] Nenhum arquivo fora do escopo funcional modificado.
+- [x] Issue #119 criada no GitHub e vinculada a esta SPEC;
+- [x] Branch funcional dedicada `feature/issue-119-ground-truth-dataset-implementation` criada a partir da `main`;
+- [x] Especificação técnica `SPEC-0119` documentada e aprovada prévia à implementação;
+- [x] Classes `MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset` e `DecisionRecommendationGroundTruthDataset` implementadas com `frozen=True, slots=True`;
+- [x] Sanitização defensiva de `dataset_id` com `.strip()` e rejeição de strings vazias ou whitespace (`ValueError`);
+- [x] Validação estrita de tipos com `TypeError` para `dataset_id`, contêiner `items` e cada elemento individual de `items`;
+- [x] Suporte a datasets vazios (`items == ()`) validado;
+- [x] Verificação de unicidade de `ground_truth_id` dentro do dataset com `ValueError`;
+- [x] Verificação de unicidade de `evaluation_case_id` dentro do dataset com `ValueError` (decisão v1);
+- [x] Ordenação determinística de `items` por `(evaluation_case_id, ground_truth_id)` validada;
+- [x] Imutabilidade estrita pós-instanciação comprovada com `FrozenInstanceError`;
+- [x] Exportação pública canônica dos 3 novos contratos em `src/agent_lab/__init__.py`;
+- [x] Bateria de testes unitários defensivos implementada em `tests/test_ground_truth.py`;
+- [x] Baseline de 720 testes mantido 100% GREEN (totalizando 720 + N testes);
+- [x] `git diff --check` aprovado sem trailing whitespace;
+- [x] Nenhum arquivo fora do escopo funcional modificado.
 
 ---
 
