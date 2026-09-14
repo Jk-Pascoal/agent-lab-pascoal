@@ -13,6 +13,7 @@ from .ground_truth import (
     DuplicatePairGroundTruth,
     LabelProvenance,
     MaterialRuleGroundTruth,
+    MaterialRuleGroundTruthDataset,
 )
 from .human_review_claim import (
     HumanReviewClaim,
@@ -96,4 +97,5 @@ __all__ = [
     "DuplicatePairGroundTruth",
     "LabelProvenance",
     "MaterialRuleGroundTruth",
+    "MaterialRuleGroundTruthDataset",
 ]
