@@ -1550,5 +1550,326 @@ class DuplicatePairGroundTruthDatasetBlock3Tests(unittest.TestCase):
         )
 
 
+
+class DecisionRecommendationGroundTruthDatasetTests(unittest.TestCase):
+    def test_nominal_empty_dataset(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+        self.assertEqual(dataset.dataset_id, "DATASET-001")
+        self.assertEqual(dataset.items, ())
+
+    def test_dataset_id_normalized_with_strip(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="   DATASET-001   ",
+            items=(),
+        )
+        self.assertEqual(dataset.dataset_id, "DATASET-001")
+
+    def test_dataset_id_rejects_non_str(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        invalid_ids = (123, None, [], ())
+        for invalid_id in invalid_ids:
+            with self.subTest(invalid_id=invalid_id):
+                with self.assertRaises(TypeError):
+                    DecisionRecommendationGroundTruthDataset(
+                        dataset_id=invalid_id,  # type: ignore[arg-type]
+                        items=(),
+                    )
+
+    def test_dataset_id_rejects_empty_or_whitespace(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        empty_ids = ("", "   ", "\t\n")
+        for empty_id in empty_ids:
+            with self.subTest(empty_id=empty_id):
+                with self.assertRaises(ValueError):
+                    DecisionRecommendationGroundTruthDataset(
+                        dataset_id=empty_id,
+                        items=(),
+                    )
+
+    def test_items_rejects_non_tuple_container(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        invalid_containers = ([], set(), {}, "invalid", 123)
+        for container in invalid_containers:
+            with self.subTest(container=container):
+                with self.assertRaises(TypeError):
+                    DecisionRecommendationGroundTruthDataset(
+                        dataset_id="DATASET-001",
+                        items=container,  # type: ignore[arg-type]
+                    )
+
+    def test_items_accepts_valid_decision_recommendation_ground_truth(
+        self,
+    ) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        gt = _make_valid_decision_recommendation_gt()
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt,),
+        )
+        self.assertEqual(dataset.dataset_id, "DATASET-001")
+        self.assertEqual(dataset.items, (gt,))
+
+    def test_items_rejects_non_decision_recommendation_ground_truth_element(
+        self,
+    ) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        invalid_elements = (
+            object(),
+            "invalid-item",
+            123,
+            _make_valid_material_rule_gt(),
+            _make_valid_duplicate_pair_gt(),
+        )
+        for invalid_element in invalid_elements:
+            with self.subTest(invalid_element=invalid_element):
+                with self.assertRaises(TypeError):
+                    DecisionRecommendationGroundTruthDataset(
+                        dataset_id="DATASET-001",
+                        items=(invalid_element,),  # type: ignore[arg-type]
+                    )
+
+    def test_items_rejects_heterogeneous_tuple(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        valid_gt = _make_valid_decision_recommendation_gt()
+        with self.assertRaises(TypeError):
+            DecisionRecommendationGroundTruthDataset(
+                dataset_id="DATASET-001",
+                items=(valid_gt, _make_valid_material_rule_gt()),  # type: ignore[arg-type]
+            )
+
+    def test_items_accepts_multiple_distinct_items(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        gt1 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1001",
+        )
+        gt2 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-002",
+            ground_truth_id="GT-DEC-002",
+            material_id="MAT-1002",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt1, gt2),
+        )
+        self.assertEqual(len(dataset.items), 2)
+        self.assertIn(gt1, dataset.items)
+        self.assertIn(gt2, dataset.items)
+
+    def test_duplicate_ground_truth_id_rejected(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        gt1 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1001",
+        )
+        gt2 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-002",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1002",
+        )
+        with self.assertRaises(ValueError):
+            DecisionRecommendationGroundTruthDataset(
+                dataset_id="DATASET-001",
+                items=(gt1, gt2),
+            )
+
+    def test_duplicate_evaluation_case_id_rejected(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        gt1 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1001",
+        )
+        gt2 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-002",
+            material_id="MAT-1002",
+        )
+        with self.assertRaises(ValueError):
+            DecisionRecommendationGroundTruthDataset(
+                dataset_id="DATASET-001",
+                items=(gt1, gt2),
+            )
+
+    def test_out_of_order_input_normalized_to_canonical_order(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        gt_case_002 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-002",
+            ground_truth_id="GT-DEC-002",
+            material_id="MAT-1002",
+        )
+        gt_case_001 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1001",
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt_case_002, gt_case_001),
+        )
+        self.assertEqual(
+            dataset.items,
+            (gt_case_001, gt_case_002),
+        )
+
+    def test_representation_independent_of_input_order(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        gt1 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1001",
+        )
+        gt2 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-002",
+            ground_truth_id="GT-DEC-002",
+            material_id="MAT-1002",
+        )
+
+        dataset_a = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt1, gt2),
+        )
+        dataset_b = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt2, gt1),
+        )
+        self.assertEqual(dataset_a.items, dataset_b.items)
+
+    def test_canonical_ordering_by_composite_key(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        gt1 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-001",
+            ground_truth_id="GT-DEC-003",
+            material_id="MAT-1001",
+        )
+        gt2 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-002",
+            ground_truth_id="GT-DEC-001",
+            material_id="MAT-1002",
+        )
+        gt3 = _make_valid_decision_recommendation_gt(
+            evaluation_case_id="CASE-DEC-003",
+            ground_truth_id="GT-DEC-002",
+            material_id="MAT-1003",
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt3, gt1, gt2),
+        )
+
+        expected_order = tuple(
+            sorted(
+                (gt3, gt1, gt2),
+                key=lambda item: (item.evaluation_case_id, item.ground_truth_id),
+            )
+        )
+        self.assertEqual(dataset.items, (gt1, gt2, gt3))
+        self.assertEqual(dataset.items, expected_order)
+
+    def test_dataset_id_cannot_be_mutated(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+        with self.assertRaises(FrozenInstanceError):
+            dataset.dataset_id = "NEW-ID"  # type: ignore[misc]
+
+    def test_items_cannot_be_mutated(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+        with self.assertRaises(FrozenInstanceError):
+            dataset.items = ()  # type: ignore[misc]
+
+    def test_slots_prevents_instance_dict(self) -> None:
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset,
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+        self.assertFalse(hasattr(dataset, "__dict__"))
+
+    def test_public_import_and_identity(self) -> None:
+        from agent_lab import (
+            DecisionRecommendationGroundTruthDataset as PublicDataset,
+        )
+        from agent_lab.ground_truth import (
+            DecisionRecommendationGroundTruthDataset as ModuleDataset,
+        )
+
+        self.assertIs(PublicDataset, ModuleDataset)
+
+    def test_in_all(self) -> None:
+        import agent_lab
+
+        self.assertIn(
+            "DecisionRecommendationGroundTruthDataset",
+            agent_lab.__all__,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

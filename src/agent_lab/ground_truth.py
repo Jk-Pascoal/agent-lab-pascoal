@@ -353,3 +353,27 @@ class DuplicatePairGroundTruthDataset:
                 DuplicatePairGroundTruth,
             ),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class DecisionRecommendationGroundTruthDataset:
+    dataset_id: str
+    items: tuple[DecisionRecommendationGroundTruth, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(
+                self.dataset_id,
+                "dataset_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "items",
+            _validate_and_canonicalize_ground_truth_items(
+                self.items,
+                DecisionRecommendationGroundTruth,
+            ),
+        )
