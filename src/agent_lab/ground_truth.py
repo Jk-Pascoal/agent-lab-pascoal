@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import TypeVar
 
 from .domain import GovernanceDecision, IssueType
 from .human_review import VerifiedSpecialistIdentity
@@ -257,4 +258,122 @@ class DecisionRecommendationGroundTruth:
             self.provenance,
             self.annotator,
             self.labeled_at,
+        )
+
+
+T = TypeVar("T")
+
+
+def _validate_and_canonicalize_ground_truth_items(
+    items: object,
+    expected_type: type[T],
+) -> tuple[T, ...]:
+    if not isinstance(items, tuple):
+        raise TypeError("items must be a tuple")
+
+    for item in items:
+        if not isinstance(item, expected_type):
+            raise TypeError(
+                f"items must contain only {expected_type.__name__} instances"
+            )
+
+    ground_truth_ids: set[str] = set()
+    evaluation_case_ids: set[str] = set()
+
+    for item in items:
+        gt_id = getattr(item, "ground_truth_id")
+        case_id = getattr(item, "evaluation_case_id")
+
+        if gt_id in ground_truth_ids:
+            raise ValueError(
+                "items must not contain duplicate ground_truth_id"
+            )
+        ground_truth_ids.add(gt_id)
+
+        if case_id in evaluation_case_ids:
+            raise ValueError(
+                "items must not contain duplicate evaluation_case_id"
+            )
+        evaluation_case_ids.add(case_id)
+
+    return tuple(
+        sorted(
+            items,
+            key=lambda item: (
+                getattr(item, "evaluation_case_id"),
+                getattr(item, "ground_truth_id"),
+            ),
+        )
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class MaterialRuleGroundTruthDataset:
+    dataset_id: str
+    items: tuple[MaterialRuleGroundTruth, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(
+                self.dataset_id,
+                "dataset_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "items",
+            _validate_and_canonicalize_ground_truth_items(
+                self.items,
+                MaterialRuleGroundTruth,
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicatePairGroundTruthDataset:
+    dataset_id: str
+    items: tuple[DuplicatePairGroundTruth, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(
+                self.dataset_id,
+                "dataset_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "items",
+            _validate_and_canonicalize_ground_truth_items(
+                self.items,
+                DuplicatePairGroundTruth,
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DecisionRecommendationGroundTruthDataset:
+    dataset_id: str
+    items: tuple[DecisionRecommendationGroundTruth, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(
+                self.dataset_id,
+                "dataset_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "items",
+            _validate_and_canonicalize_ground_truth_items(
+                self.items,
+                DecisionRecommendationGroundTruth,
+            ),
         )
