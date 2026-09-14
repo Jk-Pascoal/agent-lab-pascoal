@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-09-10
-- **Baseline integrado na main:** 720 testes aprovados (100% GREEN)
-- **Última entrega funcional integrada na main:** Ground Truth Evaluation Contract v1
-- **Última Issue funcional integrada na main:** #115
-- **Último PR funcional integrado na main:** #116
-- **Último merge funcional:** `c7e9f83` — Merge pull request #116
-- **Última SPEC integrada na main:** `docs/specs/0115_ground_truth_evaluation_contract_v1.md`
+- **Estado registrado em:** 2026-09-14
+- **Baseline integrado na main:** 776 testes aprovados (100% GREEN)
+- **Última entrega funcional integrada na main:** Ground Truth Dataset Contract v1
+- **Última Issue funcional integrada na main:** #119
+- **Último PR funcional integrado na main:** #122
+- **Último merge funcional:** `923dd77` — Merge pull request #122
+- **Última SPEC integrada na main:** `docs/specs/0119_ground_truth_dataset_contract_v1.md`
 - **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
@@ -424,6 +424,17 @@ O sistema em seu estado integrado atual na `main` representa e valida:
   - pureza estrita em memória com zero I/O, zero persistência própria, zero computação de métricas (Precision, Recall, F1) e zero acoplamento ou interferência com o baseline legado de testes ou pipeline de execução de regras;
   - exportação pública canônica de todos os símbolos de Ground Truth no pacote raiz `src/agent_lab/__init__.py` e inclusão em `__all__`;
   - baseline integrado elevado de 661 para 720 testes aprovados (100% GREEN) com a inclusão de 59 testes unitários e defensivos em `tests/test_ground_truth.py`.
+- **Incremento integrado da Issue #119 (Ground Truth Dataset Contract v1):**
+  - módulo `src/agent_lab/ground_truth.py`: introdução de contratos imutáveis de domínio em memória para coleções canônicas de ground truth (`MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset`, `DecisionRecommendationGroundTruthDataset`) em v1;
+  - dataclasses imutáveis (`@dataclass(frozen=True, slots=True)`) contendo `dataset_id: str` e `items: tuple[...]`, tipadas respectivamente com `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth` e `DecisionRecommendationGroundTruth`;
+  - normalização de `dataset_id` via `.strip()` e validação fail-closed rejeitando strings vazias, whitespace ou tipos não-string (`TypeError`/`ValueError`);
+  - garantia de unicidade estrita por `ground_truth_id` e por `evaluation_case_id` em v1 (rejeitando duplicatas com `ValueError`), assegurando casos de avaliação inequívocos no dataset;
+  - ordenação canônica determinística obrigatória dos itens por `(evaluation_case_id, ground_truth_id)` preservada em tupla imutável independente da ordem de inserção original;
+  - datasets vazios (`items=()`) são estruturalmente válidos para representar conjuntos vazios de teste;
+  - implementação compartilhada via helper privado interno `_validate_and_canonicalize_ground_truth_items` centralizando a validação do contêiner `items` como `tuple`, homogeneidade tipada dos elementos, unicidade de identificadores e ordenação canônica sem exposição externa;
+  - pureza estrita em memória com zero I/O, zero persistência própria, zero computação de métricas (Precision, Recall, F1) e zero acoplamento ou interferência com o baseline legado de testes ou pipeline de execução de regras;
+  - exportação pública canônica dos três datasets no pacote raiz `src/agent_lab/__init__.py` e inclusão em `__all__`;
+  - baseline integrado elevado de 720 para 776 testes aprovados (100% GREEN) com a inclusão de 56 testes unitários e defensivos em `tests/test_ground_truth.py`.
 
 ### 4.3 Limite atual
 
@@ -449,7 +460,7 @@ A versão atual integrada na `main` possui:
   4. `ListPendingHumanReviewsWithClaimStateUseCase`
   5. `ReleaseHumanReviewClaimUseCase` (coordena `release_human_review_claim(...) → HumanReviewClaimReleaseRepository.append(...) → return release`, validando exclusivamente tipos estruturais de borda e delegando regras de negócio ao domínio, com falhas de domínio ocorrendo antes de qualquer escrita e falhas de persistência propagadas sem mascaramento, retry, rollback ou compensação)
   uma projeção factual de claims integrada (`project_human_review_claim_state`), a composição factual da fila pendente com estado de claims integrada (`pending queue + factual claim state`), um módulo puro de política de governança normativa integrado (`Reviewer Claim Eligibility Policy v1` / `evaluate_reviewer_claim_eligibility`), enforcement de elegibilidade em tempo de execução no caso de uso `RecordHumanDecisionUseCase` (Issue #103), o contrato puro de domínio em memória para release voluntário de claims integrado (Issue #106: `HumanReviewClaimRelease` e `release_human_review_claim`), a persistência durável append-only em JSONL de release de claims com serialização versionada v1 integrada (Issue #109: `JsonlHumanReviewClaimReleaseRepository`), e a coordenação de aplicação de release de claims integrada (Issue #112: `ReleaseHumanReviewClaimUseCase`), preservando que release é fato histórico, não determina active claim, não revoga nem elege ownership operacional, permite múltiplos release facts distintos para o mesmo `claim_id`, mantém unicidade estrita por `release_id` na persistência, não injeta `HumanReviewClaimRepository`, não consulta histórico prévio, não altera `WorkflowStatus`, preserva `GovernanceWorkflow` e `HumanReviewClaim` imutáveis e opera de forma estritamente sequencial e não-transacional;
-- contratos puros de domínio em memória para avaliação de ground truth (`LabelProvenance`, `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth` e `DecisionRecommendationGroundTruth`) integrados na Issue #115, com proveniência explícita, canonicidade determinística e validações fail-closed; persistência de ground truth, datasets em volume, métricas de benchmark, calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo;
+- contratos puros de domínio em memória para avaliação atômica de ground truth (`LabelProvenance`, `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth` e `DecisionRecommendationGroundTruth`) integrados na Issue #115 com proveniência explícita e auditável, e contratos para datasets canônicos de avaliação (`MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset` e `DecisionRecommendationGroundTruthDataset`) integrados na Issue #119 agregando esses contratos com unicidade de `ground_truth_id`, unicidade de `evaluation_case_id` em v1, ordenação canônica determinística e validações fail-closed; persistência durável de ground truth/datasets, loaders externos (CSV, JSONL, Parquet), métricas de benchmark (Precision, Recall, F1), calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo;
 - execução síncrona/monoprocesso;
 - permanecem estritamente fora do escopo (não implementados):
   - Active Claim Projection / Active Claim Policy;
@@ -470,7 +481,7 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Último incremento funcional concluído: Issue #115 — Ground Truth Evaluation Contract v1 integrada na main via PR #116 / merge `c7e9f83`.
+Último incremento funcional concluído: Issue #119 — Ground Truth Dataset Contract v1 integrada na main via PR #122 / merge `923dd77`.
 
 Incremento funcional atual: nenhum.
 
@@ -504,6 +515,7 @@ Contrato
   → Human Review Claim Release Persistence v1 (concluída na #109)
   → Release Human Review Claim Application Use Case v1 (implementação funcional integrada na #112 via PR #113 / merge 59d577c; closeout documental separado conforme governança do projeto)
   → Ground Truth Evaluation Contract v1 (concluída na #115 via PR #116 / merge c7e9f83)
+  → Ground Truth Dataset Contract v1 (concluída na #119 via PR #122 / merge 923dd77)
   → próxima âncora a definir após planejamento humano
 ```
 
@@ -816,13 +828,18 @@ Contratos principais:
 - `LabelProvenance`;
 - `MaterialRuleGroundTruth`;
 - `DuplicatePairGroundTruth`;
-- `DecisionRecommendationGroundTruth`.
+- `DecisionRecommendationGroundTruth`;
+- `MaterialRuleGroundTruthDataset`;
+- `DuplicatePairGroundTruthDataset`;
+- `DecisionRecommendationGroundTruthDataset`.
 
 Responsabilidades:
 
 - representar metadados mínimos auditáveis e tipados de proveniência (`LabelProvenance`);
 - padronizar expectativas normativas para conformidade de regras materiais (`MaterialRuleGroundTruth`), pares duplicados (`DuplicatePairGroundTruth`) e recomendações de governança (`DecisionRecommendationGroundTruth`);
+- padronizar coleções canônicas de avaliação em memória (`MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset`, `DecisionRecommendationGroundTruthDataset`) com `dataset_id` normalizado, unicidade estrita por `ground_truth_id` e por `evaluation_case_id` em v1, e ordenação canônica determinística por `(evaluation_case_id, ground_truth_id)`;
 - garantir imutabilidade estrita (`frozen=True, slots=True`), validações estruturais defensivas e *fail-closed*, canonicidade determinística de issues esperadas (`tuple[IssueType, ...]`) e ordenação relacional canônica de pares de materiais (`material_id_a < material_id_b`);
+- centralizar as invariantes estruturais compartilhadas dos Ground Truth Datasets por meio do helper privado interno `_validate_and_canonicalize_ground_truth_items`, responsável pela validação de `items` como `tuple`, homogeneidade tipada, unicidade de identificadores e ordenação canônica, sem constituir contrato público de domínio;
 - operar puramente em memória com zero I/O e zero persistência própria, sem acoplamento com o baseline legado de testes ou motores de execução.
 
 ### 6.14 Camada de Aplicação / Use Cases
@@ -886,7 +903,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 720 tests
+Ran 776 tests
 OK
 ```
 
@@ -935,6 +952,8 @@ Histórico de baselines integrados:
 - Baseline integrado após a Issue #112: 661 testes (100% GREEN)
 - Incremento da Issue #115: +59 testes sobre o baseline de entrada de 661 (59 testes unitários/defensivos em `tests/test_ground_truth.py` cobrindo LabelProvenance, MaterialRuleGroundTruth, DuplicatePairGroundTruth, DecisionRecommendationGroundTruth e exports públicos canônicos)
 - Baseline integrado após a Issue #115: 720 testes (100% GREEN)
+- Incremento da Issue #119: +56 testes sobre o baseline de entrada de 720, cobrindo os três contratos de dataset, suas invariantes estruturais, unicidade, ordenação canônica, imutabilidade e exports públicos; os comportamentos comuns exercitam indiretamente o helper privado compartilhado.
+- Baseline integrado após a Issue #119: 776 testes (100% GREEN)
 
 Não assumir `pytest`.
 
@@ -1111,7 +1130,7 @@ Se este Compass divergir da `main`, a `main` e seus testes prevalecem e o Compas
 - aplicação automática das `CorrectionRequest` ao material (`CORRECTION_APPLIED`) e mutação automática de `MaterialRecord` continuam adiadas;
 - campos `diff`/`changed_fields` persistidos, eleição de `latest revision` / `current revision` / `canonical head` e ordenação semântica por timestamp `revised_at` continuam adiados (a persistência JSONL append-only de `MaterialRevision` foi integrada na Issue #68 e a projeção pura de linhagem determinística sem eleição de head foi integrada na Issue #71);
 - conexão de `MaterialRevision` ao pipeline de evidências (`EvidenceCollection`) e recomendações (`DecisionRecommendation`), e reexecução automática de regras/LLM após revisão continuam adiadas;
-- persistência de ground truth, computação de métricas (Precision, Recall, F1), carga de datasets externos, calibração de thresholds e consenso/adjudicação continuam adiadas (os contratos de domínio puro de Ground Truth v1 foram integrados na Issue #115);
+- persistência de ground truth e datasets em disco/banco, loaders externos (JSONL/CSV/Parquet), computação de métricas (Precision, Recall, F1), carga de datasets externos, calibração de thresholds e consenso/adjudicação continuam adiadas (os contratos atômicos de domínio puro de Ground Truth v1 foram integrados na Issue #115 e os contratos de Ground Truth Datasets v1 foram integrados na Issue #119);
 - atomicidade transacional em disco, 2PC, reparo automático ou reconciliação ativa entre trilha de auditoria e trilha de lifecycle (a detecção e o diagnóstico determinístico somente-leitura foram integrados na Issue #55; intervenções ativas em disco continuam adiadas);
 - persistência em banco de dados relacional ou transacional;
 - proteção física ou criptográfica contra adulteração do histórico;
@@ -1198,11 +1217,11 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 720 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #115 | Ground Truth Evaluation Contract v1 | PR #116 (merge c7e9f83).
-- Última SPEC integrada: docs/specs/0115_ground_truth_evaluation_contract_v1.md (Status: IMPLEMENTED).
-- Último PR funcional integrado: PR #116.
-- Último merge funcional: c7e9f83.
+- Baseline integrado na main: 776 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #119 | Ground Truth Dataset Contract v1 | PR #122 (merge 923dd77).
+- Última SPEC integrada: docs/specs/0119_ground_truth_dataset_contract_v1.md (Status: IMPLEMENTED).
+- Último PR funcional integrado: PR #122.
+- Último merge funcional: 923dd77.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
@@ -1225,12 +1244,13 @@ MAIN INTEGRADA:
   + contrato puro de domínio em memória para release voluntário de claim (HumanReviewClaimRelease e release_human_review_claim) com tipagem nominal fail-closed, preservação referencial exata de claim_id e workflow_id, estado obrigatório do workflow PENDING_HUMAN_REVIEW, validação relacional de domínio por equivalência estrita de Stable Principal (specialist_id, identity_provider, identity_subject), não-retroatividade temporal (released_at >= claimed_at), imutabilidade comprovada e exports públicos no package root
   + serialização versionada canônica v1 e persistência durável append-only em JSONL de HumanReviewClaimRelease via JsonlHumanReviewClaimReleaseRepository com durabilidade (flush + fsync), integridade pós-restart across repository instances, validação fail-closed de corrupção com line_number 1-based, unicidade estrita por release_id (zero writes em duplicidade), preservação de múltiplos releases por claim e exports públicos canônicos no package root
   + boundary de coordenação na camada de aplicação via ReleaseHumanReviewClaimUseCase coordenando: release_human_review_claim(...) → HumanReviewClaimReleaseRepository.append(...) → return HumanReviewClaimRelease, validando exclusivamente tipos estruturais de borda e delegando regras de negócio ao domínio (com falhas de domínio ocorrendo antes de qualquer escrita e falhas de persistência propagadas fail-closed sem mascaramento, retry, rollback ou compensação, sem consulta histórica e sem alterar WorkflowStatus; integração vertical comprovada com a implementação JSONL real JsonlHumanReviewClaimReleaseRepository)
-  + contratos puros de domínio em memória para avaliação de ground truth (LabelProvenance, MaterialRuleGroundTruth, DuplicatePairGroundTruth e DecisionRecommendationGroundTruth) com proveniência mínima explícita e auditável para v1, canonicidade determinística, tipagem nominal estrita, validações fail-closed e exports públicos canônicos no package root.
+  + contratos puros de domínio em memória para avaliação atômica de ground truth (LabelProvenance, MaterialRuleGroundTruth, DuplicatePairGroundTruth e DecisionRecommendationGroundTruth) com proveniência mínima explícita e auditável para v1, canonicidade determinística, tipagem nominal estrita, validações fail-closed e exports públicos canônicos no package root
+  + datasets canônicos de avaliação (MaterialRuleGroundTruthDataset, DuplicatePairGroundTruthDataset e DecisionRecommendationGroundTruthDataset) agregando esses contratos com unicidade estrita de ground_truth_id, unicidade de evaluation_case_id em v1, ordenação canônica determinística por (evaluation_case_id, ground_truth_id), validações fail-closed e exports públicos canônicos no package root.
 - Princípios: Repository preserva → Projection interpreta → Policy governa → Application coordena e aplica | Domain decide | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | HumanReviewClaim != HumanReview | HumanReviewClaimRelease ≠ HumanReviewClaim | CLAIMED != REVIEWED | Projection factual != Policy normativa | sole_claim != active claim | sole_claim != owner | sole_claim != assignment | sole_claim != winner | CorrectionRequest != MaterialRevision (intenção humana != estado factual) | release factual ≠ active claim semantics | release factual ≠ release repository | release factual ≠ release application use case | Ground Truth ≠ Prediction | Dataset ≠ Metric | Evaluation Contract ≠ Benchmark Result | GovernanceDecision ≠ HumanDecision | domain contract ≠ persistence | new typed ground truth ≠ legacy baseline.
-- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro e aplica o gate de elegibilidade em tempo de execução sem reaprender regras do domínio e sem eleger claim ativo; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional; ListPendingHumanReviewsWithClaimStateUseCase coordena a composição de fila e claims factuais sem eleger active claim ou impor policy operacional; evaluate_reviewer_claim_eligibility governa a elegibilidade normativa pura em memória sem conceder garantias de identidade real, autenticação real, ownership ou exclusividade; RecordHumanDecisionUseCase aplica a política como gate pré-write obrigatório em tempo de execução; release_human_review_claim formaliza o release voluntário de claim em memória com validação relacional por stable principal sem alterar workflow/claim e sem introduzir semântica de active claim; JsonlHumanReviewClaimReleaseRepository preserva os fatos físicos de liberação na ordem de append sem eleger claim ativo; ReleaseHumanReviewClaimUseCase coordena a liberação voluntária de claims delegando as regras de negócio ao domínio e a persistência ao protocolo HumanReviewClaimReleaseRepository, sem consultar histórico, sem alterar workflow/claim e sem eleger active claim; os contratos de Ground Truth expressam formalmente expectativas de domínio sobre conformidade de regras, pares duplicados e recomendações de governança sem persistência, sem computação de métricas e sem interferir no baseline legado.
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro e aplica o gate de elegibilidade em tempo de execução sem reaprender regras do domínio e sem eleger claim ativo; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional; ListPendingHumanReviewsWithClaimStateUseCase coordena a composição de fila e claims factuais sem eleger active claim ou impor policy operacional; evaluate_reviewer_claim_eligibility governa a elegibilidade normativa pura em memória sem conceder garantias de identidade real, autenticação real, ownership ou exclusividade; RecordHumanDecisionUseCase aplica a política como gate pré-write obrigatório em tempo de execução; release_human_review_claim formaliza o release voluntário de claim em memória com validação relacional por stable principal sem alterar workflow/claim e sem introduzir semântica de active claim; JsonlHumanReviewClaimReleaseRepository preserva os fatos físicos de liberação na ordem de append sem eleger claim ativo; ReleaseHumanReviewClaimUseCase coordena a liberação voluntária de claims delegando as regras de negócio ao domínio e a persistência ao protocolo HumanReviewClaimReleaseRepository, sem consultar histórico, sem alterar workflow/claim e sem eleger active claim; os contratos atômicos de Ground Truth expressam formalmente expectativas de domínio sobre conformidade de regras, pares duplicados e recomendações de governança; os Ground Truth Datasets organizam essas referências em coleções canônicas de avaliação, sem persistência própria, sem loaders externos, sem computação de métricas e sem interferir no baseline legado.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM;
-  cinco boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase, ListPendingHumanReviewsWithClaimStateUseCase e ReleaseHumanReviewClaimUseCase), uma projeção factual de claims (project_human_review_claim_state), um módulo de governança de política normativa pura (evaluate_reviewer_claim_eligibility), o gate de elegibilidade em tempo de execução em RecordHumanDecisionUseCase, o contrato puro de domínio em memória de release de claim (HumanReviewClaimRelease e release_human_review_claim) e a persistência durável append-only em JSONL de releases com serialização versionada v1 (JsonlHumanReviewClaimReleaseRepository) estão integrados; a composição factual da fila pendente com estado de claims está integrada; contratos de domínio de ground truth para regras materiais, pares duplicados e recomendação de governança estão integrados; persistência de ground truth, computação de métricas, carga de datasets, calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo; Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, First-Claim-Wins / Last-Claim-Wins, lock/checkout, force-release, transfer/reassignment, vigência/TTL/lease/expiry/SLA, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
+  cinco boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase, ListPendingHumanReviewsWithClaimStateUseCase e ReleaseHumanReviewClaimUseCase), uma projeção factual de claims (project_human_review_claim_state), um módulo de governança de política normativa pura (evaluate_reviewer_claim_eligibility), o gate de elegibilidade em tempo de execução em RecordHumanDecisionUseCase, o contrato puro de domínio em memória de release de claim (HumanReviewClaimRelease e release_human_review_claim) e a persistência durável append-only em JSONL de releases com serialização versionada v1 (JsonlHumanReviewClaimReleaseRepository) estão integrados; a composição factual da fila pendente com estado de claims está integrada; contratos de domínio de ground truth e datasets canônicos de avaliação para regras materiais, pares duplicados e recomendação de governança estão integrados; persistência durável de ground truth/datasets, loaders externos, computação de métricas, carga de datasets, calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo; Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, First-Claim-Wins / Last-Claim-Wins, lock/checkout, force-release, transfer/reassignment, vigência/TTL/lease/expiry/SLA, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
 - Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano.
