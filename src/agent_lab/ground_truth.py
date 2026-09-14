@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import TypeVar
 
 from .domain import GovernanceDecision, IssueType
 from .human_review import VerifiedSpecialistIdentity
@@ -260,6 +261,52 @@ class DecisionRecommendationGroundTruth:
         )
 
 
+T = TypeVar("T")
+
+
+def _validate_and_canonicalize_ground_truth_items(
+    items: object,
+    expected_type: type[T],
+) -> tuple[T, ...]:
+    if not isinstance(items, tuple):
+        raise TypeError("items must be a tuple")
+
+    for item in items:
+        if not isinstance(item, expected_type):
+            raise TypeError(
+                f"items must contain only {expected_type.__name__} instances"
+            )
+
+    ground_truth_ids: set[str] = set()
+    evaluation_case_ids: set[str] = set()
+
+    for item in items:
+        gt_id = getattr(item, "ground_truth_id")
+        case_id = getattr(item, "evaluation_case_id")
+
+        if gt_id in ground_truth_ids:
+            raise ValueError(
+                "items must not contain duplicate ground_truth_id"
+            )
+        ground_truth_ids.add(gt_id)
+
+        if case_id in evaluation_case_ids:
+            raise ValueError(
+                "items must not contain duplicate evaluation_case_id"
+            )
+        evaluation_case_ids.add(case_id)
+
+    return tuple(
+        sorted(
+            items,
+            key=lambda item: (
+                getattr(item, "evaluation_case_id"),
+                getattr(item, "ground_truth_id"),
+            ),
+        )
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class MaterialRuleGroundTruthDataset:
     dataset_id: str
@@ -274,45 +321,13 @@ class MaterialRuleGroundTruthDataset:
                 "dataset_id",
             ),
         )
-
-        if not isinstance(self.items, tuple):
-            raise TypeError("items must be a tuple")
-
-        for item in self.items:
-            if not isinstance(item, MaterialRuleGroundTruth):
-                raise TypeError(
-                    "items must contain only MaterialRuleGroundTruth instances"
-                )
-
-        ground_truth_ids: set[str] = set()
-        evaluation_case_ids: set[str] = set()
-
-        for item in self.items:
-            if item.ground_truth_id in ground_truth_ids:
-                raise ValueError(
-                    "items must not contain duplicate ground_truth_id"
-                )
-            ground_truth_ids.add(item.ground_truth_id)
-
-            if item.evaluation_case_id in evaluation_case_ids:
-                raise ValueError(
-                    "items must not contain duplicate evaluation_case_id"
-                )
-            evaluation_case_ids.add(item.evaluation_case_id)
-
-        canonical_items = tuple(
-            sorted(
-                self.items,
-                key=lambda item: (
-                    item.evaluation_case_id,
-                    item.ground_truth_id,
-                ),
-            )
-        )
         object.__setattr__(
             self,
             "items",
-            canonical_items,
+            _validate_and_canonicalize_ground_truth_items(
+                self.items,
+                MaterialRuleGroundTruth,
+            ),
         )
 
 
@@ -330,43 +345,11 @@ class DuplicatePairGroundTruthDataset:
                 "dataset_id",
             ),
         )
-
-        if not isinstance(self.items, tuple):
-            raise TypeError("items must be a tuple")
-
-        for item in self.items:
-            if not isinstance(item, DuplicatePairGroundTruth):
-                raise TypeError(
-                    "items must contain only DuplicatePairGroundTruth instances"
-                )
-
-        ground_truth_ids: set[str] = set()
-        evaluation_case_ids: set[str] = set()
-
-        for item in self.items:
-            if item.ground_truth_id in ground_truth_ids:
-                raise ValueError(
-                    "items must not contain duplicate ground_truth_id"
-                )
-            ground_truth_ids.add(item.ground_truth_id)
-
-            if item.evaluation_case_id in evaluation_case_ids:
-                raise ValueError(
-                    "items must not contain duplicate evaluation_case_id"
-                )
-            evaluation_case_ids.add(item.evaluation_case_id)
-
-        canonical_items = tuple(
-            sorted(
-                self.items,
-                key=lambda item: (
-                    item.evaluation_case_id,
-                    item.ground_truth_id,
-                ),
-            )
-        )
         object.__setattr__(
             self,
             "items",
-            canonical_items,
+            _validate_and_canonicalize_ground_truth_items(
+                self.items,
+                DuplicatePairGroundTruth,
+            ),
         )
