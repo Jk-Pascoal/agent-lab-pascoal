@@ -314,3 +314,59 @@ class MaterialRuleGroundTruthDataset:
             "items",
             canonical_items,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicatePairGroundTruthDataset:
+    dataset_id: str
+    items: tuple[DuplicatePairGroundTruth, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(
+                self.dataset_id,
+                "dataset_id",
+            ),
+        )
+
+        if not isinstance(self.items, tuple):
+            raise TypeError("items must be a tuple")
+
+        for item in self.items:
+            if not isinstance(item, DuplicatePairGroundTruth):
+                raise TypeError(
+                    "items must contain only DuplicatePairGroundTruth instances"
+                )
+
+        ground_truth_ids: set[str] = set()
+        evaluation_case_ids: set[str] = set()
+
+        for item in self.items:
+            if item.ground_truth_id in ground_truth_ids:
+                raise ValueError(
+                    "items must not contain duplicate ground_truth_id"
+                )
+            ground_truth_ids.add(item.ground_truth_id)
+
+            if item.evaluation_case_id in evaluation_case_ids:
+                raise ValueError(
+                    "items must not contain duplicate evaluation_case_id"
+                )
+            evaluation_case_ids.add(item.evaluation_case_id)
+
+        canonical_items = tuple(
+            sorted(
+                self.items,
+                key=lambda item: (
+                    item.evaluation_case_id,
+                    item.ground_truth_id,
+                ),
+            )
+        )
+        object.__setattr__(
+            self,
+            "items",
+            canonical_items,
+        )

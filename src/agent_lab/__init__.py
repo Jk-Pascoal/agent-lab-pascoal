@@ -11,6 +11,7 @@ from .domain import (
 from .ground_truth import (
     DecisionRecommendationGroundTruth,
     DuplicatePairGroundTruth,
+    DuplicatePairGroundTruthDataset,
     LabelProvenance,
     MaterialRuleGroundTruth,
     MaterialRuleGroundTruthDataset,
@@ -95,6 +96,7 @@ __all__ = [
     "evaluate_reviewer_claim_eligibility",
     "DecisionRecommendationGroundTruth",
     "DuplicatePairGroundTruth",
+    "DuplicatePairGroundTruthDataset",
     "LabelProvenance",
     "MaterialRuleGroundTruth",
     "MaterialRuleGroundTruthDataset",

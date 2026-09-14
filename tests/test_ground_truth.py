@@ -1246,5 +1246,309 @@ class MaterialRuleGroundTruthDatasetSlice7Tests(unittest.TestCase):
         )
 
 
+class DuplicatePairGroundTruthDatasetBlock1Tests(unittest.TestCase):
+    def test_nominal_empty_dataset(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(),
+        )
+
+        self.assertEqual(dataset.dataset_id, "DS-DUPLICATE-PAIRS")
+        self.assertEqual(dataset.items, ())
+
+    def test_dataset_id_normalized_with_strip(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="  DS-DUPLICATE-PAIRS  ",
+            items=(),
+        )
+
+        self.assertEqual(dataset.dataset_id, "DS-DUPLICATE-PAIRS")
+
+    def test_dataset_id_rejects_non_str(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        invalid_ids = (123, None, [], ())
+        for invalid_id in invalid_ids:
+            with self.subTest(invalid_id=invalid_id):
+                with self.assertRaises(TypeError):
+                    DuplicatePairGroundTruthDataset(
+                        dataset_id=invalid_id,  # type: ignore[arg-type]
+                        items=(),
+                    )
+
+    def test_dataset_id_rejects_empty_or_whitespace(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        empty_ids = ("", "   ", "\t\n")
+        for empty_id in empty_ids:
+            with self.subTest(empty_id=empty_id):
+                with self.assertRaises(ValueError):
+                    DuplicatePairGroundTruthDataset(
+                        dataset_id=empty_id,
+                        items=(),
+                    )
+
+    def test_items_rejects_non_tuple_container(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        invalid_containers = ([], set(), {}, "invalid", 123)
+        for container in invalid_containers:
+            with self.subTest(container=container):
+                with self.assertRaises(TypeError):
+                    DuplicatePairGroundTruthDataset(
+                        dataset_id="DS-DUPLICATE-PAIRS",
+                        items=container,  # type: ignore[arg-type]
+                    )
+
+    def test_items_accepts_valid_duplicate_pair_ground_truth(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt = _make_valid_duplicate_pair_gt()
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(gt,),
+        )
+
+        self.assertEqual(dataset.dataset_id, "DS-DUPLICATE-PAIRS")
+        self.assertEqual(dataset.items, (gt,))
+
+    def test_items_rejects_non_duplicate_pair_ground_truth_element(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        invalid_elements = (
+            object(),
+            "invalid-item",
+            123,
+            _make_valid_material_rule_gt(),
+        )
+        for invalid_element in invalid_elements:
+            with self.subTest(invalid_element=invalid_element):
+                with self.assertRaises(TypeError):
+                    DuplicatePairGroundTruthDataset(
+                        dataset_id="DS-DUPLICATE-PAIRS",
+                        items=(invalid_element,),  # type: ignore[arg-type]
+                    )
+
+    def test_items_rejects_heterogeneous_tuple(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        valid_gt = _make_valid_duplicate_pair_gt()
+        with self.assertRaises(TypeError):
+            DuplicatePairGroundTruthDataset(
+                dataset_id="DS-DUPLICATE-PAIRS",
+                items=(valid_gt, "invalid-element"),  # type: ignore[arg-type]
+            )
+
+    def test_immutability(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt = _make_valid_duplicate_pair_gt()
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(gt,),
+        )
+
+        with self.assertRaises(FrozenInstanceError):
+            dataset.dataset_id = "OTHER"  # type: ignore[misc]
+
+        with self.assertRaises(FrozenInstanceError):
+            dataset.items = ()  # type: ignore[misc]
+
+    def test_slots_prevents_instance_dict(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(),
+        )
+
+        self.assertFalse(hasattr(dataset, "__dict__"))
+
+
+class DuplicatePairGroundTruthDatasetBlock2Tests(unittest.TestCase):
+    def test_multiple_distinct_items_accepted(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt1 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-1001",
+            material_id_b="MAT-1002",
+        )
+        gt2 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-1003",
+            material_id_b="MAT-1004",
+        )
+
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(gt1, gt2),
+        )
+
+        self.assertEqual(dataset.dataset_id, "DS-DUPLICATE-PAIRS")
+        self.assertEqual(len(dataset.items), 2)
+        self.assertIn(gt1, dataset.items)
+        self.assertIn(gt2, dataset.items)
+
+    def test_duplicate_ground_truth_id_rejected(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt1 = _make_valid_duplicate_pair_gt(
+            ground_truth_id="GT-SAME",
+            evaluation_case_id="CASE-001",
+            material_id_a="MAT-1001",
+            material_id_b="MAT-1002",
+        )
+        gt2 = _make_valid_duplicate_pair_gt(
+            ground_truth_id="GT-SAME",
+            evaluation_case_id="CASE-002",
+            material_id_a="MAT-1003",
+            material_id_b="MAT-1004",
+        )
+
+        with self.assertRaises(ValueError):
+            DuplicatePairGroundTruthDataset(
+                dataset_id="DS-DUPLICATE-PAIRS",
+                items=(gt1, gt2),
+            )
+
+    def test_duplicate_evaluation_case_id_rejected(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt1 = _make_valid_duplicate_pair_gt(
+            ground_truth_id="GT-001",
+            evaluation_case_id="CASE-SAME",
+            material_id_a="MAT-1001",
+            material_id_b="MAT-1002",
+        )
+        gt2 = _make_valid_duplicate_pair_gt(
+            ground_truth_id="GT-002",
+            evaluation_case_id="CASE-SAME",
+            material_id_a="MAT-1003",
+            material_id_b="MAT-1004",
+        )
+
+        with self.assertRaises(ValueError):
+            DuplicatePairGroundTruthDataset(
+                dataset_id="DS-DUPLICATE-PAIRS",
+                items=(gt1, gt2),
+            )
+
+    def test_out_of_order_input_normalized_to_canonical_order(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt_case_002 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-1003",
+            material_id_b="MAT-1004",
+        )
+        gt_case_001 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-1001",
+            material_id_b="MAT-1002",
+        )
+
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(gt_case_002, gt_case_001),
+        )
+
+        self.assertEqual(
+            dataset.items,
+            (gt_case_001, gt_case_002),
+        )
+
+    def test_representation_independent_of_input_order(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt1 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-1001",
+            material_id_b="MAT-1002",
+        )
+        gt2 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-1003",
+            material_id_b="MAT-1004",
+        )
+
+        dataset_a = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(gt2, gt1),
+        )
+        dataset_b = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(gt1, gt2),
+        )
+
+        self.assertEqual(dataset_a.items, dataset_b.items)
+
+    def test_canonical_ordering_by_composite_key(self) -> None:
+        from agent_lab.ground_truth import DuplicatePairGroundTruthDataset
+
+        gt1 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-003",
+            material_id_a="MAT-1001",
+            material_id_b="MAT-1002",
+        )
+        gt2 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-1003",
+            material_id_b="MAT-1004",
+        )
+        gt3 = _make_valid_duplicate_pair_gt(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-1005",
+            material_id_b="MAT-1006",
+        )
+
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DS-DUPLICATE-PAIRS",
+            items=(gt3, gt1, gt2),
+        )
+
+        expected_order = tuple(
+            sorted(
+                (gt3, gt1, gt2),
+                key=lambda item: (item.evaluation_case_id, item.ground_truth_id),
+            )
+        )
+        self.assertEqual(dataset.items, (gt1, gt2, gt3))
+        self.assertEqual(dataset.items, expected_order)
+
+
+class DuplicatePairGroundTruthDatasetBlock3Tests(unittest.TestCase):
+    def test_public_import_and_identity(self) -> None:
+        from agent_lab import (
+            DuplicatePairGroundTruthDataset as PublicDataset,
+        )
+        from agent_lab.ground_truth import (
+            DuplicatePairGroundTruthDataset as ModuleDataset,
+        )
+
+        self.assertIs(PublicDataset, ModuleDataset)
+
+    def test_in_all(self) -> None:
+        import agent_lab
+
+        self.assertIn(
+            "DuplicatePairGroundTruthDataset",
+            agent_lab.__all__,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
