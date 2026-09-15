@@ -922,5 +922,57 @@ class EvaluateDecisionRecommendationsBatchTests(unittest.TestCase):
         self.assertIn("missing predictions", str(ctx.exception))
 
 
+class GroundTruthEvaluationPublicExportsTests(unittest.TestCase):
+    """Testes de disponibilidade dos símbolos canônicos na API pública raiz (agent_lab)."""
+
+    def test_symbols_exported_at_root_package(self) -> None:
+        import agent_lab
+
+        expected_symbols = (
+            "DecisionRecommendationCaseEvaluation",
+            "DecisionRecommendationEvaluationReport",
+            "evaluate_decision_recommendation",
+            "evaluate_decision_recommendations",
+        )
+        for symbol_name in expected_symbols:
+            with self.subTest(symbol=symbol_name):
+                self.assertTrue(
+                    hasattr(agent_lab, symbol_name),
+                    f"Symbol {symbol_name} must be accessible directly from agent_lab",
+                )
+
+    def test_symbols_present_in_root_all(self) -> None:
+        import agent_lab
+
+        self.assertTrue(hasattr(agent_lab, "__all__"))
+        root_all = getattr(agent_lab, "__all__")
+        expected_symbols = (
+            "DecisionRecommendationCaseEvaluation",
+            "DecisionRecommendationEvaluationReport",
+            "evaluate_decision_recommendation",
+            "evaluate_decision_recommendations",
+        )
+        for symbol_name in expected_symbols:
+            with self.subTest(symbol=symbol_name):
+                self.assertIn(
+                    symbol_name,
+                    root_all,
+                    f"Symbol {symbol_name} must be declared in agent_lab.__all__",
+                )
+
+    def test_symbols_can_be_imported_from_agent_lab(self) -> None:
+        from agent_lab import (
+            DecisionRecommendationCaseEvaluation as DirectCaseEval,
+            DecisionRecommendationEvaluationReport as DirectReport,
+            evaluate_decision_recommendation as direct_eval_one,
+            evaluate_decision_recommendations as direct_eval_batch,
+        )
+
+        self.assertIs(DirectCaseEval, DecisionRecommendationCaseEvaluation)
+        self.assertIs(DirectReport, DecisionRecommendationEvaluationReport)
+        self.assertIs(direct_eval_one, evaluate_decision_recommendation)
+        self.assertIs(direct_eval_batch, evaluate_decision_recommendations)
+
+
 if __name__ == "__main__":
     unittest.main()
