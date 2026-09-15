@@ -10,14 +10,17 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0124` |
-| **Status** | `APPROVED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#124` |
 | **Título da Issue** | `Ground Truth Decision Recommendation Evaluator v1` |
-| **Branch funcional** | `feature/issue-124-ground-truth-decision-recommendation-evaluator` (a ser criada na fase funcional) |
+| **Branch funcional** | `feature/issue-124-ground-truth-decision-recommendation-evaluator` (integrada via PR #126) |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-15` |
 | **Última atualização** | `2026-09-15` |
 | **Baseline de entrada** | `776 testes aprovados` (100% GREEN) |
+| **Baseline de saída** | `830 testes aprovados` (100% GREEN) |
+| **PR funcional** | `#126` |
+| **Merge commit** | `05eed90` |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
 ---
@@ -429,29 +432,43 @@ Por se tratar de adição de módulo independente em camada de domínio:
 
 ## 13. Critérios de aceite (Acceptance Criteria)
 
-- [ ] SPEC técnica formal aprovada e consolidada;
-- [ ] Implementação de `DecisionRecommendationCaseEvaluation` com `frozen=True, slots=True`;
-- [ ] Implementação de `DecisionRecommendationEvaluationReport` com `frozen=True, slots=True` e `dataset_id: str` obrigatório;
-- [ ] Implementação da função pura `evaluate_decision_recommendation(ground_truth, prediction)`;
-- [ ] Implementação da função pura `evaluate_decision_recommendations(dataset, predictions)` consumindo exclusivamente `Mapping[str, DecisionRecommendation]`;
-- [ ] Validação fail-closed estrita para tipos inválidos (`TypeError`), `material_id` mismatch (`ValueError`), chaves faltantes (`ValueError`) e chaves excedentes (`ValueError`);
-- [ ] Ordenação determinística compulsória de `cases` por `(evaluation_case_id, ground_truth_id)` comprovada;
-- [ ] Semântica formal de coleção vazia (`accuracy is None`, `is_empty is True`, `total_cases == 0`) comprovada;
-- [ ] Imutabilidade estrita dos read-models comprovada com `FrozenInstanceError`;
-- [ ] Exportações canônicas adicionadas a `src/agent_lab/__init__.py`;
-- [ ] Bateria de testes unitários defensivos implementada em `tests/test_ground_truth_evaluation.py`;
-- [ ] Baseline integrado de 776 testes mantido 100% GREEN (776 + novos testes);
-- [ ] `git diff --check` aprovado sem trailing whitespace.
+- [x] SPEC técnica formal aprovada e consolidada;
+- [x] Implementação de `DecisionRecommendationCaseEvaluation` com `frozen=True, slots=True`;
+- [x] Implementação de `DecisionRecommendationEvaluationReport` com `frozen=True, slots=True` e `dataset_id: str` obrigatório;
+- [x] Implementação da função pura `evaluate_decision_recommendation(ground_truth, prediction)`;
+- [x] Implementação da função pura `evaluate_decision_recommendations(dataset, predictions)` consumindo exclusivamente `Mapping[str, DecisionRecommendation]`;
+- [x] Validação fail-closed estrita para tipos inválidos (`TypeError`), `material_id` mismatch (`ValueError`), chaves faltantes (`ValueError`) e chaves excedentes (`ValueError`);
+- [x] Ordenação determinística compulsória de `cases` por `(evaluation_case_id, ground_truth_id)` comprovada;
+- [x] Semântica formal de coleção vazia (`accuracy is None`, `is_empty is True`, `total_cases == 0`) comprovada;
+- [x] Imutabilidade estrita dos read-models comprovada com `FrozenInstanceError`;
+- [x] Exportações canônicas adicionadas a `src/agent_lab/__init__.py`;
+- [x] Bateria de testes unitários defensivos implementada em `tests/test_ground_truth_evaluation.py`;
+- [x] Baseline integrado de 776 testes mantido 100% GREEN (776 + 54 novos testes = 830);
+- [x] `git diff --check` aprovado sem trailing whitespace.
 
 ---
 
-## 14. Questões em aberto
+## 14. Resultado da implementação consolidada
+
+A implementação funcional da Issue #124 foi realizada integralmente via TDD rigoroso em 4 slices incrementais e integrada à branch `main` através do PR funcional #126 (merge commit `05eed90`):
+
+- **Baseline inicial**: 776 testes GREEN;
+- **Baseline final**: 830 testes GREEN (+54 novos testes unitários defensivos);
+- **Regressões**: zero (100% da suíte histórica preservada);
+- **PR funcional**: [#126](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/126) (merge commit `05eed90`);
+- **Módulo de domínio/metrologia**: `src/agent_lab/ground_truth_evaluation.py`;
+- **Suíte de testes**: `tests/test_ground_truth_evaluation.py`;
+- **API pública canônica**: `src/agent_lab/__init__.py` exportando `DecisionRecommendationCaseEvaluation`, `DecisionRecommendationEvaluationReport`, `evaluate_decision_recommendation` e `evaluate_decision_recommendations`.
+
+---
+
+## 15. Questões em aberto
 
 `Nenhuma`. Os dois ajustes arquiteturais (obrigatoriedade de `dataset_id` e restrição da API batch a `Mapping[str, DecisionRecommendation]` indexado por `evaluation_case_id`) foram formalizados e sanados em 15/09/2026.
 
 ---
 
-## 15. Histórico de decisões
+## 16. Histórico de decisões
 
 | Data | Decisão | Motivo | Responsável |
 |---|---|---|---|
