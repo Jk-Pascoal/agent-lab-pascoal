@@ -8,12 +8,14 @@ from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
+    DecisionRecommendationGroundTruthDataset,
     LabelProvenance,
 )
 from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
     DecisionRecommendationEvaluationReport,
     evaluate_decision_recommendation,
+    evaluate_decision_recommendations,
 )
 
 
@@ -563,6 +565,361 @@ class DecisionRecommendationEvaluationReportTests(unittest.TestCase):
         )
 
         self.assertEqual(report_a.cases, report_b.cases)
+
+
+class EvaluateDecisionRecommendationsBatchTests(unittest.TestCase):
+    """Testes unitários e defensivos para a função pura batch evaluate_decision_recommendations."""
+
+    def test_batch_all_matches(self) -> None:
+        gt1 = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_recommendation=GovernanceDecision.APPROVE,
+        )
+        gt2 = _make_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_recommendation=GovernanceDecision.REVIEW,
+        )
+        gt3 = _make_ground_truth(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            material_id="MAT-003",
+            expected_recommendation=GovernanceDecision.REJECT,
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-TEST-001",
+            items=(gt1, gt2, gt3),
+        )
+
+        pred1 = _make_prediction(material_id="MAT-001", decision=GovernanceDecision.APPROVE)
+        pred2 = _make_prediction(material_id="MAT-002", decision=GovernanceDecision.REVIEW)
+        pred3 = _make_prediction(material_id="MAT-003", decision=GovernanceDecision.REJECT)
+
+        predictions = {
+            "CASE-001": pred1,
+            "CASE-002": pred2,
+            "CASE-003": pred3,
+        }
+
+        report = evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertIsInstance(report, DecisionRecommendationEvaluationReport)
+        self.assertEqual(report.dataset_id, "DATASET-TEST-001")
+        self.assertEqual(report.total_cases, 3)
+        self.assertEqual(report.matched_cases, 3)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertEqual(report.accuracy, 1.0)
+        self.assertTrue(report.is_perfect_match)
+        self.assertFalse(report.is_empty)
+
+    def test_batch_mixed_matches_and_mismatches(self) -> None:
+        gt1 = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_recommendation=GovernanceDecision.APPROVE,
+        )
+        gt2 = _make_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_recommendation=GovernanceDecision.REVIEW,
+        )
+        gt3 = _make_ground_truth(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            material_id="MAT-003",
+            expected_recommendation=GovernanceDecision.REJECT,
+        )
+        gt4 = _make_ground_truth(
+            evaluation_case_id="CASE-004",
+            ground_truth_id="GT-004",
+            material_id="MAT-004",
+            expected_recommendation=GovernanceDecision.APPROVE,
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-TEST-002",
+            items=(gt1, gt2, gt3, gt4),
+        )
+
+        predictions = {
+            "CASE-001": _make_prediction(material_id="MAT-001", decision=GovernanceDecision.APPROVE),
+            "CASE-002": _make_prediction(material_id="MAT-002", decision=GovernanceDecision.REVIEW),
+            "CASE-003": _make_prediction(material_id="MAT-003", decision=GovernanceDecision.REJECT),
+            "CASE-004": _make_prediction(material_id="MAT-004", decision=GovernanceDecision.REVIEW),  # mismatch
+        }
+
+        report = evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertEqual(report.total_cases, 4)
+        self.assertEqual(report.matched_cases, 3)
+        self.assertEqual(report.mismatched_cases, 1)
+        self.assertEqual(report.accuracy, 0.75)
+        self.assertFalse(report.is_perfect_match)
+
+    def test_batch_all_mismatches(self) -> None:
+        gt1 = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_recommendation=GovernanceDecision.APPROVE,
+        )
+        gt2 = _make_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_recommendation=GovernanceDecision.REJECT,
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-TEST-003",
+            items=(gt1, gt2),
+        )
+
+        predictions = {
+            "CASE-001": _make_prediction(material_id="MAT-001", decision=GovernanceDecision.REJECT),
+            "CASE-002": _make_prediction(material_id="MAT-002", decision=GovernanceDecision.APPROVE),
+        }
+
+        report = evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertEqual(report.total_cases, 2)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 2)
+        self.assertEqual(report.accuracy, 0.0)
+
+    def test_batch_preserves_dataset_id(self) -> None:
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-ALPHA-CUSTOM-ID",
+            items=(),
+        )
+
+        report = evaluate_decision_recommendations(dataset, {})
+
+        self.assertEqual(report.dataset_id, "DATASET-ALPHA-CUSTOM-ID")
+
+    def test_batch_returns_report_instance(self) -> None:
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+
+        report = evaluate_decision_recommendations(dataset, {})
+
+        self.assertIsInstance(report, DecisionRecommendationEvaluationReport)
+
+    def test_batch_order_independence_of_mapping_keys(self) -> None:
+        gt1 = _make_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001", material_id="MAT-001")
+        gt2 = _make_ground_truth(evaluation_case_id="CASE-002", ground_truth_id="GT-002", material_id="MAT-002")
+        gt3 = _make_ground_truth(evaluation_case_id="CASE-003", ground_truth_id="GT-003", material_id="MAT-003")
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt3, gt1, gt2),
+        )
+
+        pred1 = _make_prediction(material_id="MAT-001")
+        pred2 = _make_prediction(material_id="MAT-002")
+        pred3 = _make_prediction(material_id="MAT-003")
+
+        mapping_order_1 = {"CASE-001": pred1, "CASE-002": pred2, "CASE-003": pred3}
+        mapping_order_2 = {"CASE-003": pred3, "CASE-001": pred1, "CASE-002": pred2}
+
+        report_1 = evaluate_decision_recommendations(dataset, mapping_order_1)
+        report_2 = evaluate_decision_recommendations(dataset, mapping_order_2)
+
+        self.assertEqual(report_1.cases, report_2.cases)
+        self.assertEqual(report_1.cases[0].evaluation_case_id, "CASE-001")
+        self.assertEqual(report_1.cases[1].evaluation_case_id, "CASE-002")
+        self.assertEqual(report_1.cases[2].evaluation_case_id, "CASE-003")
+
+    def test_batch_same_material_id_in_multiple_evaluation_case_ids(self) -> None:
+        """Prova que o pareamento metrológico é governado por evaluation_case_id e não por material_id."""
+        shared_material_id = "MAT-SHARED-100"
+
+        gt_clean = _make_ground_truth(
+            evaluation_case_id="CASE-CLEAN-001",
+            ground_truth_id="GT-CLEAN-001",
+            material_id=shared_material_id,
+            expected_recommendation=GovernanceDecision.APPROVE,
+        )
+        gt_stress = _make_ground_truth(
+            evaluation_case_id="CASE-STRESS-002",
+            ground_truth_id="GT-STRESS-002",
+            material_id=shared_material_id,
+            expected_recommendation=GovernanceDecision.REJECT,
+        )
+
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DATASET-SHARED-MAT",
+            items=(gt_clean, gt_stress),
+        )
+
+        pred_clean = _make_prediction(
+            material_id=shared_material_id,
+            decision=GovernanceDecision.APPROVE,
+        )
+        pred_stress = _make_prediction(
+            material_id=shared_material_id,
+            decision=GovernanceDecision.REJECT,
+        )
+
+        predictions = {
+            "CASE-CLEAN-001": pred_clean,
+            "CASE-STRESS-002": pred_stress,
+        }
+
+        report = evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertEqual(report.total_cases, 2)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertEqual(report.accuracy, 1.0)
+        self.assertTrue(report.is_perfect_match)
+
+        self.assertEqual(report.cases[0].evaluation_case_id, "CASE-CLEAN-001")
+        self.assertEqual(report.cases[0].expected_decision, GovernanceDecision.APPROVE)
+        self.assertEqual(report.cases[0].predicted_decision, GovernanceDecision.APPROVE)
+
+        self.assertEqual(report.cases[1].evaluation_case_id, "CASE-STRESS-002")
+        self.assertEqual(report.cases[1].expected_decision, GovernanceDecision.REJECT)
+        self.assertEqual(report.cases[1].predicted_decision, GovernanceDecision.REJECT)
+
+    def test_rejects_dataset_not_decision_recommendation_ground_truth_dataset(self) -> None:
+        invalid_datasets = ("invalid", 123, None, [_make_ground_truth()])
+        for ds in invalid_datasets:
+            with self.subTest(dataset=type(ds)):
+                with self.assertRaises(TypeError):
+                    evaluate_decision_recommendations(ds, {})  # type: ignore[arg-type]
+
+    def test_rejects_predictions_not_mapping(self) -> None:
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=())
+        invalid_predictions = ([_make_prediction()], (_make_prediction(),), "invalid", 123, None)
+        for pred in invalid_predictions:
+            with self.subTest(predictions=type(pred)):
+                with self.assertRaises(TypeError):
+                    evaluate_decision_recommendations(dataset, pred)  # type: ignore[arg-type]
+
+    def test_rejects_predictions_mapping_value_not_decision_recommendation(self) -> None:
+        gt = _make_ground_truth(evaluation_case_id="CASE-001")
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=(gt,))
+
+        invalid_mappings = (
+            {"CASE-001": "invalid_prediction"},
+            {"CASE-001": 123},
+            {"CASE-001": None},
+            {"CASE-001": gt},
+        )
+        for m in invalid_mappings:
+            with self.subTest(mapping=m):
+                with self.assertRaises(TypeError):
+                    evaluate_decision_recommendations(dataset, m)  # type: ignore[arg-type]
+
+    def test_rejects_predictions_key_not_string(self) -> None:
+        gt = _make_ground_truth(evaluation_case_id="CASE-001")
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=(gt,))
+
+        pred = _make_prediction()
+        invalid_keyed_mappings = (
+            {123: pred},
+            {None: pred},
+            {True: pred},
+        )
+        for m in invalid_keyed_mappings:
+            with self.subTest(mapping=m):
+                with self.assertRaises(TypeError):
+                    evaluate_decision_recommendations(dataset, m)  # type: ignore[arg-type]
+
+    def test_rejects_missing_key_in_predictions(self) -> None:
+        gt1 = _make_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        gt2 = _make_ground_truth(evaluation_case_id="CASE-002", ground_truth_id="GT-002")
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=(gt1, gt2))
+
+        predictions = {
+            "CASE-001": _make_prediction(),
+        }
+
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertIn("missing predictions", str(ctx.exception))
+        self.assertIn("CASE-002", str(ctx.exception))
+
+    def test_rejects_extra_key_in_predictions(self) -> None:
+        gt1 = _make_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=(gt1,))
+
+        predictions = {
+            "CASE-001": _make_prediction(),
+            "CASE-EXTRA-999": _make_prediction(),
+        }
+
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertIn("unexpected predictions", str(ctx.exception))
+        self.assertIn("CASE-EXTRA-999", str(ctx.exception))
+
+    def test_rejects_simultaneous_missing_and_extra_keys(self) -> None:
+        gt1 = _make_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        gt2 = _make_ground_truth(evaluation_case_id="CASE-002", ground_truth_id="GT-002")
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=(gt1, gt2))
+
+        predictions = {
+            "CASE-001": _make_prediction(),
+            "CASE-UNKNOWN": _make_prediction(),
+        }
+
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertIn("missing predictions", str(ctx.exception))
+
+    def test_rejects_material_id_mismatch_for_evaluation_case(self) -> None:
+        gt1 = _make_ground_truth(evaluation_case_id="CASE-001", material_id="MAT-CORRECT")
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=(gt1,))
+
+        predictions = {
+            "CASE-001": _make_prediction(material_id="MAT-WRONG"),
+        }
+
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertIn("material_id mismatch", str(ctx.exception))
+
+    def test_empty_dataset_and_empty_mapping_produces_empty_report(self) -> None:
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DATASET-EMPTY", items=())
+
+        report = evaluate_decision_recommendations(dataset, {})
+
+        self.assertEqual(report.dataset_id, "DATASET-EMPTY")
+        self.assertEqual(report.total_cases, 0)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertIsNone(report.accuracy)
+        self.assertTrue(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.cases, ())
+
+    def test_rejects_empty_dataset_with_non_empty_mapping(self) -> None:
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DATASET-EMPTY", items=())
+        predictions = {"CASE-001": _make_prediction()}
+
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_decision_recommendations(dataset, predictions)
+
+        self.assertIn("unexpected predictions", str(ctx.exception))
+
+    def test_rejects_non_empty_dataset_with_empty_mapping(self) -> None:
+        gt = _make_ground_truth(evaluation_case_id="CASE-001")
+        dataset = DecisionRecommendationGroundTruthDataset(dataset_id="DS-01", items=(gt,))
+
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_decision_recommendations(dataset, {})
+
+        self.assertIn("missing predictions", str(ctx.exception))
 
 
 if __name__ == "__main__":

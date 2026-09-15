@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision
-from agent_lab.ground_truth import DecisionRecommendationGroundTruth
+from agent_lab.ground_truth import (
+    DecisionRecommendationGroundTruth,
+    DecisionRecommendationGroundTruthDataset,
+)
 
 
 def _normalize_required_text(
@@ -152,4 +156,56 @@ def evaluate_decision_recommendation(
         material_id=ground_truth.material_id,
         expected_decision=ground_truth.expected_recommendation,
         predicted_decision=prediction.decision,
+    )
+
+
+def evaluate_decision_recommendations(
+    dataset: DecisionRecommendationGroundTruthDataset,
+    predictions: Mapping[str, DecisionRecommendation],
+) -> DecisionRecommendationEvaluationReport:
+    """Avalia em lote um mapeamento de predições indexado por evaluation_case_id contra um dataset."""
+    if not isinstance(dataset, DecisionRecommendationGroundTruthDataset):
+        raise TypeError("dataset must be a DecisionRecommendationGroundTruthDataset")
+
+    if not isinstance(predictions, Mapping):
+        raise TypeError("predictions must be a Mapping[str, DecisionRecommendation]")
+
+    for case_id, pred in predictions.items():
+        if not isinstance(case_id, str) or isinstance(case_id, bool):
+            raise TypeError(f"prediction key {case_id!r} must be a str")
+        if not isinstance(pred, DecisionRecommendation):
+            raise TypeError(
+                f"prediction value for evaluation_case_id {case_id!r} "
+                f"must be a DecisionRecommendation, got {type(pred).__name__}"
+            )
+
+    expected_case_ids = {item.evaluation_case_id for item in dataset.items}
+    provided_case_ids = set(predictions.keys())
+
+    missing = expected_case_ids - provided_case_ids
+    if missing:
+        raise ValueError(
+            f"missing predictions for evaluation_case_id: {sorted(missing)!r}"
+        )
+
+    extra = provided_case_ids - expected_case_ids
+    if extra:
+        raise ValueError(
+            f"unexpected predictions for evaluation_case_id: {sorted(extra)!r}"
+        )
+
+    evaluated_cases: list[DecisionRecommendationCaseEvaluation] = []
+    for item in dataset.items:
+        prediction = predictions[item.evaluation_case_id]
+        if prediction.material_id != item.material_id:
+            raise ValueError(
+                f"material_id mismatch for evaluation_case_id {item.evaluation_case_id!r}: "
+                f"prediction has {prediction.material_id!r}, ground truth has {item.material_id!r}"
+            )
+        evaluated_case = evaluate_decision_recommendation(item, prediction)
+        evaluated_cases.append(evaluated_case)
+
+    return DecisionRecommendationEvaluationReport(
+        dataset_id=dataset.dataset_id,
+        cases=tuple(evaluated_cases),
     )
