@@ -1,4 +1,4 @@
-"""Testes da camada de avaliação pura de Ground Truth (Slice A)."""
+"""Testes da camada de avaliação pura de Ground Truth."""
 
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
@@ -12,6 +12,7 @@ from agent_lab.ground_truth import (
 )
 from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
+    DecisionRecommendationEvaluationReport,
     evaluate_decision_recommendation,
 )
 
@@ -47,6 +48,23 @@ def _make_prediction(
         evidence=(),
         rationale="Predição de teste para avaliação.",
         requires_human_decision=True,
+    )
+
+
+def _make_case_evaluation(
+    *,
+    evaluation_case_id: str = "CASE-001",
+    ground_truth_id: str = "GT-001",
+    material_id: str = "MAT-001",
+    expected_decision: GovernanceDecision = GovernanceDecision.APPROVE,
+    predicted_decision: GovernanceDecision = GovernanceDecision.APPROVE,
+) -> DecisionRecommendationCaseEvaluation:
+    return DecisionRecommendationCaseEvaluation(
+        evaluation_case_id=evaluation_case_id,
+        ground_truth_id=ground_truth_id,
+        material_id=material_id,
+        expected_decision=expected_decision,
+        predicted_decision=predicted_decision,
     )
 
 
@@ -299,6 +317,252 @@ class EvaluateDecisionRecommendationTests(unittest.TestCase):
             evaluate_decision_recommendation(gt, pred)
 
         self.assertIn("material_id mismatch", str(ctx.exception))
+
+
+class DecisionRecommendationEvaluationReportTests(unittest.TestCase):
+    """Testes unitários para a entidade imutável DecisionRecommendationEvaluationReport."""
+
+    def test_nominal_construction_and_fields(self) -> None:
+        c1 = _make_case_evaluation(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        c2 = _make_case_evaluation(evaluation_case_id="CASE-002", ground_truth_id="GT-002")
+
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2),
+        )
+
+        self.assertEqual(report.dataset_id, "DATASET-001")
+        self.assertEqual(report.cases, (c1, c2))
+
+    def test_dataset_id_normalized_with_strip(self) -> None:
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="  DATASET-001 \t\n",
+            cases=(),
+        )
+
+        self.assertEqual(report.dataset_id, "DATASET-001")
+
+    def test_dataset_id_rejects_empty_or_whitespace(self) -> None:
+        invalid_values = ("", "   ", "\t\n")
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(ValueError):
+                    DecisionRecommendationEvaluationReport(
+                        dataset_id=val,
+                        cases=(),
+                    )
+
+    def test_dataset_id_rejects_invalid_type(self) -> None:
+        non_string_values = (123, None, True, ["DATASET-001"])
+        for val in non_string_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError):
+                    DecisionRecommendationEvaluationReport(
+                        dataset_id=val,  # type: ignore[arg-type]
+                        cases=(),
+                    )
+
+    def test_cases_must_be_tuple(self) -> None:
+        c1 = _make_case_evaluation()
+        invalid_containers = ([c1], "invalid", None, {c1})
+        for container in invalid_containers:
+            with self.subTest(container=type(container)):
+                with self.assertRaises(TypeError):
+                    DecisionRecommendationEvaluationReport(
+                        dataset_id="DATASET-001",
+                        cases=container,  # type: ignore[arg-type]
+                    )
+
+    def test_cases_items_must_be_decision_recommendation_case_evaluation(self) -> None:
+        c1 = _make_case_evaluation()
+        invalid_items = (
+            (c1, "invalid_item"),
+            (123,),
+            (None,),
+            (c1, _make_ground_truth()),
+        )
+        for items in invalid_items:
+            with self.subTest(items=items):
+                with self.assertRaises(TypeError):
+                    DecisionRecommendationEvaluationReport(
+                        dataset_id="DATASET-001",
+                        cases=items,  # type: ignore[arg-type]
+                    )
+
+    def test_duplicate_evaluation_case_id_rejected(self) -> None:
+        c1 = _make_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+        )
+        c2 = _make_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+        )
+
+        with self.assertRaises(ValueError) as ctx:
+            DecisionRecommendationEvaluationReport(
+                dataset_id="DATASET-001",
+                cases=(c1, c2),
+            )
+
+        self.assertIn("duplicate evaluation_case_id", str(ctx.exception))
+
+    def test_canonical_ordering_by_composite_key(self) -> None:
+        c3 = _make_case_evaluation(evaluation_case_id="CASE-003", ground_truth_id="GT-001")
+        c1 = _make_case_evaluation(evaluation_case_id="CASE-001", ground_truth_id="GT-003")
+        c2 = _make_case_evaluation(evaluation_case_id="CASE-002", ground_truth_id="GT-002")
+
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c3, c1, c2),
+        )
+
+        self.assertEqual(report.cases, (c1, c2, c3))
+
+    def test_immutability_frozen(self) -> None:
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(),
+        )
+
+        with self.assertRaises(FrozenInstanceError):
+            report.dataset_id = "NEW-ID"  # type: ignore[misc]
+
+        with self.assertRaises(FrozenInstanceError):
+            report.cases = ()  # type: ignore[misc]
+
+    def test_slots_prevents_dict(self) -> None:
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(),
+        )
+
+        self.assertFalse(hasattr(report, "__dict__"))
+
+    def test_metrics_scenario_a_all_matches(self) -> None:
+        c1 = _make_case_evaluation(
+            evaluation_case_id="CASE-001",
+            expected_decision=GovernanceDecision.APPROVE,
+            predicted_decision=GovernanceDecision.APPROVE,
+        )
+        c2 = _make_case_evaluation(
+            evaluation_case_id="CASE-002",
+            expected_decision=GovernanceDecision.REVIEW,
+            predicted_decision=GovernanceDecision.REVIEW,
+        )
+        c3 = _make_case_evaluation(
+            evaluation_case_id="CASE-003",
+            expected_decision=GovernanceDecision.REJECT,
+            predicted_decision=GovernanceDecision.REJECT,
+        )
+
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2, c3),
+        )
+
+        self.assertEqual(report.total_cases, 3)
+        self.assertEqual(report.matched_cases, 3)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertEqual(report.accuracy, 1.0)
+        self.assertTrue(report.is_perfect_match)
+        self.assertFalse(report.is_empty)
+        self.assertEqual(report.matches, (c1, c2, c3))
+        self.assertEqual(report.mismatches, ())
+
+    def test_metrics_scenario_b_mixed_matches_and_mismatches(self) -> None:
+        c1 = _make_case_evaluation(
+            evaluation_case_id="CASE-001",
+            expected_decision=GovernanceDecision.APPROVE,
+            predicted_decision=GovernanceDecision.APPROVE,
+        )
+        c2 = _make_case_evaluation(
+            evaluation_case_id="CASE-002",
+            expected_decision=GovernanceDecision.REVIEW,
+            predicted_decision=GovernanceDecision.REVIEW,
+        )
+        c3 = _make_case_evaluation(
+            evaluation_case_id="CASE-003",
+            expected_decision=GovernanceDecision.REJECT,
+            predicted_decision=GovernanceDecision.REJECT,
+        )
+        c4 = _make_case_evaluation(
+            evaluation_case_id="CASE-004",
+            expected_decision=GovernanceDecision.APPROVE,
+            predicted_decision=GovernanceDecision.REVIEW,
+        )
+
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2, c3, c4),
+        )
+
+        self.assertEqual(report.total_cases, 4)
+        self.assertEqual(report.matched_cases, 3)
+        self.assertEqual(report.mismatched_cases, 1)
+        self.assertEqual(report.accuracy, 0.75)
+        self.assertFalse(report.is_perfect_match)
+        self.assertFalse(report.is_empty)
+        self.assertEqual(report.matches, (c1, c2, c3))
+        self.assertEqual(report.mismatches, (c4,))
+
+    def test_metrics_scenario_c_all_mismatches(self) -> None:
+        c1 = _make_case_evaluation(
+            evaluation_case_id="CASE-001",
+            expected_decision=GovernanceDecision.APPROVE,
+            predicted_decision=GovernanceDecision.REJECT,
+        )
+        c2 = _make_case_evaluation(
+            evaluation_case_id="CASE-002",
+            expected_decision=GovernanceDecision.REJECT,
+            predicted_decision=GovernanceDecision.APPROVE,
+        )
+
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2),
+        )
+
+        self.assertEqual(report.total_cases, 2)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 2)
+        self.assertEqual(report.accuracy, 0.0)
+        self.assertFalse(report.is_perfect_match)
+        self.assertFalse(report.is_empty)
+        self.assertEqual(report.matches, ())
+        self.assertEqual(report.mismatches, (c1, c2))
+
+    def test_metrics_scenario_d_empty_dataset(self) -> None:
+        report = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-EMPTY",
+            cases=(),
+        )
+
+        self.assertEqual(report.total_cases, 0)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertIsNone(report.accuracy)
+        self.assertTrue(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.matches, ())
+        self.assertEqual(report.mismatches, ())
+
+    def test_metrics_scenario_e_order_independence(self) -> None:
+        c1 = _make_case_evaluation(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        c2 = _make_case_evaluation(evaluation_case_id="CASE-002", ground_truth_id="GT-002")
+
+        report_a = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2),
+        )
+        report_b = DecisionRecommendationEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c2, c1),
+        )
+
+        self.assertEqual(report_a.cases, report_b.cases)
 
 
 if __name__ == "__main__":
