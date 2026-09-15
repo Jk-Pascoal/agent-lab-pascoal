@@ -17,6 +17,12 @@ from .ground_truth import (
     MaterialRuleGroundTruth,
     MaterialRuleGroundTruthDataset,
 )
+from .ground_truth_evaluation import (
+    DecisionRecommendationCaseEvaluation,
+    DecisionRecommendationEvaluationReport,
+    evaluate_decision_recommendation,
+    evaluate_decision_recommendations,
+)
 from .human_review_claim import (
     HumanReviewClaim,
     HumanReviewClaimRelease,
@@ -102,4 +108,8 @@ __all__ = [
     "LabelProvenance",
     "MaterialRuleGroundTruth",
     "MaterialRuleGroundTruthDataset",
+    "DecisionRecommendationCaseEvaluation",
+    "DecisionRecommendationEvaluationReport",
+    "evaluate_decision_recommendation",
+    "evaluate_decision_recommendations",
 ]
