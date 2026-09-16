@@ -23,6 +23,9 @@ O laboratório evolui de soluções simples e auditáveis para componentes proba
 5. **CorrectionRequest != MaterialRevision:** a solicitação de correção do especialista (`CorrectionRequest`) expressa a intenção humana de ajuste no contexto da revisão; a revisão de material (`MaterialRevision`) é um registro de proveniência cadastral em contrato e repositório separados. O campo `source_review_id` em `MaterialRevision` é proveniência declarada, não prova de causalidade nem aplicação automática da correção.
 6. **Dual-write deliberadamente não-atômico no registro da decisão:** a persistência no fluxo `RecordHumanDecisionUseCase` → `AuditRepository` → `WorkflowLifecycleRepository` é sequencial e sem transações distribuídas (sem 2PC, rollback, retry automático ou compensação). A consistência entre essas duas fontes é verificada de forma determinística e somente-leitura.
 7. **HumanReviewClaim != HumanReview e CLAIMED != REVIEWED:** a assunção operacional (`HumanReviewClaim`) representa o compromisso voluntário de um especialista verificado em analisar um workflow pendente (`PENDING_HUMAN_REVIEW`) e possui trilha persistente dedicada append-only, sem alterar o ciclo de governança, sem emitir eventos de auditoria ou lifecycle e sem constituir deliberação ou decisão humana.
+8. **HumanReviewClaimRelease != HumanReviewClaim:** a liberação voluntária de reivindicação (`HumanReviewClaimRelease`) registra o fato histórico de liberação pelo especialista verificado, sem alterar o workflow nem o claim persistido, sem constituir revogação forçada e sem eleger claim ativo.
+9. **Ground Truth != Prediction e Dataset != Metric:** o gabarito de referência (`Ground Truth`) expressa uma expectativa factual ou normativa de governança com proveniência explícita, segregada de predições e recomendações algorítmicas (`Prediction`); o dataset de avaliação organiza coleções canônicas imutáveis, segregado das métricas derivadas e diagnósticos de conformidade.
+10. **Evaluation Contract != Benchmark Result e evaluation_case_id != material_id:** a avaliação atômica ou em lote afere exatidão categórica determinística em memória entre pares estruturados, sem constituir benchmark comparativo amplo ou runner orquestrado; o identificador experimental do caso de avaliação (`evaluation_case_id`) preserva a identidade metrológica do teste e não se confunde com a entidade cadastral de domínio (`material_id`).
 
 
 ## Arquitetura atual
@@ -82,18 +85,17 @@ MaterialRecord
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ TRILHA DE HUMAN REVIEW CLAIM (Append-only, desacoplada)                                │
+│ TRILHA DE HUMAN REVIEW CLAIM E RELEASE (Append-only, desacoplada)                      │
 │                                                                                        │
+│  Assunção de claim:                                                                    │
 │  HumanReviewClaim                                                                      │
 │       │                                                                                │
 │       ▼                                                                                │
-│  JsonlHumanReviewClaimRepository (Append-only)                                         │
-│       │                                                                                │
+│  JsonlHumanReviewClaimRepository (Append-only) ──► Claim JSONL                         │
+│                                                          │                             │
+│       ┌──────────────────────────────────────────────────┘                             │
 │       ▼                                                                                │
-│  Claim JSONL                                                                           │
-│       │                                                                                │
-│       ▼                                                                                │
-│  project_human_review_claim_state (Projeção pura determinística)                       │
+│  project_human_review_claim_state (Projeção factual pura)                              │
 │       │                                                                                │
 │       ▼                                                                                │
 │  HumanReviewClaimState (NO_CLAIM / SINGLE_CLAIM / MULTIPLE_CLAIMS)                     │
@@ -102,9 +104,17 @@ MaterialRecord
 │  evaluate_reviewer_claim_eligibility (Policy pura de governança em memória)            │
 │       │                                                                                │
 │       ▼                                                                                │
-│  ReviewerEligibilityDecision (ELIGIBLE / CLAIM_REQUIRED / CLAIMANT_MISMATCH /         │
-│                               MULTIPLE_CLAIMS_CONFLICT)                                │
-│  (Projection factual != Policy normativa / runtime gate / sem active claim)             │
+│  ReviewerEligibilityDecision ──► Gate pré-write em RecordHumanDecisionUseCase          │
+│                                                                                        │
+│  Liberação voluntária de claim (Application coordena):                                 │
+│  release_human_review_claim (Domínio) ──► HumanReviewClaimRelease (Fato imutável)      │
+│       │                                                                                │
+│       ▼                                                                                │
+│  ReleaseHumanReviewClaimUseCase ──► JsonlHumanReviewClaimReleaseRepository             │
+│                                                   │                                    │
+│                                                   ▼                                    │
+│                                          Claim Release JSONL                           │
+│  (Fato histórico isolado / sem active claim / sem revogação de histórico)              │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -117,6 +127,32 @@ MaterialRecord
 │       │                                                                                │
 │       ▼                                                                                │
 │  project_material_revision_lineage (Topologia pura: roots, heads, forks, ciclos)       │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ CAMADA DE GROUND TRUTH E AVALIAÇÃO (Pura em memória, zero-I/O)                         │
+│                                                                                        │
+│  Contratos atômicos de Ground Truth (Proveniência explícita):                          │
+│  MaterialRuleGroundTruth / DuplicatePairGroundTruth / DecisionRecommendationGroundTruth│
+│       │                                                                                │
+│       ▼                                                                                │
+│  Datasets canônicos de avaliação (Coleções imutáveis ordenadas por case_id/gt_id):     │
+│  MaterialRuleGroundTruthDataset / DuplicatePairGroundTruthDataset /                     │
+│  DecisionRecommendationGroundTruthDataset                                              │
+│       │                                                                                │
+│       ▼                                                                                │
+│  Aferição de recomendações de governança:                                              │
+│  DecisionRecommendationGroundTruth + DecisionRecommendation                            │
+│       │                                                                                │
+│       ├──► evaluate_decision_recommendation (Atômico: validação relacional material_id) │
+│       │         │                                                                      │
+│       │         ▼                                                                      │
+│       │    DecisionRecommendationCaseEvaluation (is_match / is_mismatch)                │
+│       │                                                                                │
+│       └──► evaluate_decision_recommendations (Lote 1:1 por evaluation_case_id)          │
+│                 │                                                                      │
+│                 ▼                                                                      │
+│            DecisionRecommendationEvaluationReport (total, match, mismatch, accuracy)   │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -136,7 +172,20 @@ A camada de Policy introduz regras puras, determinísticas e em memória (zero-I
 
 - **`evaluate_reviewer_claim_eligibility`:** avalia deterministicamente se uma identidade verificada (`VerifiedSpecialistIdentity`) possui elegibilidade normativa para revisar um workflow com base no seu estado factual de claims (`HumanReviewClaimState`), retornando um `ReviewerEligibilityDecision` imutável com `status: ReviewerEligibilityStatus` (`ELIGIBLE`, `CLAIM_REQUIRED`, `CLAIMANT_MISMATCH`, `MULTIPLE_CLAIMS_CONFLICT`). Adota equivalência estrita de Principal Estável `(specialist_id, identity_provider, identity_subject)` isolando metadados de verificação (`verification_id`, `verified_at`), mantém cardinalidade governada pela Projection (`MULTIPLE_CLAIMS` sempre em conflito, inclusive para o mesmo principal estável) e valida defensivamente os tipos de entrada (`TypeError`). *(Nota: a política estabelece autoridade normativa pura e determinística em memória com zero I/O; ela não implementa active claim, ownership, assignment, winner election, locking ou SLA, sendo aplicada operacionalmente como gate de autorização pré-write pelo `RecordHumanDecisionUseCase`).*
 
+### Camada de Ground Truth e Avaliação Metrológica (Ground Truth & Evaluation Layer)
+
+A camada de Ground Truth e Avaliação introduz modelos e rotinas puras, determinísticas e em memória (zero-I/O), segregando formalmente referências de verdade, coleções de teste e instrumentos de aferição (`Ground Truth representa expectativa de referência → Dataset organiza coleção canônica → Evaluator compara predição contra Ground Truth → Evaluation Report agrega resultados`):
+
+- **Contratos atômicos de Ground Truth (`ground_truth.py`):** modelos imutáveis com proveniência explícita (`LabelProvenance`) que formalizam expectativas factuais ou normativas sobre conformidade cadastral (`MaterialRuleGroundTruth`), duplicidades de materiais (`DuplicatePairGroundTruth`) e recomendações de governança (`DecisionRecommendationGroundTruth`).
+- **Datasets canônicos de avaliação (`ground_truth.py`):** contêineres imutáveis (`MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset`, `DecisionRecommendationGroundTruthDataset`) que organizam itens em coleções canônicas ordenadas deterministicamente por `(evaluation_case_id, ground_truth_id)` com garantia de unicidade estrita de identificadores em v1.
+- **Aferição determinística de recomendações (`ground_truth_evaluation.py`):** instrumentos puros de avaliação metrológica para recomendações algorítmicas de governança:
+  - `evaluate_decision_recommendation`: afere deterministicamente uma `DecisionRecommendation` contra um `DecisionRecommendationGroundTruth`, emitindo diagnóstico imutável `DecisionRecommendationCaseEvaluation` (`is_match` / `is_mismatch`) com validação relacional fail-closed de `material_id`.
+  - `evaluate_decision_recommendations`: afere coleções completas contra `DecisionRecommendationGroundTruthDataset` com pareamento obrigatório 1:1 por `evaluation_case_id`, gerando relatório imutável `DecisionRecommendationEvaluationReport` com métricas consolidadas de exatidão categórica (`accuracy`, onde coleções vazias retornam `accuracy is None`).
+
+*(Nota: a avaliação implementada opera exclusivamente em memória sobre recomendações de decisão; avaliadores para regras de materiais e duplicidades, persistência/loaders de datasets, runners de benchmark e métricas multiclasses não estão implementados).*
+
 A fronteira de LLM está desenhada de forma desacoplada de provedores externos via abstração `LLMProvider`, permitindo testes unitários e de integração determinísticos sem custos de rede ou dependências externas.
+
 
 ## Módulos fundacionais (Base da Release v0.1.0)
 
@@ -192,6 +241,12 @@ Após o fechamento da release v0.1.0, o projeto evoluiu continuamente através d
 - **Pending Human Review Queue with Claim State Application Use Case (Issue #97):** caso de uso de aplicação `ListPendingHumanReviewsWithClaimStateUseCase` e read-model imutável `PendingHumanReviewWithClaimStateItem` compondo de forma somente-leitura a fila de pendências (`project_pending_human_review_queue`) com o estado factual de claims (`project_human_review_claim_state`), categorizado em `NO_CLAIM`, `SINGLE_CLAIM` e `MULTIPLE_CLAIMS`. Garante a pending queue como conjunto condutor (driver set), preserva a ordenação FIFO, executa snapshot local único por repositório (`list_all_events()` e `list_all()`), elimina chamadas N+1, propaga falhas de forma fail-closed sem resultados parciais, mantém `sole_claim` como cardinalidade puramente factual (sem semântica de active claim, owner, winner, exclusividade ou lock) e comprova integração vertical JSONL real pós-restart.
 - **Reviewer Claim Eligibility Policy (Issue #100):** política normativa pura e determinística de governança em memória (`evaluate_reviewer_claim_eligibility`), enum canônico `ReviewerEligibilityStatus` (`ELIGIBLE`, `CLAIM_REQUIRED`, `CLAIMANT_MISMATCH`, `MULTIPLE_CLAIMS_CONFLICT`) e read-model imutável `ReviewerEligibilityDecision`, avaliando a autoridade de deliberação a partir de `HumanReviewClaimState` com equivalência estrita de Principal Estável `(specialist_id, identity_provider, identity_subject)` isolando metadados de verificação `(verification_id, verified_at)` do Principal Estável, classificando `MULTIPLE_CLAIMS` deterministicamente como `MULTIPLE_CLAIMS_CONFLICT`, inclusive quando os claims pertencem ao mesmo Principal Estável, e sem active claim, owner, assignment, winner ou locking.
 - **Reviewer Claim Eligibility Runtime Enforcement (Issue #103):** enforcement em tempo de execução da Reviewer Claim Eligibility Policy como gate obrigatório de autorização pré-write em `RecordHumanDecisionUseCase`. Injeta `HumanReviewClaimRepository` como dependência obrigatória, preserva a Fase 1 de domínio em memória (`0 reads → 0 writes` em falhas de domínio), executa exatamente uma leitura de claims após a Fase 1 válida, projeta via `project_human_review_claim_state`, avalia via `evaluate_reviewer_claim_eligibility`, levanta `ReviewerNotEligibleError` (preservando `ReviewerEligibilityDecision`) de forma *fail-closed* para `CLAIM_REQUIRED`, `CLAIMANT_MISMATCH` e `MULTIPLE_CLAIMS_CONFLICT` com zero writes em Audit e Lifecycle, propaga falhas e corrupção física do repositório de claims fail-closed com sua exceção original, autoriza a persistência sequencial `Audit → Lifecycle` estritamente quando `ELIGIBLE`, comprova persistência em JSONL e reidratação pós-restart autorizada via `RecordHumanReviewClaimUseCase` com relatório de consistência limpo, e preserva `RecordHumanDecisionResult` inalterado.
+- **Human Review Claim Release Domain Contract (Issue #106):** contrato puro de domínio em memória (`HumanReviewClaimRelease` e `release_human_review_claim`) formalizando o fato imutável de liberação voluntária de claim por especialista verificado, com validação relacional de Stable Principal, invariantes temporais (`released_at >= claimed_at`), operação zero-I/O e sem alterar o workflow ou o claim histórico.
+- **Human Review Claim Release Persistence (Issue #109):** persistência append-only durável em JSONL (`JsonlHumanReviewClaimReleaseRepository`) com serialização canônica versionada (`schema_version = 1`), garantia de durabilidade via `flush` + `os.fsync`, unicidade estrita de `release_id`, leitura fail-closed e recuperação de integridade pós-restart.
+- **Release Human Review Claim Application Use Case (Issue #112):** caso de uso de aplicação `ReleaseHumanReviewClaimUseCase` coordenando o fluxo de liberação voluntária de claims em duas etapas estritas (domínio prepara o fato imutável em memória e repositório persiste o registro append-only), com propagação fail-closed de falhas e sem introduzir semântica de active claim.
+- **Ground Truth Pure Domain Contracts v1 (Issue #115):** contratos puros e imutáveis de domínio em memória (`MaterialRuleGroundTruth`, `DuplicatePairGroundTruth` e `DecisionRecommendationGroundTruth`) com proveniência explícita (`LabelProvenance`), formalizando expectativas factuais ou normativas de governança segregadas de predições algorítmicas (`Ground Truth != Prediction`) com operação zero-I/O.
+- **Ground Truth Dataset Contract v1 (Issue #119):** coleções canônicas imutáveis (`MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset` e `DecisionRecommendationGroundTruthDataset`) agregando itens com `dataset_id` obrigatório e normalizado, unicidade estrita de `ground_truth_id` e `evaluation_case_id` em v1, ordenação canônica determinística por `(evaluation_case_id, ground_truth_id)` e suporte a datasets vazios válidos.
+- **Ground Truth Decision Recommendation Evaluator v1 (Issue #124):** camada de metrologia determinística pura em memória (`DecisionRecommendationCaseEvaluation`, `DecisionRecommendationEvaluationReport`, `evaluate_decision_recommendation` e `evaluate_decision_recommendations`) com pareamento estrito 1:1 por `evaluation_case_id`, validação relacional por `material_id`, acurácia categórica de exact-match (com `accuracy is None` para coleções vazias) e operação zero-I/O.
 
 
 ## Resultados do baseline
@@ -238,7 +293,7 @@ O projeto conta com:
 - SPECs versionadas e detalhadas em `docs/specs/`;
 - desenvolvimento orientado por testes (TDD);
 - GitHub Actions com Python 3.11;
-- **661 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência de claim, casos de uso de aplicação, projeções de claims, composição factual de fila pendente com claims, política pura de elegibilidade de revisores, enforcement de elegibilidade em tempo de execução (gate pré-write em `RecordHumanDecisionUseCase`) e integração vertical JSONL pós-restart;
+- **830 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência e release de claims, casos de uso de aplicação, projeções de claims, composição factual de fila pendente com claims, política pura de elegibilidade de revisores, enforcement de elegibilidade em tempo de execução (gate pré-write em `RecordHumanDecisionUseCase`), contratos puros de ground truth, datasets canônicos de avaliação, avaliador determinístico de recomendações de governança e integração vertical JSONL pós-restart;
 - baseline fundacional da release **v0.1.0** preservado (206 testes);
 - proteção de branch com status check de CI obrigatório antes de qualquer merge;
 - política estrita de Versionamento Semântico e registro de mudanças em `CHANGELOG.md`;
@@ -278,9 +333,14 @@ agent-lab-pascoal/
 │       ├── domain.py
 │       ├── duplicates.py
 │       ├── evidence.py
+│       ├── ground_truth.py
+│       ├── ground_truth_evaluation.py
 │       ├── human_review.py
 │       ├── human_review_claim.py
 │       ├── human_review_claim_projection.py
+│       ├── human_review_claim_release_repository.py
+│       ├── human_review_claim_release_serialization.py
+│       ├── human_review_claim_release_use_case.py
 │       ├── human_review_claim_repository.py
 │       ├── human_review_claim_serialization.py
 │       ├── human_review_claim_use_case.py
@@ -334,13 +394,13 @@ python -m agent_lab.cli data/synthetic/materials_challenge.csv
 Para manter a documentação tecnicamente honesta, o laboratório ainda **não** possui:
 
 - integração com provider real de LLM (OpenAI, Anthropic, Gemini);
-- benchmark de qualidade comparativo entre modelos reais;
+- benchmark comparativo amplo entre modelos, Benchmark Runner ou orquestrador automatizado de benchmarks (os contratos atômicos de Ground Truth, os datasets canônicos e o avaliador determinístico de recomendações de decisão com exact-match accuracy foram entregues nas Issues #115, #119 e #124; permanecem não implementados os avaliadores de conformidade de regras de materiais e de duplicidades, persistência e serialização durável de Ground Truth e datasets, loaders externos, datasets industriais reais, matrizes de confusão, métricas multiclasses adicionais, precision/recall/F1 agregados para governança, calibração, threshold tuning, adjudicação/consenso e UI/API de benchmark);
 - detecção semântica de duplicidades por embeddings ou similaridade vetorial;
 - RAG (Retrieval-Augmented Generation) sobre normas, catálogos técnicos ou procedimentos;
 - autenticação e autorização corporativa real (SSO, OAuth2, RBAC);
 - banco de dados relacional remoto ou arquitetura cliente/servidor;
 - controle de concorrência multiprocesso, múltiplos escritores simultâneos ou locking distribuído;
-- projeção de claims ativos (Active Claim Projection / Active Claim Policy), atribuição gerencial (assignment), ownership operacional, estados de atendimento, locking / checkout, exclusividade, desempate / Last-Claim-Wins e controle concorrente de itens na fila de revisão (a composição factual da fila pendente com estado de claims foi entregue na Issue #97, a política pura normativa de elegibilidade de revisores foi entregue na Issue #100 e o enforcement de elegibilidade em tempo de execução no `RecordHumanDecisionUseCase` foi entregue na Issue #103; a política de claim ativo e mecanismos de locking/assignment permanecem estritamente fora do escopo atual);
+- projeção de claims ativos (Active Claim Projection / Active Claim Policy), atribuição gerencial (assignment), ownership operacional, estados de atendimento, locking / checkout, exclusividade, desempate / Last-Claim-Wins e controle concorrente de itens na fila de revisão (a composição factual da fila pendente com estado de claims foi entregue na Issue #97, a política pura normativa de elegibilidade de revisores foi entregue na Issue #100, o enforcement de elegibilidade em tempo de execução no `RecordHumanDecisionUseCase` foi entregue na Issue #103 e a liberação voluntária de claims foi entregue nas Issues #106, #109 e #112; a política de claim ativo e mecanismos de locking/assignment permanecem estritamente fora do escopo atual);
 - gestão de SLAs, prazos e priorização operacional de atendimento;
 - interface operacional (UI/Web/CLI) para o especialista de governança;
 - validação de carga e escala industrial (pressão arquitetural P-07: throughput, memória sob grandes volumes);
@@ -352,15 +412,18 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 
 ## Próximas frentes
 
-Próxima âncora arquitetural: a definir após planejamento humano.
+Próxima âncora arquitetural: a definir após planejamento humano (zero Issues funcionais abertas).
 
-Entre as frentes futuras candidatas permanecem projeção/política de active claim, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.
+A esteira de **Ground Truth & Benchmark** encontra-se em execução, tendo consolidado a sequência conceitual:
+`Ground Truth Contracts → Canonical Datasets → Decision Recommendation Evaluator → próximos incrementos sujeitos a Architectural Alignment Gate`.
+
+Entre as frentes futuras candidatas permanecem a expansão metrológica de Ground Truth (avaliadores adicionais de regras materiais e duplicidades, persistência durável, loaders de datasets, benchmark runner, métricas estatísticas e validação em escala industrial), bem como a evolução do fluxo operacional de revisão humana (projeção/política de active claim, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista), cada uma estritamente condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas por decisão humana.
 
 Frentes evolutivas e pressões arquiteturais no backlog incluem:
 
 1. evolução do atendimento operacional de revisão (coordenação de claims, estados de atendimento, SLA e interface do especialista);
-2. integração de um provider real sem quebrar a abstração `LLMProvider`;
-3. medição da LLM contra o baseline determinístico e benchmark com ground truth;
+2. expansão da esteira de Ground Truth e benchmark (persistência, novos avaliadores, benchmark runner, loaders e métricas multiclasses);
+3. integração de um provider real sem quebrar a abstração `LLMProvider`;
 4. introdução de detecção semântica de duplicidades por similaridade vetorial;
 5. expansão de evidências e justificativas auditáveis;
 6. teste de arquitetura híbrida de regras + similaridade + RAG + LLM;
@@ -389,10 +452,12 @@ A decisão final permanece humana.
 
 ## Estado do laboratório
 
+*(Estado registrado em 16/09/2026 — pós-15/09/2026)*
+
 ✅ **Módulos 0 a 7 concluídos (Release v0.1.0):** fundação do domínio, baseline determinístico, saída estruturada, Evidence Engine, Human-in-the-Loop v1, persistência auditável durável, identidade verificável e persistência de abertura de workflow.
 
-✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #112):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), casos de uso `RecordHumanDecisionUseCase` e `ListPendingHumanReviewsUseCase`, contrato de domínio `HumanReviewClaim`, persistência de claims (`JsonlHumanReviewClaimRepository`), caso de uso `RecordHumanReviewClaimUseCase`, projeção de estado factual de claims (`project_human_review_claim_state`), caso de uso de aplicação `ListPendingHumanReviewsWithClaimStateUseCase`, política pura de elegibilidade de revisores (`Reviewer Claim Eligibility Policy v1`), enforcement de elegibilidade de revisores em tempo de execução (`Reviewer Claim Eligibility Runtime Enforcement v1` com gate pré-write em `RecordHumanDecisionUseCase`), e a trilha de liberação voluntária de reivindicações de revisão humana: contrato de domínio imutável `HumanReviewClaimRelease` e operação pura `release_human_review_claim` (Issue #106), persistência durável append-only e fail-closed via `JsonlHumanReviewClaimReleaseRepository` (Issue #109), e caso de uso de aplicação `ReleaseHumanReviewClaimUseCase` coordenando `release_human_review_claim(...) → HumanReviewClaimReleaseRepository.append(...) → return release` (Issue #112, PR #113 / merge `59d577c`), preservando que o release é fato histórico, não determina claim ativo e não introduz owner, winner, assignment, locking, TTL ou SLA.
+✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #124):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), casos de uso `RecordHumanDecisionUseCase` e `ListPendingHumanReviewsUseCase`, trilhas de reivindicação e liberação voluntária de revisão humana (contratos `HumanReviewClaim` e `HumanReviewClaimRelease`, persistência append-only durável `JsonlHumanReviewClaimRepository` e `JsonlHumanReviewClaimReleaseRepository`, projeção factual `project_human_review_claim_state`, política pura de elegibilidade `evaluate_reviewer_claim_eligibility`, enforcement em tempo de execução via gate pré-write em `RecordHumanDecisionUseCase`, e casos de uso `RecordHumanReviewClaimUseCase`, `ListPendingHumanReviewsWithClaimStateUseCase` e `ReleaseHumanReviewClaimUseCase` — Issues #85 a #112), contratos puros de Ground Truth (`MaterialRuleGroundTruth`, `DuplicatePairGroundTruth`, `DecisionRecommendationGroundTruth`, `LabelProvenance` — Issue #115), coleções canônicas de avaliação (`MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset`, `DecisionRecommendationGroundTruthDataset` — Issue #119), e camada pura de metrologia determinística para recomendações algorítmicas de governança (`DecisionRecommendationCaseEvaluation`, `DecisionRecommendationEvaluationReport`, `evaluate_decision_recommendation` e `evaluate_decision_recommendations` — Issue #124, integrada via PR funcional #126 / merge `05eed90` e reconciliada via PR #127; SPEC-0124 com status `IMPLEMENTED`).
 
-🧪 **661 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0).
+🧪 **830 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0 e 776 testes pré-Issue #124).
 
-➡️ **Próxima âncora arquitetural:** a definir após planejamento humano. Entre as frentes futuras candidatas permanecem projeção/política de active claim, assignment/ownership operacional, estados de atendimento, SLA e interface do especialista, cada uma condicionada a nova análise arquitetural, Issue e SPEC explicitamente aprovadas.
+➡️ **Próxima âncora arquitetural:** a definir após planejamento humano. A branch `main` encontra-se protegida, sincronizada com `origin/main` e com zero Issues e zero PRs abertas. A esteira de Ground Truth & Benchmark encontra-se em execução. Nenhum incremento funcional subsequente foi autorizado automaticamente; qualquer nova capacidade permanece estritamente condicionada a análise arquitetural, Issue e SPEC explicitamente aprovadas por decisão humana.
