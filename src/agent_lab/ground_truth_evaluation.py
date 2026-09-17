@@ -6,10 +6,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from agent_lab.decision import DecisionRecommendation
-from agent_lab.domain import GovernanceDecision
+from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
     DecisionRecommendationGroundTruthDataset,
+    MaterialRuleGroundTruth,
+    MaterialRuleGroundTruthDataset,
 )
 
 
@@ -206,6 +208,290 @@ def evaluate_decision_recommendations(
         evaluated_cases.append(evaluated_case)
 
     return DecisionRecommendationEvaluationReport(
+        dataset_id=dataset.dataset_id,
+        cases=tuple(evaluated_cases),
+    )
+
+
+def _validate_and_canonicalize_issue_types(
+    value: object,
+    field_name: str,
+) -> tuple[IssueType, ...]:
+    if not isinstance(value, tuple):
+        raise TypeError(f"{field_name} must be a tuple")
+
+    for item in value:
+        if not isinstance(item, IssueType):
+            raise TypeError(
+                f"{field_name} must contain only IssueType instances"
+            )
+
+    if IssueType.POSSIBLE_DUPLICATE in value:
+        raise ValueError(
+            f"POSSIBLE_DUPLICATE is not permitted in {field_name}"
+        )
+
+    if len(value) != len(set(value)):
+        raise ValueError(f"{field_name} must not contain duplicates")
+
+    return tuple(sorted(value, key=lambda item: item.value))
+
+
+@dataclass(frozen=True, slots=True)
+class MaterialRulePrediction:
+    """Predição de regras cadastrais de materiais associada a um material_id."""
+
+    material_id: str
+    predicted_issue_types: tuple[IssueType, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "material_id",
+            _normalize_required_text(self.material_id, "material_id"),
+        )
+        canonical = _validate_and_canonicalize_issue_types(
+            self.predicted_issue_types,
+            "predicted_issue_types",
+        )
+        object.__setattr__(self, "predicted_issue_types", canonical)
+
+
+@dataclass(frozen=True, slots=True)
+class MaterialRuleCaseEvaluation:
+    """Resultado imutável da avaliação de regras cadastrais de um caso individual."""
+
+    evaluation_case_id: str
+    ground_truth_id: str
+    material_id: str
+    expected_issue_types: tuple[IssueType, ...]
+    predicted_issue_types: tuple[IssueType, ...]
+
+    def __post_init__(self) -> None:
+        text_fields = ("evaluation_case_id", "ground_truth_id", "material_id")
+        for field_name in text_fields:
+            object.__setattr__(
+                self,
+                field_name,
+                _normalize_required_text(getattr(self, field_name), field_name),
+            )
+
+        canonical_expected = _validate_and_canonicalize_issue_types(
+            self.expected_issue_types,
+            "expected_issue_types",
+        )
+        object.__setattr__(self, "expected_issue_types", canonical_expected)
+
+        canonical_predicted = _validate_and_canonicalize_issue_types(
+            self.predicted_issue_types,
+            "predicted_issue_types",
+        )
+        object.__setattr__(self, "predicted_issue_types", canonical_predicted)
+
+    @property
+    def is_match(self) -> bool:
+        return self.predicted_issue_types == self.expected_issue_types
+
+    @property
+    def is_mismatch(self) -> bool:
+        return not self.is_match
+
+    @property
+    def false_positives(self) -> tuple[IssueType, ...]:
+        expected_set = set(self.expected_issue_types)
+        fp = [item for item in self.predicted_issue_types if item not in expected_set]
+        return tuple(sorted(fp, key=lambda item: item.value))
+
+    @property
+    def false_negatives(self) -> tuple[IssueType, ...]:
+        predicted_set = set(self.predicted_issue_types)
+        fn = [item for item in self.expected_issue_types if item not in predicted_set]
+        return tuple(sorted(fn, key=lambda item: item.value))
+
+    @property
+    def true_positives(self) -> tuple[IssueType, ...]:
+        expected_set = set(self.expected_issue_types)
+        tp = [item for item in self.predicted_issue_types if item in expected_set]
+        return tuple(sorted(tp, key=lambda item: item.value))
+
+    @property
+    def has_false_positives(self) -> bool:
+        return len(self.false_positives) > 0
+
+    @property
+    def has_false_negatives(self) -> bool:
+        return len(self.false_negatives) > 0
+
+    @property
+    def is_clean_match(self) -> bool:
+        return self.is_match and len(self.expected_issue_types) == 0
+
+    @property
+    def is_defect_match(self) -> bool:
+        return self.is_match and len(self.expected_issue_types) > 0
+
+
+@dataclass(frozen=True, slots=True)
+class MaterialRuleEvaluationReport:
+    """Relatório estruturado e imutável da avaliação em lote de regras cadastrais."""
+
+    dataset_id: str
+    cases: tuple[MaterialRuleCaseEvaluation, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(self.dataset_id, "dataset_id"),
+        )
+
+        if not isinstance(self.cases, tuple):
+            raise TypeError("cases must be a tuple")
+
+        seen_case_ids: set[str] = set()
+        for idx, item in enumerate(self.cases):
+            if not isinstance(item, MaterialRuleCaseEvaluation):
+                raise TypeError(
+                    f"cases[{idx}] must be a MaterialRuleCaseEvaluation instance"
+                )
+            if item.evaluation_case_id in seen_case_ids:
+                raise ValueError(
+                    f"duplicate evaluation_case_id in cases: {item.evaluation_case_id!r}"
+                )
+            seen_case_ids.add(item.evaluation_case_id)
+
+        canonical = tuple(
+            sorted(
+                self.cases,
+                key=lambda c: (c.evaluation_case_id, c.ground_truth_id),
+            )
+        )
+        object.__setattr__(self, "cases", canonical)
+
+    @property
+    def total_cases(self) -> int:
+        return len(self.cases)
+
+    @property
+    def matched_cases(self) -> int:
+        return sum(1 for c in self.cases if c.is_match)
+
+    @property
+    def mismatched_cases(self) -> int:
+        return self.total_cases - self.matched_cases
+
+    @property
+    def accuracy(self) -> float | None:
+        if self.total_cases == 0:
+            return None
+        return self.matched_cases / self.total_cases
+
+    @property
+    def exact_match_ratio(self) -> float | None:
+        return self.accuracy
+
+    @property
+    def total_false_positives(self) -> int:
+        return sum(len(c.false_positives) for c in self.cases)
+
+    @property
+    def total_false_negatives(self) -> int:
+        return sum(len(c.false_negatives) for c in self.cases)
+
+    @property
+    def total_true_positives(self) -> int:
+        return sum(len(c.true_positives) for c in self.cases)
+
+    @property
+    def is_empty(self) -> bool:
+        return self.total_cases == 0
+
+    @property
+    def is_perfect_match(self) -> bool:
+        return self.total_cases > 0 and self.matched_cases == self.total_cases
+
+    @property
+    def matches(self) -> tuple[MaterialRuleCaseEvaluation, ...]:
+        return tuple(c for c in self.cases if c.is_match)
+
+    @property
+    def mismatches(self) -> tuple[MaterialRuleCaseEvaluation, ...]:
+        return tuple(c for c in self.cases if c.is_mismatch)
+
+
+def evaluate_material_rule(
+    ground_truth: MaterialRuleGroundTruth,
+    prediction: MaterialRulePrediction,
+) -> MaterialRuleCaseEvaluation:
+    """Compara deterministicamente uma predição de regras contra um gabarito individual."""
+    if not isinstance(ground_truth, MaterialRuleGroundTruth):
+        raise TypeError("ground_truth must be a MaterialRuleGroundTruth")
+
+    if not isinstance(prediction, MaterialRulePrediction):
+        raise TypeError("prediction must be a MaterialRulePrediction")
+
+    if prediction.material_id != ground_truth.material_id:
+        raise ValueError(
+            f"material_id mismatch: prediction has {prediction.material_id!r}, "
+            f"ground_truth has {ground_truth.material_id!r}"
+        )
+
+    return MaterialRuleCaseEvaluation(
+        evaluation_case_id=ground_truth.evaluation_case_id,
+        ground_truth_id=ground_truth.ground_truth_id,
+        material_id=ground_truth.material_id,
+        expected_issue_types=ground_truth.expected_issue_types,
+        predicted_issue_types=prediction.predicted_issue_types,
+    )
+
+
+def evaluate_material_rules(
+    dataset: MaterialRuleGroundTruthDataset,
+    predictions: Mapping[str, MaterialRulePrediction],
+) -> MaterialRuleEvaluationReport:
+    """Avalia em lote um mapeamento de predições indexado por evaluation_case_id contra um dataset de regras."""
+    if not isinstance(dataset, MaterialRuleGroundTruthDataset):
+        raise TypeError("dataset must be a MaterialRuleGroundTruthDataset")
+
+    if not isinstance(predictions, Mapping):
+        raise TypeError("predictions must be a Mapping[str, MaterialRulePrediction]")
+
+    for case_id, pred in predictions.items():
+        if not isinstance(case_id, str) or isinstance(case_id, bool):
+            raise TypeError(f"prediction key {case_id!r} must be a str")
+        if not isinstance(pred, MaterialRulePrediction):
+            raise TypeError(
+                f"prediction value for evaluation_case_id {case_id!r} "
+                f"must be a MaterialRulePrediction, got {type(pred).__name__}"
+            )
+
+    expected_case_ids = {item.evaluation_case_id for item in dataset.items}
+    provided_case_ids = set(predictions.keys())
+
+    missing = expected_case_ids - provided_case_ids
+    if missing:
+        raise ValueError(
+            f"missing predictions for evaluation_case_id: {sorted(missing)!r}"
+        )
+
+    extra = provided_case_ids - expected_case_ids
+    if extra:
+        raise ValueError(
+            f"unexpected predictions for evaluation_case_id: {sorted(extra)!r}"
+        )
+
+    evaluated_cases: list[MaterialRuleCaseEvaluation] = []
+    for item in dataset.items:
+        prediction = predictions[item.evaluation_case_id]
+        if prediction.material_id != item.material_id:
+            raise ValueError(
+                f"material_id mismatch for evaluation_case_id {item.evaluation_case_id!r}: "
+                f"prediction has {prediction.material_id!r}, ground truth has {item.material_id!r}"
+            )
+        evaluated_case = evaluate_material_rule(item, prediction)
+        evaluated_cases.append(evaluated_case)
+
+    return MaterialRuleEvaluationReport(
         dataset_id=dataset.dataset_id,
         cases=tuple(evaluated_cases),
     )

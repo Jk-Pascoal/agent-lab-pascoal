@@ -5,17 +5,24 @@ from datetime import datetime, timezone
 import unittest
 
 from agent_lab.decision import DecisionRecommendation
-from agent_lab.domain import GovernanceDecision
+from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
     DecisionRecommendationGroundTruthDataset,
     LabelProvenance,
+    MaterialRuleGroundTruth,
+    MaterialRuleGroundTruthDataset,
 )
 from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
     DecisionRecommendationEvaluationReport,
+    MaterialRuleCaseEvaluation,
+    MaterialRuleEvaluationReport,
+    MaterialRulePrediction,
     evaluate_decision_recommendation,
     evaluate_decision_recommendations,
+    evaluate_material_rule,
+    evaluate_material_rules,
 )
 
 
@@ -67,6 +74,37 @@ def _make_case_evaluation(
         material_id=material_id,
         expected_decision=expected_decision,
         predicted_decision=predicted_decision,
+    )
+
+
+def _make_rule_ground_truth(
+    *,
+    evaluation_case_id: str = "CASE-001",
+    ground_truth_id: str = "GT-001",
+    material_id: str = "MAT-001",
+    expected_issue_types: tuple[IssueType, ...] = (IssueType.INVALID_UNIT,),
+) -> MaterialRuleGroundTruth:
+    return MaterialRuleGroundTruth(
+        evaluation_case_id=evaluation_case_id,
+        ground_truth_id=ground_truth_id,
+        material_id=material_id,
+        expected_issue_types=expected_issue_types,
+        provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+        source_reference="synthetic://spec-0129/test",
+        annotator=None,
+        labeled_at=datetime(2026, 9, 17, 10, 0, tzinfo=timezone.utc),
+        rationale="Referência de teste para avaliação de regras.",
+    )
+
+
+def _make_rule_prediction(
+    *,
+    material_id: str = "MAT-001",
+    predicted_issue_types: tuple[IssueType, ...] = (IssueType.INVALID_UNIT,),
+) -> MaterialRulePrediction:
+    return MaterialRulePrediction(
+        material_id=material_id,
+        predicted_issue_types=predicted_issue_types,
     )
 
 
@@ -922,6 +960,720 @@ class EvaluateDecisionRecommendationsBatchTests(unittest.TestCase):
         self.assertIn("missing predictions", str(ctx.exception))
 
 
+class MaterialRulePredictionTests(unittest.TestCase):
+    """Testes unitários defensivos para o contrato MaterialRulePrediction."""
+
+    def test_valid_creation_and_fields(self) -> None:
+        pred = MaterialRulePrediction(
+            material_id="MAT-001",
+            predicted_issue_types=(IssueType.INVALID_UNIT, IssueType.MISSING_CRITICAL_FIELD),
+        )
+        self.assertEqual(pred.material_id, "MAT-001")
+        self.assertEqual(
+            pred.predicted_issue_types,
+            (IssueType.INVALID_UNIT, IssueType.MISSING_CRITICAL_FIELD),
+        )
+
+    def test_valid_creation_empty_issues(self) -> None:
+        pred = MaterialRulePrediction(
+            material_id="MAT-001",
+            predicted_issue_types=(),
+        )
+        self.assertEqual(pred.material_id, "MAT-001")
+        self.assertEqual(pred.predicted_issue_types, ())
+
+    def test_trim_material_id(self) -> None:
+        pred = MaterialRulePrediction(
+            material_id="  MAT-001 \t ",
+            predicted_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        self.assertEqual(pred.material_id, "MAT-001")
+
+    def test_material_id_invalid_types(self) -> None:
+        invalid_types = (None, 123, False, True, [], {}, 4.5)
+        for val in invalid_types:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError):
+                    MaterialRulePrediction(
+                        material_id=val,  # type: ignore[arg-type]
+                        predicted_issue_types=(),
+                    )
+
+    def test_material_id_empty_or_whitespace(self) -> None:
+        invalid_values = ("", "   ", "\t\n")
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(ValueError):
+                    MaterialRulePrediction(
+                        material_id=val,
+                        predicted_issue_types=(),
+                    )
+
+    def test_predicted_issue_types_not_tuple(self) -> None:
+        invalid_containers = (
+            [IssueType.INVALID_UNIT],
+            {IssueType.INVALID_UNIT},
+            "INVALID_UNIT",
+            None,
+            123,
+        )
+        for val in invalid_containers:
+            with self.subTest(container=type(val).__name__):
+                with self.assertRaises(TypeError):
+                    MaterialRulePrediction(
+                        material_id="MAT-001",
+                        predicted_issue_types=val,  # type: ignore[arg-type]
+                    )
+
+    def test_item_not_issue_type(self) -> None:
+        invalid_items = (
+            ("INVALID_UNIT",),
+            (123,),
+            (None,),
+            (IssueType.INVALID_UNIT, "MISSING_CRITICAL_FIELD"),
+        )
+        for items in invalid_items:
+            with self.subTest(items=items):
+                with self.assertRaises(TypeError):
+                    MaterialRulePrediction(
+                        material_id="MAT-001",
+                        predicted_issue_types=items,  # type: ignore[arg-type]
+                    )
+
+    def test_possible_duplicate_rejected(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            MaterialRulePrediction(
+                material_id="MAT-001",
+                predicted_issue_types=(IssueType.POSSIBLE_DUPLICATE,),
+            )
+        self.assertIn("POSSIBLE_DUPLICATE is not permitted", str(ctx.exception))
+
+    def test_duplicates_rejected_fail_closed(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            MaterialRulePrediction(
+                material_id="MAT-001",
+                predicted_issue_types=(
+                    IssueType.INVALID_UNIT,
+                    IssueType.INVALID_UNIT,
+                ),
+            )
+        self.assertIn("must not contain duplicates", str(ctx.exception))
+
+    def test_canonicalization_of_order(self) -> None:
+        pred = MaterialRulePrediction(
+            material_id="MAT-001",
+            predicted_issue_types=(
+                IssueType.MISSING_TECHNICAL_ATTRIBUTE,
+                IssueType.INVALID_UNIT,
+                IssueType.AMBIGUOUS_DESCRIPTION,
+            ),
+        )
+        expected = tuple(
+            sorted(
+                (
+                    IssueType.MISSING_TECHNICAL_ATTRIBUTE,
+                    IssueType.INVALID_UNIT,
+                    IssueType.AMBIGUOUS_DESCRIPTION,
+                ),
+                key=lambda x: x.value,
+            )
+        )
+        self.assertEqual(pred.predicted_issue_types, expected)
+
+    def test_frozen_immutability(self) -> None:
+        pred = MaterialRulePrediction(
+            material_id="MAT-001",
+            predicted_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        with self.assertRaises(FrozenInstanceError):
+            pred.material_id = "MAT-002"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            pred.predicted_issue_types = ()  # type: ignore[misc]
+
+    def test_slots_no_dict(self) -> None:
+        pred = MaterialRulePrediction(
+            material_id="MAT-001",
+            predicted_issue_types=(),
+        )
+        self.assertFalse(hasattr(pred, "__dict__"))
+
+
+class MaterialRuleCaseEvaluationTests(unittest.TestCase):
+    """Testes unitários defensivos para MaterialRuleCaseEvaluation."""
+
+    def test_valid_creation_and_fields(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        self.assertEqual(evaluation.evaluation_case_id, "CASE-001")
+        self.assertEqual(evaluation.ground_truth_id, "GT-001")
+        self.assertEqual(evaluation.material_id, "MAT-001")
+        self.assertEqual(evaluation.expected_issue_types, (IssueType.INVALID_UNIT,))
+        self.assertEqual(evaluation.predicted_issue_types, (IssueType.INVALID_UNIT,))
+        self.assertTrue(evaluation.is_match)
+        self.assertFalse(evaluation.is_mismatch)
+
+    def test_string_fields_normalized_with_strip(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="  CASE-001 \t",
+            ground_truth_id=" GT-001\n",
+            material_id=" MAT-001 ",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        self.assertEqual(evaluation.evaluation_case_id, "CASE-001")
+        self.assertEqual(evaluation.ground_truth_id, "GT-001")
+        self.assertEqual(evaluation.material_id, "MAT-001")
+
+    def test_string_fields_reject_empty_or_whitespace(self) -> None:
+        fields = ("evaluation_case_id", "ground_truth_id", "material_id")
+        for field_name in fields:
+            for invalid_val in ("", "   ", "\t\n"):
+                kwargs = {
+                    "evaluation_case_id": "CASE-001",
+                    "ground_truth_id": "GT-001",
+                    "material_id": "MAT-001",
+                    "expected_issue_types": (),
+                    "predicted_issue_types": (),
+                }
+                kwargs[field_name] = invalid_val
+                with self.subTest(field=field_name, value=invalid_val):
+                    with self.assertRaises(ValueError):
+                        MaterialRuleCaseEvaluation(**kwargs)
+
+    def test_string_fields_reject_invalid_types(self) -> None:
+        fields = ("evaluation_case_id", "ground_truth_id", "material_id")
+        for field_name in fields:
+            for invalid_type in (None, 123, True, False, []):
+                kwargs = {
+                    "evaluation_case_id": "CASE-001",
+                    "ground_truth_id": "GT-001",
+                    "material_id": "MAT-001",
+                    "expected_issue_types": (),
+                    "predicted_issue_types": (),
+                }
+                kwargs[field_name] = invalid_type
+                with self.subTest(field=field_name, type=type(invalid_type).__name__):
+                    with self.assertRaises(TypeError):
+                        MaterialRuleCaseEvaluation(**kwargs)
+
+    def test_issue_types_tuples_validation(self) -> None:
+        for field_name in ("expected_issue_types", "predicted_issue_types"):
+            kwargs_base = {
+                "evaluation_case_id": "CASE-001",
+                "ground_truth_id": "GT-001",
+                "material_id": "MAT-001",
+                "expected_issue_types": (),
+                "predicted_issue_types": (),
+            }
+
+            kwargs = dict(kwargs_base, **{field_name: [IssueType.INVALID_UNIT]})
+            with self.subTest(field=field_name, case="non_tuple"):
+                with self.assertRaises(TypeError):
+                    MaterialRuleCaseEvaluation(**kwargs)
+
+            kwargs = dict(kwargs_base, **{field_name: ("INVALID_UNIT",)})
+            with self.subTest(field=field_name, case="non_enum"):
+                with self.assertRaises(TypeError):
+                    MaterialRuleCaseEvaluation(**kwargs)
+
+            kwargs = dict(kwargs_base, **{field_name: (IssueType.POSSIBLE_DUPLICATE,)})
+            with self.subTest(field=field_name, case="possible_duplicate"):
+                with self.assertRaises(ValueError):
+                    MaterialRuleCaseEvaluation(**kwargs)
+
+            kwargs = dict(
+                kwargs_base,
+                **{field_name: (IssueType.INVALID_UNIT, IssueType.INVALID_UNIT)},
+            )
+            with self.subTest(field=field_name, case="duplicates"):
+                with self.assertRaises(ValueError):
+                    MaterialRuleCaseEvaluation(**kwargs)
+
+    def test_exact_match_clean_both_empty(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        self.assertTrue(evaluation.is_match)
+        self.assertFalse(evaluation.is_mismatch)
+        self.assertTrue(evaluation.is_clean_match)
+        self.assertFalse(evaluation.is_defect_match)
+        self.assertEqual(evaluation.false_positives, ())
+        self.assertEqual(evaluation.false_negatives, ())
+        self.assertEqual(evaluation.true_positives, ())
+        self.assertFalse(evaluation.has_false_positives)
+        self.assertFalse(evaluation.has_false_negatives)
+
+    def test_exact_match_with_defects(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT, IssueType.MISSING_CRITICAL_FIELD),
+            predicted_issue_types=(IssueType.MISSING_CRITICAL_FIELD, IssueType.INVALID_UNIT),
+        )
+        self.assertTrue(evaluation.is_match)
+        self.assertFalse(evaluation.is_mismatch)
+        self.assertFalse(evaluation.is_clean_match)
+        self.assertTrue(evaluation.is_defect_match)
+        self.assertEqual(evaluation.false_positives, ())
+        self.assertEqual(evaluation.false_negatives, ())
+        self.assertEqual(
+            evaluation.true_positives,
+            tuple(sorted((IssueType.INVALID_UNIT, IssueType.MISSING_CRITICAL_FIELD), key=lambda x: x.value)),
+        )
+        self.assertFalse(evaluation.has_false_positives)
+        self.assertFalse(evaluation.has_false_negatives)
+
+    def test_mismatch_false_positives_only(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(),
+            predicted_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        self.assertFalse(evaluation.is_match)
+        self.assertTrue(evaluation.is_mismatch)
+        self.assertFalse(evaluation.is_clean_match)
+        self.assertFalse(evaluation.is_defect_match)
+        self.assertEqual(evaluation.false_positives, (IssueType.INVALID_UNIT,))
+        self.assertEqual(evaluation.false_negatives, ())
+        self.assertEqual(evaluation.true_positives, ())
+        self.assertTrue(evaluation.has_false_positives)
+        self.assertFalse(evaluation.has_false_negatives)
+
+    def test_mismatch_false_negatives_only(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(),
+        )
+        self.assertFalse(evaluation.is_match)
+        self.assertTrue(evaluation.is_mismatch)
+        self.assertFalse(evaluation.is_clean_match)
+        self.assertFalse(evaluation.is_defect_match)
+        self.assertEqual(evaluation.false_positives, ())
+        self.assertEqual(evaluation.false_negatives, (IssueType.INVALID_UNIT,))
+        self.assertEqual(evaluation.true_positives, ())
+        self.assertFalse(evaluation.has_false_positives)
+        self.assertTrue(evaluation.has_false_negatives)
+
+    def test_partial_overlap(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT, IssueType.MISSING_CRITICAL_FIELD),
+            predicted_issue_types=(IssueType.INVALID_UNIT, IssueType.AMBIGUOUS_DESCRIPTION),
+        )
+        self.assertFalse(evaluation.is_match)
+        self.assertTrue(evaluation.is_mismatch)
+        self.assertEqual(evaluation.true_positives, (IssueType.INVALID_UNIT,))
+        self.assertEqual(evaluation.false_positives, (IssueType.AMBIGUOUS_DESCRIPTION,))
+        self.assertEqual(evaluation.false_negatives, (IssueType.MISSING_CRITICAL_FIELD,))
+        self.assertTrue(evaluation.has_false_positives)
+        self.assertTrue(evaluation.has_false_negatives)
+
+    def test_total_disjunction(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(IssueType.AMBIGUOUS_DESCRIPTION,),
+        )
+        self.assertFalse(evaluation.is_match)
+        self.assertTrue(evaluation.is_mismatch)
+        self.assertEqual(evaluation.true_positives, ())
+        self.assertEqual(evaluation.false_positives, (IssueType.AMBIGUOUS_DESCRIPTION,))
+        self.assertEqual(evaluation.false_negatives, (IssueType.INVALID_UNIT,))
+        self.assertTrue(evaluation.has_false_positives)
+        self.assertTrue(evaluation.has_false_negatives)
+
+    def test_canonical_sorting_of_sets(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(
+                IssueType.MISSING_TECHNICAL_ATTRIBUTE,
+                IssueType.INVALID_UNIT,
+            ),
+            predicted_issue_types=(
+                IssueType.AMBIGUOUS_DESCRIPTION,
+                IssueType.INVALID_STATUS,
+            ),
+        )
+        self.assertIsInstance(evaluation.false_positives, tuple)
+        self.assertIsInstance(evaluation.false_negatives, tuple)
+        self.assertIsInstance(evaluation.true_positives, tuple)
+        self.assertEqual(
+            evaluation.false_positives,
+            tuple(sorted(evaluation.false_positives, key=lambda x: x.value)),
+        )
+        self.assertEqual(
+            evaluation.false_negatives,
+            tuple(sorted(evaluation.false_negatives, key=lambda x: x.value)),
+        )
+
+    def test_frozen_immutability(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.material_id = "MAT-002"  # type: ignore[misc]
+
+    def test_slots_no_dict(self) -> None:
+        evaluation = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        self.assertFalse(hasattr(evaluation, "__dict__"))
+
+
+class EvaluateMaterialRuleTests(unittest.TestCase):
+    """Testes para a função atômica evaluate_material_rule."""
+
+    def test_successful_atomic_evaluation(self) -> None:
+        gt = _make_rule_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        pred = _make_rule_prediction(
+            material_id="MAT-001",
+            predicted_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        res = evaluate_material_rule(gt, pred)
+        self.assertIsInstance(res, MaterialRuleCaseEvaluation)
+        self.assertEqual(res.evaluation_case_id, "CASE-001")
+        self.assertEqual(res.ground_truth_id, "GT-001")
+        self.assertEqual(res.material_id, "MAT-001")
+        self.assertEqual(res.expected_issue_types, (IssueType.INVALID_UNIT,))
+        self.assertEqual(res.predicted_issue_types, (IssueType.INVALID_UNIT,))
+        self.assertTrue(res.is_match)
+
+    def test_rejects_non_ground_truth_instance(self) -> None:
+        pred = _make_rule_prediction()
+        with self.assertRaises(TypeError):
+            evaluate_material_rule("invalid", pred)  # type: ignore[arg-type]
+
+    def test_rejects_non_prediction_instance(self) -> None:
+        gt = _make_rule_ground_truth()
+        with self.assertRaises(TypeError):
+            evaluate_material_rule(gt, "invalid")  # type: ignore[arg-type]
+
+    def test_rejects_material_id_mismatch(self) -> None:
+        gt = _make_rule_ground_truth(material_id="MAT-001")
+        pred = _make_rule_prediction(material_id="MAT-002")
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_material_rule(gt, pred)
+        self.assertIn("material_id mismatch", str(ctx.exception))
+
+
+class MaterialRuleEvaluationReportTests(unittest.TestCase):
+    """Testes para MaterialRuleEvaluationReport."""
+
+    def test_valid_creation_and_canonical_ordering(self) -> None:
+        c1 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        c2 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        report = MaterialRuleEvaluationReport(
+            dataset_id="DS-001",
+            cases=(c1, c2),
+        )
+        self.assertEqual(report.dataset_id, "DS-001")
+        self.assertEqual(report.cases, (c2, c1))
+        self.assertEqual(report.total_cases, 2)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertEqual(report.accuracy, 1.0)
+        self.assertEqual(report.exact_match_ratio, 1.0)
+        self.assertTrue(report.is_perfect_match)
+        self.assertFalse(report.is_empty)
+
+    def test_dataset_id_normalized_with_strip(self) -> None:
+        report = MaterialRuleEvaluationReport(
+            dataset_id="  DS-001 \t ",
+            cases=(),
+        )
+        self.assertEqual(report.dataset_id, "DS-001")
+
+    def test_dataset_id_rejects_empty_or_whitespace(self) -> None:
+        for val in ("", "   ", "\t\n"):
+            with self.subTest(value=val):
+                with self.assertRaises(ValueError):
+                    MaterialRuleEvaluationReport(dataset_id=val, cases=())
+
+    def test_dataset_id_rejects_invalid_types(self) -> None:
+        for val in (None, 123, True, False, []):
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError):
+                    MaterialRuleEvaluationReport(dataset_id=val, cases=())  # type: ignore[arg-type]
+
+    def test_cases_must_be_tuple(self) -> None:
+        with self.assertRaises(TypeError):
+            MaterialRuleEvaluationReport(dataset_id="DS-001", cases=[])  # type: ignore[arg-type]
+
+    def test_cases_rejects_invalid_elements(self) -> None:
+        with self.assertRaises(TypeError):
+            MaterialRuleEvaluationReport(dataset_id="DS-001", cases=("invalid",))  # type: ignore[arg-type]
+
+    def test_cases_rejects_duplicate_evaluation_case_id(self) -> None:
+        c1 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        c2 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        with self.assertRaises(ValueError) as ctx:
+            MaterialRuleEvaluationReport(dataset_id="DS-001", cases=(c1, c2))
+        self.assertIn("duplicate evaluation_case_id", str(ctx.exception))
+
+    def test_metrics_computation(self) -> None:
+        c1 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        c2 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(IssueType.AMBIGUOUS_DESCRIPTION,),
+        )
+        c3 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            material_id="MAT-003",
+            expected_issue_types=(IssueType.MISSING_CRITICAL_FIELD,),
+            predicted_issue_types=(IssueType.MISSING_CRITICAL_FIELD, IssueType.INVALID_STATUS),
+        )
+        report = MaterialRuleEvaluationReport(dataset_id="DS-001", cases=(c1, c2, c3))
+        self.assertEqual(report.total_cases, 3)
+        self.assertEqual(report.matched_cases, 1)
+        self.assertEqual(report.mismatched_cases, 2)
+        self.assertEqual(report.accuracy, 1 / 3)
+        self.assertEqual(report.exact_match_ratio, 1 / 3)
+        self.assertEqual(report.total_false_positives, 2)
+        self.assertEqual(report.total_false_negatives, 1)
+        self.assertEqual(report.total_true_positives, 2)
+        self.assertFalse(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.matches, (c1,))
+        self.assertEqual(report.mismatches, (c2, c3))
+
+    def test_accuracy_is_exact_float_no_rounding(self) -> None:
+        c1 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(),
+            predicted_issue_types=(),
+        )
+        c2 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(),
+        )
+        c3 = MaterialRuleCaseEvaluation(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            material_id="MAT-003",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+            predicted_issue_types=(),
+        )
+        report = MaterialRuleEvaluationReport(dataset_id="DS-001", cases=(c1, c2, c3))
+        self.assertEqual(report.accuracy, 1 / 3)
+        self.assertEqual(report.exact_match_ratio, 1 / 3)
+        self.assertNotEqual(report.accuracy, 0.33)
+
+    def test_empty_report_semantics(self) -> None:
+        report = MaterialRuleEvaluationReport(dataset_id="DS-001", cases=())
+        self.assertEqual(report.total_cases, 0)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertIsNone(report.accuracy)
+        self.assertIsNone(report.exact_match_ratio)
+        self.assertEqual(report.total_false_positives, 0)
+        self.assertEqual(report.total_false_negatives, 0)
+        self.assertEqual(report.total_true_positives, 0)
+        self.assertTrue(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.matches, ())
+        self.assertEqual(report.mismatches, ())
+
+    def test_frozen_immutability(self) -> None:
+        report = MaterialRuleEvaluationReport(dataset_id="DS-001", cases=())
+        with self.assertRaises(FrozenInstanceError):
+            report.dataset_id = "DS-002"  # type: ignore[misc]
+
+    def test_slots_no_dict(self) -> None:
+        report = MaterialRuleEvaluationReport(dataset_id="DS-001", cases=())
+        self.assertFalse(hasattr(report, "__dict__"))
+
+
+class EvaluateMaterialRulesBatchTests(unittest.TestCase):
+    """Testes para evaluate_material_rules em lote."""
+
+    def test_successful_batch_evaluation(self) -> None:
+        gt1 = _make_rule_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+            expected_issue_types=(IssueType.INVALID_UNIT,),
+        )
+        gt2 = _make_rule_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+            expected_issue_types=(),
+        )
+        dataset = MaterialRuleGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt1, gt2),
+        )
+        preds = {
+            "CASE-001": _make_rule_prediction(
+                material_id="MAT-001",
+                predicted_issue_types=(IssueType.INVALID_UNIT,),
+            ),
+            "CASE-002": _make_rule_prediction(
+                material_id="MAT-002",
+                predicted_issue_types=(),
+            ),
+        }
+        report = evaluate_material_rules(dataset, preds)
+        self.assertEqual(report.dataset_id, "DS-001")
+        self.assertEqual(report.total_cases, 2)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertTrue(report.is_perfect_match)
+
+    def test_dataset_type_invalid(self) -> None:
+        with self.assertRaises(TypeError):
+            evaluate_material_rules("invalid", {})  # type: ignore[arg-type]
+
+    def test_predictions_not_mapping(self) -> None:
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=())
+        with self.assertRaises(TypeError):
+            evaluate_material_rules(dataset, [])  # type: ignore[arg-type]
+
+    def test_predictions_key_invalid_type(self) -> None:
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=())
+        invalid_keys = (123, True, False, None)
+        for k in invalid_keys:
+            with self.subTest(key=k):
+                with self.assertRaises(TypeError):
+                    evaluate_material_rules(dataset, {k: _make_rule_prediction()})  # type: ignore[dict-item]
+
+    def test_predictions_value_invalid_type(self) -> None:
+        gt = _make_rule_ground_truth(evaluation_case_id="CASE-001")
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=(gt,))
+        with self.assertRaises(TypeError):
+            evaluate_material_rules(dataset, {"CASE-001": "invalid"})  # type: ignore[dict-item]
+
+    def test_missing_evaluation_case_id(self) -> None:
+        gt1 = _make_rule_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        gt2 = _make_rule_ground_truth(evaluation_case_id="CASE-002", ground_truth_id="GT-002")
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=(gt1, gt2))
+        preds = {
+            "CASE-001": _make_rule_prediction(),
+        }
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_material_rules(dataset, preds)
+        self.assertIn("missing predictions for evaluation_case_id", str(ctx.exception))
+
+    def test_extra_evaluation_case_id(self) -> None:
+        gt1 = _make_rule_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=(gt1,))
+        preds = {
+            "CASE-001": _make_rule_prediction(),
+            "CASE-002": _make_rule_prediction(),
+        }
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_material_rules(dataset, preds)
+        self.assertIn("unexpected predictions for evaluation_case_id", str(ctx.exception))
+
+    def test_material_id_mismatch_in_batch(self) -> None:
+        gt1 = _make_rule_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001", material_id="MAT-001")
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=(gt1,))
+        preds = {
+            "CASE-001": _make_rule_prediction(material_id="MAT-002"),
+        }
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_material_rules(dataset, preds)
+        self.assertIn("material_id mismatch for evaluation_case_id", str(ctx.exception))
+
+    def test_mapping_order_independence(self) -> None:
+        gt1 = _make_rule_ground_truth(evaluation_case_id="CASE-001", ground_truth_id="GT-001")
+        gt2 = _make_rule_ground_truth(evaluation_case_id="CASE-002", ground_truth_id="GT-002")
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=(gt1, gt2))
+        preds = {
+            "CASE-002": _make_rule_prediction(),
+            "CASE-001": _make_rule_prediction(),
+        }
+        report = evaluate_material_rules(dataset, preds)
+        self.assertEqual(report.cases[0].evaluation_case_id, "CASE-001")
+        self.assertEqual(report.cases[1].evaluation_case_id, "CASE-002")
+
+    def test_empty_dataset_and_predictions(self) -> None:
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="DS-001", items=())
+        report = evaluate_material_rules(dataset, {})
+        self.assertEqual(report.dataset_id, "DS-001")
+        self.assertEqual(report.total_cases, 0)
+        self.assertTrue(report.is_empty)
+        self.assertIsNone(report.accuracy)
+        self.assertIsNone(report.exact_match_ratio)
+
+    def test_preserves_dataset_id(self) -> None:
+        dataset = MaterialRuleGroundTruthDataset(dataset_id="CUSTOM-DATASET-42", items=())
+        report = evaluate_material_rules(dataset, {})
+        self.assertEqual(report.dataset_id, "CUSTOM-DATASET-42")
+
+
 class GroundTruthEvaluationPublicExportsTests(unittest.TestCase):
     """Testes de disponibilidade dos símbolos canônicos na API pública raiz (agent_lab)."""
 
@@ -933,6 +1685,11 @@ class GroundTruthEvaluationPublicExportsTests(unittest.TestCase):
             "DecisionRecommendationEvaluationReport",
             "evaluate_decision_recommendation",
             "evaluate_decision_recommendations",
+            "MaterialRulePrediction",
+            "MaterialRuleCaseEvaluation",
+            "MaterialRuleEvaluationReport",
+            "evaluate_material_rule",
+            "evaluate_material_rules",
         )
         for symbol_name in expected_symbols:
             with self.subTest(symbol=symbol_name):
@@ -951,6 +1708,11 @@ class GroundTruthEvaluationPublicExportsTests(unittest.TestCase):
             "DecisionRecommendationEvaluationReport",
             "evaluate_decision_recommendation",
             "evaluate_decision_recommendations",
+            "MaterialRulePrediction",
+            "MaterialRuleCaseEvaluation",
+            "MaterialRuleEvaluationReport",
+            "evaluate_material_rule",
+            "evaluate_material_rules",
         )
         for symbol_name in expected_symbols:
             with self.subTest(symbol=symbol_name):
@@ -964,14 +1726,24 @@ class GroundTruthEvaluationPublicExportsTests(unittest.TestCase):
         from agent_lab import (
             DecisionRecommendationCaseEvaluation as DirectCaseEval,
             DecisionRecommendationEvaluationReport as DirectReport,
+            MaterialRuleCaseEvaluation as DirectRuleCaseEval,
+            MaterialRuleEvaluationReport as DirectRuleReport,
+            MaterialRulePrediction as DirectRulePred,
             evaluate_decision_recommendation as direct_eval_one,
             evaluate_decision_recommendations as direct_eval_batch,
+            evaluate_material_rule as direct_eval_rule_one,
+            evaluate_material_rules as direct_eval_rule_batch,
         )
 
         self.assertIs(DirectCaseEval, DecisionRecommendationCaseEvaluation)
         self.assertIs(DirectReport, DecisionRecommendationEvaluationReport)
         self.assertIs(direct_eval_one, evaluate_decision_recommendation)
         self.assertIs(direct_eval_batch, evaluate_decision_recommendations)
+        self.assertIs(DirectRulePred, MaterialRulePrediction)
+        self.assertIs(DirectRuleCaseEval, MaterialRuleCaseEvaluation)
+        self.assertIs(DirectRuleReport, MaterialRuleEvaluationReport)
+        self.assertIs(direct_eval_rule_one, evaluate_material_rule)
+        self.assertIs(direct_eval_rule_batch, evaluate_material_rules)
 
 
 if __name__ == "__main__":
