@@ -20,8 +20,13 @@ from .ground_truth import (
 from .ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
     DecisionRecommendationEvaluationReport,
+    MaterialRuleCaseEvaluation,
+    MaterialRuleEvaluationReport,
+    MaterialRulePrediction,
     evaluate_decision_recommendation,
     evaluate_decision_recommendations,
+    evaluate_material_rule,
+    evaluate_material_rules,
 )
 from .human_review_claim import (
     HumanReviewClaim,
@@ -112,4 +117,9 @@ __all__ = [
     "DecisionRecommendationEvaluationReport",
     "evaluate_decision_recommendation",
     "evaluate_decision_recommendations",
+    "MaterialRulePrediction",
+    "MaterialRuleCaseEvaluation",
+    "MaterialRuleEvaluationReport",
+    "evaluate_material_rule",
+    "evaluate_material_rules",
 ]
