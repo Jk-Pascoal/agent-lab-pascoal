@@ -10,16 +10,17 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0129` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#129` |
 | **Título da Issue** | `Ground Truth Material Rule Evaluator v1` |
-| **Branch documental** | `docs/issue-129-material-rule-ground-truth-evaluator-spec` |
-| **Branch funcional planejada** | `feature/issue-129-ground-truth-material-rule-evaluator` |
+| **Branch funcional** | `feature/issue-129-ground-truth-material-rule-evaluator` (integrada via PR #131) |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-17` |
 | **Última atualização** | `2026-09-17` |
 | **Baseline de entrada** | `830 testes aprovados` (100% GREEN) |
-| **Baseline planejado** | `830 + N testes aprovados` (100% GREEN) |
+| **Baseline de saída** | `883 testes aprovados` (100% GREEN) |
+| **PR funcional** | `#131` |
+| **Merge commit** | `68c99bd` |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
 ---
@@ -486,7 +487,7 @@ A implementação seguirá o ciclo rigoroso TDD em slices incrementais:
   ```powershell
   python -m unittest discover -s tests -v
   ```
-- Garantia de 830 + N testes GREEN (100% aprovados).
+- Garantia de 883 testes GREEN (+53 novos testes, 100% aprovados).
 
 ---
 
@@ -543,20 +544,20 @@ Por se tratar de adição modular e incremental em `src/agent_lab/ground_truth_e
 
 ## 13. Critérios de aceite (Acceptance Criteria)
 
-- [ ] SPEC técnica formal aprovada pelo arquiteto humano;
-- [ ] Implementação de `MaterialRulePrediction` com `frozen=True, slots=True`, rejeição fail-closed de duplicatas e bloqueio de `POSSIBLE_DUPLICATE`;
-- [ ] Implementação de `MaterialRuleCaseEvaluation` com `frozen=True, slots=True` e semântica de conjuntos (`false_positives`, `false_negatives`, `true_positives`, `is_match`, `is_clean_match`, `is_defect_match`);
-- [ ] Implementação de `MaterialRuleEvaluationReport` com `frozen=True, slots=True`, `dataset_id` compulsório e ordenação canônica;
-- [ ] Implementação de `evaluate_material_rule(ground_truth, prediction)`;
-- [ ] Implementação de `evaluate_material_rules(dataset, predictions)` aceitando estritamente `Mapping[str, MaterialRulePrediction]`;
-- [ ] Validação fail-closed estrita para tipos nominais (`TypeError`), divergência de `material_id` (`ValueError`), duplicatas de `IssueType` (`ValueError`), chaves faltantes (`ValueError`) e chaves excedentes (`ValueError`);
-- [ ] Semântica explícita de coleção vazia (`accuracy is None`, `exact_match_ratio is None`, `is_empty is True`);
-- [ ] Cálculo de `accuracy` / `exact_match_ratio` sem arredondamento interno;
-- [ ] Independência de ordem comprovada por testes;
-- [ ] Exportações canônicas adicionadas a `src/agent_lab/__init__.py`;
-- [ ] Bateria de testes unitários defensivos implementada em `tests/test_ground_truth_evaluation.py`;
-- [ ] Baseline integrado de 830 testes mantido 100% GREEN (830 + N novos testes);
-- [ ] `git diff --check` aprovado sem trailing whitespace.
+- [x] SPEC técnica formal aprovada pelo arquiteto humano;
+- [x] Implementação de `MaterialRulePrediction` com `frozen=True, slots=True`, rejeição fail-closed de duplicatas e bloqueio de `POSSIBLE_DUPLICATE`;
+- [x] Implementação de `MaterialRuleCaseEvaluation` com `frozen=True, slots=True` e semântica de conjuntos (`false_positives`, `false_negatives`, `true_positives`, `is_match`, `is_clean_match`, `is_defect_match`);
+- [x] Implementação de `MaterialRuleEvaluationReport` com `frozen=True, slots=True`, `dataset_id` compulsório e ordenação canônica;
+- [x] Implementação de `evaluate_material_rule(ground_truth, prediction)`;
+- [x] Implementação de `evaluate_material_rules(dataset, predictions)` aceitando estritamente `Mapping[str, MaterialRulePrediction]`;
+- [x] Validação fail-closed estrita para tipos nominais (`TypeError`), divergência de `material_id` (`ValueError`), duplicatas de `IssueType` (`ValueError`), chaves faltantes (`ValueError`) e chaves excedentes (`ValueError`);
+- [x] Semântica explícita de coleção vazia (`accuracy is None`, `exact_match_ratio is None`, `is_empty is True`);
+- [x] Cálculo de `accuracy` / `exact_match_ratio` sem arredondamento interno;
+- [x] Independência de ordem comprovada por testes;
+- [x] Exportações canônicas adicionadas a `src/agent_lab/__init__.py`;
+- [x] Bateria de testes unitários defensivos implementada em `tests/test_ground_truth_evaluation.py`;
+- [x] Baseline integrado de 830 testes mantido 100% GREEN (830 + 53 novos testes = 883);
+- [x] `git diff --check` aprovado sem trailing whitespace.
 
 ---
 
