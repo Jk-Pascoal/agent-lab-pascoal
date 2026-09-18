@@ -10,17 +10,20 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0133` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#133` |
 | **Título da Issue** | `Ground Truth Duplicate Pair Evaluator v1` |
 | **Branch documental** | `docs/issue-133-ground-truth-duplicate-pair-evaluator-spec` |
+| **Branch funcional** | `feature/issue-133-ground-truth-duplicate-pair-evaluator` (integrada via PR #135) |
+| **PR funcional** | `#135` |
+| **Merge commit** | `8845ad4` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-18` |
 | **Última atualização** | `2026-09-18` |
 | **Domínio** | Governança de materiais industriais PDM/BOM e Master Data |
 | **Camada arquitetural** | Metrologia e Avaliação de Ground Truth (pura em memória, zero-I/O) |
 | **Baseline de entrada** | `883 testes aprovados` (100% GREEN) |
-| **Baseline esperado** | `883 + novos testes da Issue #133` (100% GREEN) |
+| **Baseline final integrado** | `936 testes aprovados` (100% GREEN) |
 | **Impacto SemVer** | `MINOR` (release formal permanece `v0.1.0`) |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
@@ -519,15 +522,37 @@ Ficam expressamente adiadas para incrementos futuros:
 
 ## 15. Critérios de aceite da SPEC
 
-- [ ] SPEC técnica formal elaborada e em conformidade com a Issue #133;
-- [ ] Implementação de `DuplicatePairPrediction`, `DuplicatePairCaseEvaluation` e `DuplicatePairEvaluationReport` com `frozen=True, slots=True` e `dataset_id: str` obrigatório;
-- [ ] Implementação de `evaluate_duplicate_pair` e `evaluate_duplicate_pairs`;
-- [ ] Validações defensivas fail-closed para tipos nominais (`TypeError`), disparidade relacional de `material_id_a`/`material_id_b` (`ValueError`), auto-pares (`ValueError`), pares invertidos (`ValueError`), chaves faltantes e excedentes (`ValueError`);
-- [ ] Ordenação canônica determinística compulsória dos casos no relatório garantida por `(evaluation_case_id, ground_truth_id)`;
-- [ ] Semântica explícita de coleção vazia (`accuracy is None`, `is_empty is True`, `total_cases == 0`) comprovada;
-- [ ] Imutabilidade estrita dos novos contratos comprovada com `FrozenInstanceError`;
-- [ ] Exportações canônicas adicionadas a `src/agent_lab/__init__.py` e `__all__`;
-- [ ] Bateria abrangente de testes unitários defensivos implementada em `tests/test_ground_truth_evaluation.py` cobrindo todos os 6 slices;
-- [ ] Baseline de 883 testes mantido 100% GREEN (`883 + novos testes da Issue #133`);
-- [ ] `git diff --check` aprovado sem trailing whitespace;
-- [ ] Status atualizado para `IMPLEMENTED` após a conclusão do ciclo TDD.
+- [x] SPEC técnica formal elaborada e em conformidade com a Issue #133;
+- [x] Implementação de `DuplicatePairPrediction`, `DuplicatePairCaseEvaluation` e `DuplicatePairEvaluationReport` com `frozen=True, slots=True` e `dataset_id: str` obrigatório;
+- [x] Implementação de `evaluate_duplicate_pair` e `evaluate_duplicate_pairs`;
+- [x] Validações defensivas fail-closed para tipos nominais (`TypeError`), disparidade relacional de `material_id_a`/`material_id_b` (`ValueError`), auto-pares (`ValueError`), pares invertidos (`ValueError`), chaves faltantes e excedentes (`ValueError`);
+- [x] Ordenação canônica determinística compulsória dos casos no relatório garantida por `(evaluation_case_id, ground_truth_id)`;
+- [x] Semântica explícita de coleção vazia (`accuracy is None`, `is_empty is True`, `total_cases == 0`) comprovada;
+- [x] Imutabilidade estrita dos novos contratos comprovada com `FrozenInstanceError`;
+- [x] Exportações canônicas adicionadas a `src/agent_lab/__init__.py` e `__all__`;
+- [x] Bateria abrangente de testes unitários defensivos implementada em `tests/test_ground_truth_evaluation.py` cobrindo todos os 6 slices;
+- [x] Baseline de 883 testes mantido 100% GREEN (`936 testes aprovados`);
+- [x] `git diff --check` aprovado sem trailing whitespace;
+- [x] Status atualizado para `IMPLEMENTED` após a conclusão do ciclo TDD e integração na `main` via PR #135 (merge commit `8845ad4`).
+
+---
+
+## 16. Resultado da implementação consolidada
+
+A implementação funcional da Issue #133 foi realizada integralmente via TDD rigoroso em 6 slices verticais atômicos e integrada à branch `main` através do PR funcional #135 (merge commit `8845ad4` em 18/09/2026):
+
+- **Baseline inicial**: 883 testes GREEN;
+- **Baseline final integrado**: 936 testes GREEN (+53 novos testes unitários e defensivos);
+- **Regressões**: zero (100% da suíte histórica preservada);
+- **PR funcional**: [#135](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/135) (merge commit `8845ad4`);
+- **Módulos de produção modificados**:
+  - `src/agent_lab/ground_truth_evaluation.py` (contratos, avaliadores e relatório);
+  - `src/agent_lab/__init__.py` (exportações canônicas no pacote raiz).
+- **Módulo de testes**: `tests/test_ground_truth_evaluation.py`;
+- **Slices de TDD executados:**
+  1. Slice 1 (`1a9af85`): `DuplicatePairPrediction` (+11 testes);
+  2. Slice 2 (`ab60b46`): `DuplicatePairCaseEvaluation` (+8 testes);
+  3. Slice 3 (`1952ffa`): `evaluate_duplicate_pair` (+8 testes);
+  4. Slice 4 (`94e8059`): `DuplicatePairEvaluationReport` (+13 testes);
+  5. Slice 5 (`f90c115`): `evaluate_duplicate_pairs` (+11 testes);
+  6. Slice 6 (`68c2d42`): exports públicos em `agent_lab` (+2 testes).
