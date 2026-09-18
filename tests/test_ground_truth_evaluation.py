@@ -18,6 +18,7 @@ from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
     DecisionRecommendationEvaluationReport,
     DuplicatePairCaseEvaluation,
+    DuplicatePairEvaluationReport,
     DuplicatePairPrediction,
     MaterialRuleCaseEvaluation,
     MaterialRuleEvaluationReport,
@@ -144,6 +145,25 @@ def _make_duplicate_pair_prediction(
         material_id_a=material_id_a,
         material_id_b=material_id_b,
         is_duplicate=is_duplicate,
+    )
+
+
+def _make_duplicate_pair_case_evaluation(
+    *,
+    evaluation_case_id: str = "CASE-001",
+    ground_truth_id: str = "GT-001",
+    material_id_a: str = "MAT-001",
+    material_id_b: str = "MAT-002",
+    expected_is_duplicate: bool = True,
+    predicted_is_duplicate: bool = True,
+) -> DuplicatePairCaseEvaluation:
+    return DuplicatePairCaseEvaluation(
+        evaluation_case_id=evaluation_case_id,
+        ground_truth_id=ground_truth_id,
+        material_id_a=material_id_a,
+        material_id_b=material_id_b,
+        expected_is_duplicate=expected_is_duplicate,
+        predicted_is_duplicate=predicted_is_duplicate,
     )
 
 
@@ -2279,6 +2299,228 @@ class EvaluateDuplicatePairTests(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             evaluate_duplicate_pair(gt, pred)
         self.assertIn("material pair mismatch", str(ctx.exception))
+
+
+class DuplicatePairEvaluationReportTests(unittest.TestCase):
+    """Testes para DuplicatePairEvaluationReport (Slice 4)."""
+
+    def test_nominal_construction_and_fields(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1,),
+        )
+        self.assertEqual(report.dataset_id, "DATASET-001")
+        self.assertEqual(report.cases, (c1,))
+
+    def test_dataset_id_normalized_with_strip(self) -> None:
+        report = DuplicatePairEvaluationReport(
+            dataset_id="  DATASET-001  ",
+            cases=(),
+        )
+        self.assertEqual(report.dataset_id, "DATASET-001")
+
+    def test_dataset_id_rejects_invalid_types(self) -> None:
+        invalid_types = (123, 45.6, True, False, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id=val,  # type: ignore[arg-type]
+                        cases=(),
+                    )
+                self.assertIn("dataset_id must be a str", str(ctx.exception))
+
+    def test_dataset_id_rejects_empty_or_whitespace(self) -> None:
+        invalid_strings = ("", "   ", "\t\n", "\r\n \t")
+        for val in invalid_strings:
+            with self.subTest(value=repr(val)):
+                with self.assertRaises(ValueError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id=val,
+                        cases=(),
+                    )
+                self.assertIn("dataset_id must not be empty or whitespace", str(ctx.exception))
+
+    def test_cases_must_be_tuple(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation()
+        invalid_cases = ([c1], {c1}, {"cases": c1}, None, "invalid", 123)
+        for val in invalid_cases:
+            with self.subTest(cases_type=type(val)):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id="DATASET-001",
+                        cases=val,  # type: ignore[arg-type]
+                    )
+                self.assertEqual(str(ctx.exception), "cases must be a tuple")
+
+    def test_cases_rejects_invalid_elements(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation()
+        invalid_elements = ("invalid", 123, None, object(), [])
+        for val in invalid_elements:
+            with self.subTest(invalid_element=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id="DATASET-001",
+                        cases=(c1, val),  # type: ignore[arg-type]
+                    )
+                self.assertEqual(
+                    str(ctx.exception),
+                    "cases[1] must be a DuplicatePairCaseEvaluation instance",
+                )
+
+    def test_cases_rejects_duplicate_evaluation_case_id(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-002",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairEvaluationReport(
+                dataset_id="DATASET-001",
+                cases=(c1, c2),
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "duplicate evaluation_case_id in cases: 'CASE-001'",
+        )
+
+    def test_canonical_ordering_by_evaluation_case_id_and_ground_truth_id(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+        )
+        c3 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+        )
+        report_unordered = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2, c3),
+        )
+        report_ordered = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c2, c3, c1),
+        )
+        self.assertEqual(report_unordered.cases, (c2, c3, c1))
+        self.assertEqual(report_ordered.cases, (c2, c3, c1))
+
+    def test_metrics_computation_and_matches_mismatches(self) -> None:
+        # 3 casos: 2 matches, 1 mismatch
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,  # match
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            expected_is_duplicate=False,
+            predicted_is_duplicate=False,  # match
+        )
+        c3 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=False,  # mismatch
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c3, c2, c1),
+        )
+        self.assertEqual(report.total_cases, 3)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertEqual(report.mismatched_cases, 1)
+        self.assertEqual(report.accuracy, 2 / 3)
+        self.assertEqual(report.matches, (c1, c2))
+        self.assertEqual(report.mismatches, (c3,))
+        self.assertFalse(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+
+    def test_empty_dataset_semantics(self) -> None:
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-EMPTY",
+            cases=(),
+        )
+        self.assertEqual(report.total_cases, 0)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertIsNone(report.accuracy)
+        self.assertTrue(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.matches, ())
+        self.assertEqual(report.mismatches, ())
+
+    def test_perfect_match_report(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            expected_is_duplicate=False,
+            predicted_is_duplicate=False,
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2),
+        )
+        self.assertEqual(report.total_cases, 2)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertEqual(report.accuracy, 1.0)
+        self.assertFalse(report.is_empty)
+        self.assertTrue(report.is_perfect_match)
+        self.assertEqual(report.matches, (c1, c2))
+        self.assertEqual(report.mismatches, ())
+
+    def test_non_empty_with_mismatch_not_perfect_match(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=False,  # mismatch
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1,),
+        )
+        self.assertEqual(report.total_cases, 1)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 1)
+        self.assertEqual(report.accuracy, 0.0)
+        self.assertFalse(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.matches, ())
+        self.assertEqual(report.mismatches, (c1,))
+
+    def test_immutability_frozen_instance(self) -> None:
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(),
+        )
+        with self.assertRaises(FrozenInstanceError):
+            report.dataset_id = "DATASET-002"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            report.cases = ()  # type: ignore[misc]
 
 
 if __name__ == "__main__":

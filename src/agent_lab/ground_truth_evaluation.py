@@ -567,6 +567,115 @@ class DuplicatePairCaseEvaluation:
         return not self.is_match
 
 
+@dataclass(frozen=True, slots=True)
+class DuplicatePairEvaluationReport:
+    """Relatório estruturado e imutável da avaliação de pares duplicados."""
+
+    dataset_id: str
+    cases: tuple[DuplicatePairCaseEvaluation, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(
+                self.dataset_id,
+                "dataset_id",
+            ),
+        )
+
+        if not isinstance(self.cases, tuple):
+            raise TypeError("cases must be a tuple")
+
+        seen_case_ids: set[str] = set()
+        for idx, item in enumerate(self.cases):
+            if not isinstance(
+                item,
+                DuplicatePairCaseEvaluation,
+            ):
+                raise TypeError(
+                    f"cases[{idx}] must be a "
+                    f"DuplicatePairCaseEvaluation instance"
+                )
+
+            if item.evaluation_case_id in seen_case_ids:
+                raise ValueError(
+                    "duplicate evaluation_case_id in cases: "
+                    f"{item.evaluation_case_id!r}"
+                )
+
+            seen_case_ids.add(item.evaluation_case_id)
+
+        canonical = tuple(
+            sorted(
+                self.cases,
+                key=lambda case: (
+                    case.evaluation_case_id,
+                    case.ground_truth_id,
+                ),
+            )
+        )
+        object.__setattr__(
+            self,
+            "cases",
+            canonical,
+        )
+
+    @property
+    def total_cases(self) -> int:
+        return len(self.cases)
+
+    @property
+    def matched_cases(self) -> int:
+        return sum(
+            1
+            for case in self.cases
+            if case.is_match
+        )
+
+    @property
+    def mismatched_cases(self) -> int:
+        return self.total_cases - self.matched_cases
+
+    @property
+    def accuracy(self) -> float | None:
+        if self.total_cases == 0:
+            return None
+
+        return self.matched_cases / self.total_cases
+
+    @property
+    def is_empty(self) -> bool:
+        return self.total_cases == 0
+
+    @property
+    def is_perfect_match(self) -> bool:
+        return (
+            self.total_cases > 0
+            and self.matched_cases == self.total_cases
+        )
+
+    @property
+    def matches(
+        self,
+    ) -> tuple[DuplicatePairCaseEvaluation, ...]:
+        return tuple(
+            case
+            for case in self.cases
+            if case.is_match
+        )
+
+    @property
+    def mismatches(
+        self,
+    ) -> tuple[DuplicatePairCaseEvaluation, ...]:
+        return tuple(
+            case
+            for case in self.cases
+            if case.is_mismatch
+        )
+
+
 def evaluate_duplicate_pair(
     ground_truth: DuplicatePairGroundTruth,
     prediction: DuplicatePairPrediction,
