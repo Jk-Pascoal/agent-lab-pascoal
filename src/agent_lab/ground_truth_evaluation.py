@@ -495,3 +495,32 @@ def evaluate_material_rules(
         dataset_id=dataset.dataset_id,
         cases=tuple(evaluated_cases),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicatePairPrediction:
+    """Predição binária de duplicidade sobre um par canônico de materiais."""
+
+    material_id_a: str
+    material_id_b: str
+    is_duplicate: bool
+
+    def __post_init__(self) -> None:
+        normalized_a = _normalize_required_text(self.material_id_a, "material_id_a")
+        normalized_b = _normalize_required_text(self.material_id_b, "material_id_b")
+
+        object.__setattr__(self, "material_id_a", normalized_a)
+        object.__setattr__(self, "material_id_b", normalized_b)
+
+        if self.material_id_a == self.material_id_b:
+            raise ValueError(
+                "material_id_a and material_id_b must be different"
+            )
+
+        if self.material_id_a > self.material_id_b:
+            raise ValueError(
+                "material_id_a must be less than material_id_b"
+            )
+
+        if not isinstance(self.is_duplicate, bool):
+            raise TypeError("is_duplicate must be a bool")

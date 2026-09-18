@@ -16,6 +16,7 @@ from agent_lab.ground_truth import (
 from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
     DecisionRecommendationEvaluationReport,
+    DuplicatePairPrediction,
     MaterialRuleCaseEvaluation,
     MaterialRuleEvaluationReport,
     MaterialRulePrediction,
@@ -1744,6 +1745,166 @@ class GroundTruthEvaluationPublicExportsTests(unittest.TestCase):
         self.assertIs(DirectRuleReport, MaterialRuleEvaluationReport)
         self.assertIs(direct_eval_rule_one, evaluate_material_rule)
         self.assertIs(direct_eval_rule_batch, evaluate_material_rules)
+
+
+class DuplicatePairPredictionTests(unittest.TestCase):
+    """Testes unitários e defensivos para DuplicatePairPrediction (Slice 1)."""
+
+    def test_nominal_construction_and_fields(self) -> None:
+        pred_true = DuplicatePairPrediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        self.assertEqual(pred_true.material_id_a, "MAT-001")
+        self.assertEqual(pred_true.material_id_b, "MAT-002")
+        self.assertIs(pred_true.is_duplicate, True)
+
+        pred_false = DuplicatePairPrediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        self.assertEqual(pred_false.material_id_a, "MAT-001")
+        self.assertEqual(pred_false.material_id_b, "MAT-002")
+        self.assertIs(pred_false.is_duplicate, False)
+
+    def test_string_fields_normalized_with_strip(self) -> None:
+        pred = DuplicatePairPrediction(
+            material_id_a="  MAT-001  ",
+            material_id_b="\tMAT-002 \n",
+            is_duplicate=True,
+        )
+        self.assertEqual(pred.material_id_a, "MAT-001")
+        self.assertEqual(pred.material_id_b, "MAT-002")
+
+    def test_ordering_evaluated_after_normalization(self) -> None:
+        pred = DuplicatePairPrediction(
+            material_id_a="   MAT-001   ",
+            material_id_b=" MAT-002 ",
+            is_duplicate=False,
+        )
+        self.assertEqual(pred.material_id_a, "MAT-001")
+        self.assertEqual(pred.material_id_b, "MAT-002")
+
+    def test_immutability_frozen_instance(self) -> None:
+        pred = DuplicatePairPrediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        with self.assertRaises(FrozenInstanceError):
+            pred.material_id_a = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            pred.material_id_b = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            pred.is_duplicate = False  # type: ignore[misc]
+
+    def test_rejects_non_string_material_ids(self) -> None:
+        invalid_types = (123, 45.6, True, False, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(field="material_id_a", value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a=val,  # type: ignore[arg-type]
+                        material_id_b="MAT-002",
+                        is_duplicate=True,
+                    )
+                self.assertIn("material_id_a must be a str", str(ctx.exception))
+            with self.subTest(field="material_id_b", value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a="MAT-001",
+                        material_id_b=val,  # type: ignore[arg-type]
+                        is_duplicate=True,
+                    )
+                self.assertIn("material_id_b must be a str", str(ctx.exception))
+
+    def test_rejects_empty_or_whitespace_material_ids(self) -> None:
+        invalid_strings = ("", "   ", "\t\n", "\r\n  \t")
+        for val in invalid_strings:
+            with self.subTest(field="material_id_a", value=repr(val)):
+                with self.assertRaises(ValueError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a=val,
+                        material_id_b="MAT-002",
+                        is_duplicate=True,
+                    )
+                self.assertIn(
+                    "material_id_a must not be empty or whitespace",
+                    str(ctx.exception),
+                )
+            with self.subTest(field="material_id_b", value=repr(val)):
+                with self.assertRaises(ValueError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a="MAT-001",
+                        material_id_b=val,
+                        is_duplicate=True,
+                    )
+                self.assertIn(
+                    "material_id_b must not be empty or whitespace",
+                    str(ctx.exception),
+                )
+
+    def test_rejects_self_pair_equal_ids(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a="MAT-001",
+                material_id_b="MAT-001",
+                is_duplicate=True,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a and material_id_b must be different",
+        )
+
+    def test_rejects_self_pair_equal_ids_after_strip(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a=" MAT-001 ",
+                material_id_b="MAT-001",
+                is_duplicate=False,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a and material_id_b must be different",
+        )
+
+    def test_rejects_inverted_pair_order(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a="MAT-002",
+                material_id_b="MAT-001",
+                is_duplicate=True,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a must be less than material_id_b",
+        )
+
+    def test_rejects_inverted_pair_order_after_strip(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a=" MAT-002 ",
+                material_id_b=" MAT-001 ",
+                is_duplicate=False,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a must be less than material_id_b",
+        )
+
+    def test_rejects_non_bool_is_duplicate(self) -> None:
+        invalid_values = (0, 1, "True", "False", None, 0.0, 1.0, [], {})
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a="MAT-001",
+                        material_id_b="MAT-002",
+                        is_duplicate=val,  # type: ignore[arg-type]
+                    )
+                self.assertEqual(str(ctx.exception), "is_duplicate must be a bool")
 
 
 if __name__ == "__main__":
