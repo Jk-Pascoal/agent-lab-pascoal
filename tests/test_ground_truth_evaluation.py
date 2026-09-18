@@ -16,6 +16,7 @@ from agent_lab.ground_truth import (
 from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
     DecisionRecommendationEvaluationReport,
+    DuplicatePairCaseEvaluation,
     DuplicatePairPrediction,
     MaterialRuleCaseEvaluation,
     MaterialRuleEvaluationReport,
@@ -1905,6 +1906,177 @@ class DuplicatePairPredictionTests(unittest.TestCase):
                         is_duplicate=val,  # type: ignore[arg-type]
                     )
                 self.assertEqual(str(ctx.exception), "is_duplicate must be a bool")
+
+
+class DuplicatePairCaseEvaluationTests(unittest.TestCase):
+    """Testes unitários e defensivos para DuplicatePairCaseEvaluation (Slice 2)."""
+
+    def test_nominal_construction_and_fields(self) -> None:
+        evaluation = DuplicatePairCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+
+        self.assertEqual(evaluation.evaluation_case_id, "CASE-001")
+        self.assertEqual(evaluation.ground_truth_id, "GT-001")
+        self.assertEqual(evaluation.material_id_a, "MAT-001")
+        self.assertEqual(evaluation.material_id_b, "MAT-002")
+        self.assertIs(evaluation.expected_is_duplicate, True)
+        self.assertIs(evaluation.predicted_is_duplicate, True)
+        self.assertTrue(evaluation.is_match)
+        self.assertFalse(evaluation.is_mismatch)
+
+    def test_string_fields_normalized_with_strip(self) -> None:
+        evaluation = DuplicatePairCaseEvaluation(
+            evaluation_case_id="  CASE-001  ",
+            ground_truth_id="  GT-001\t",
+            material_id_a=" \nMAT-001 ",
+            material_id_b=" MAT-002\r\n",
+            expected_is_duplicate=False,
+            predicted_is_duplicate=False,
+        )
+
+        self.assertEqual(evaluation.evaluation_case_id, "CASE-001")
+        self.assertEqual(evaluation.ground_truth_id, "GT-001")
+        self.assertEqual(evaluation.material_id_a, "MAT-001")
+        self.assertEqual(evaluation.material_id_b, "MAT-002")
+
+    def test_immutability_frozen_instance(self) -> None:
+        evaluation = DuplicatePairCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.evaluation_case_id = "CASE-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.ground_truth_id = "GT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.material_id_a = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.material_id_b = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.expected_is_duplicate = False  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.predicted_is_duplicate = False  # type: ignore[misc]
+
+    def test_truth_table_complete(self) -> None:
+        cases = (
+            (False, False, True, False),
+            (False, True, False, True),
+            (True, False, False, True),
+            (True, True, True, False),
+        )
+
+        for expected, predicted, exp_match, exp_mismatch in cases:
+            with self.subTest(expected=expected, predicted=predicted):
+                evaluation = DuplicatePairCaseEvaluation(
+                    evaluation_case_id="CASE-001",
+                    ground_truth_id="GT-001",
+                    material_id_a="MAT-001",
+                    material_id_b="MAT-002",
+                    expected_is_duplicate=expected,
+                    predicted_is_duplicate=predicted,
+                )
+                self.assertIs(evaluation.is_match, exp_match)
+                self.assertIs(evaluation.is_mismatch, exp_mismatch)
+
+    def test_rejects_non_string_text_fields(self) -> None:
+        invalid_types = (123, 45.6, True, False, None, object(), [], {})
+        text_fields = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id_a",
+            "material_id_b",
+        )
+
+        for field_name in text_fields:
+            for val in invalid_types:
+                kwargs: dict[str, object] = {
+                    "evaluation_case_id": "CASE-001",
+                    "ground_truth_id": "GT-001",
+                    "material_id_a": "MAT-001",
+                    "material_id_b": "MAT-002",
+                    "expected_is_duplicate": True,
+                    "predicted_is_duplicate": True,
+                }
+                kwargs[field_name] = val
+                with self.subTest(field=field_name, value=val):
+                    with self.assertRaises(TypeError) as ctx:
+                        DuplicatePairCaseEvaluation(**kwargs)  # type: ignore[arg-type]
+                    self.assertIn(f"{field_name} must be a str", str(ctx.exception))
+
+    def test_rejects_empty_or_whitespace_text_fields(self) -> None:
+        invalid_strings = ("", "   ", "\t\n", "\r\n \t")
+        text_fields = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id_a",
+            "material_id_b",
+        )
+
+        for field_name in text_fields:
+            for val in invalid_strings:
+                kwargs: dict[str, object] = {
+                    "evaluation_case_id": "CASE-001",
+                    "ground_truth_id": "GT-001",
+                    "material_id_a": "MAT-001",
+                    "material_id_b": "MAT-002",
+                    "expected_is_duplicate": True,
+                    "predicted_is_duplicate": True,
+                }
+                kwargs[field_name] = val
+                with self.subTest(field=field_name, value=repr(val)):
+                    with self.assertRaises(ValueError) as ctx:
+                        DuplicatePairCaseEvaluation(**kwargs)
+                    self.assertIn(
+                        f"{field_name} must not be empty or whitespace",
+                        str(ctx.exception),
+                    )
+
+    def test_rejects_non_bool_expected_is_duplicate(self) -> None:
+        invalid_values = (0, 1, "True", "False", None, 0.0, 1.0, [], {})
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairCaseEvaluation(
+                        evaluation_case_id="CASE-001",
+                        ground_truth_id="GT-001",
+                        material_id_a="MAT-001",
+                        material_id_b="MAT-002",
+                        expected_is_duplicate=val,  # type: ignore[arg-type]
+                        predicted_is_duplicate=True,
+                    )
+                self.assertEqual(
+                    str(ctx.exception),
+                    "expected_is_duplicate must be a bool",
+                )
+
+    def test_rejects_non_bool_predicted_is_duplicate(self) -> None:
+        invalid_values = (0, 1, "True", "False", None, 0.0, 1.0, [], {})
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairCaseEvaluation(
+                        evaluation_case_id="CASE-001",
+                        ground_truth_id="GT-001",
+                        material_id_a="MAT-001",
+                        material_id_b="MAT-002",
+                        expected_is_duplicate=True,
+                        predicted_is_duplicate=val,  # type: ignore[arg-type]
+                    )
+                self.assertEqual(
+                    str(ctx.exception),
+                    "predicted_is_duplicate must be a bool",
+                )
 
 
 if __name__ == "__main__":

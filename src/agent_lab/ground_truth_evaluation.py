@@ -524,3 +524,43 @@ class DuplicatePairPrediction:
 
         if not isinstance(self.is_duplicate, bool):
             raise TypeError("is_duplicate must be a bool")
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicatePairCaseEvaluation:
+    """Resultado imutável da avaliação de duplicidade de um par individual de materiais."""
+
+    evaluation_case_id: str
+    ground_truth_id: str
+    material_id_a: str
+    material_id_b: str
+    expected_is_duplicate: bool
+    predicted_is_duplicate: bool
+
+    def __post_init__(self) -> None:
+        text_fields = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id_a",
+            "material_id_b",
+        )
+        for field_name in text_fields:
+            object.__setattr__(
+                self,
+                field_name,
+                _normalize_required_text(getattr(self, field_name), field_name),
+            )
+
+        if not isinstance(self.expected_is_duplicate, bool):
+            raise TypeError("expected_is_duplicate must be a bool")
+
+        if not isinstance(self.predicted_is_duplicate, bool):
+            raise TypeError("predicted_is_duplicate must be a bool")
+
+    @property
+    def is_match(self) -> bool:
+        return self.predicted_is_duplicate == self.expected_is_duplicate
+
+    @property
+    def is_mismatch(self) -> bool:
+        return not self.is_match
