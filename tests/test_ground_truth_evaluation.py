@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 import unittest
 
+import agent_lab
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
@@ -2816,6 +2817,46 @@ class EvaluateDuplicatePairsTests(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             evaluate_duplicate_pairs(dataset, predictions)
         self.assertIn("material pair mismatch", str(ctx.exception))
+
+
+class DuplicatePairPublicExportsTests(unittest.TestCase):
+    """Testes de exportação pública dos símbolos de avaliação de pares de duplicatas."""
+
+    def test_public_exports_in_agent_lab_package(self) -> None:
+        expected_exports = {
+            "DuplicatePairPrediction": DuplicatePairPrediction,
+            "DuplicatePairCaseEvaluation": DuplicatePairCaseEvaluation,
+            "DuplicatePairEvaluationReport": DuplicatePairEvaluationReport,
+            "evaluate_duplicate_pair": evaluate_duplicate_pair,
+            "evaluate_duplicate_pairs": evaluate_duplicate_pairs,
+        }
+
+        for name, expected in expected_exports.items():
+            with self.subTest(name=name):
+                self.assertTrue(
+                    hasattr(agent_lab, name),
+                    msg=f"{name} must be publicly exported from agent_lab",
+                )
+                self.assertIs(
+                    getattr(agent_lab, name),
+                    expected,
+                )
+
+    def test_all_contains_duplicate_pair_evaluation_symbols(self) -> None:
+        expected_names = {
+            "DuplicatePairPrediction",
+            "DuplicatePairCaseEvaluation",
+            "DuplicatePairEvaluationReport",
+            "evaluate_duplicate_pair",
+            "evaluate_duplicate_pairs",
+        }
+
+        for name in expected_names:
+            with self.subTest(name=name):
+                self.assertIn(
+                    name,
+                    agent_lab.__all__,
+                )
 
 
 if __name__ == "__main__":
