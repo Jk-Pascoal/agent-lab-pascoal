@@ -10,6 +10,8 @@ from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
     DecisionRecommendationGroundTruthDataset,
+    DuplicatePairGroundTruth,
+    DuplicatePairGroundTruthDataset,
     MaterialRuleGroundTruth,
     MaterialRuleGroundTruthDataset,
 )
@@ -492,6 +494,307 @@ def evaluate_material_rules(
         evaluated_cases.append(evaluated_case)
 
     return MaterialRuleEvaluationReport(
+        dataset_id=dataset.dataset_id,
+        cases=tuple(evaluated_cases),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicatePairPrediction:
+    """Predição binária de duplicidade sobre um par canônico de materiais."""
+
+    material_id_a: str
+    material_id_b: str
+    is_duplicate: bool
+
+    def __post_init__(self) -> None:
+        normalized_a = _normalize_required_text(self.material_id_a, "material_id_a")
+        normalized_b = _normalize_required_text(self.material_id_b, "material_id_b")
+
+        object.__setattr__(self, "material_id_a", normalized_a)
+        object.__setattr__(self, "material_id_b", normalized_b)
+
+        if self.material_id_a == self.material_id_b:
+            raise ValueError(
+                "material_id_a and material_id_b must be different"
+            )
+
+        if self.material_id_a > self.material_id_b:
+            raise ValueError(
+                "material_id_a must be less than material_id_b"
+            )
+
+        if not isinstance(self.is_duplicate, bool):
+            raise TypeError("is_duplicate must be a bool")
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicatePairCaseEvaluation:
+    """Resultado imutável da avaliação de duplicidade de um par individual de materiais."""
+
+    evaluation_case_id: str
+    ground_truth_id: str
+    material_id_a: str
+    material_id_b: str
+    expected_is_duplicate: bool
+    predicted_is_duplicate: bool
+
+    def __post_init__(self) -> None:
+        text_fields = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id_a",
+            "material_id_b",
+        )
+        for field_name in text_fields:
+            object.__setattr__(
+                self,
+                field_name,
+                _normalize_required_text(getattr(self, field_name), field_name),
+            )
+
+        if not isinstance(self.expected_is_duplicate, bool):
+            raise TypeError("expected_is_duplicate must be a bool")
+
+        if not isinstance(self.predicted_is_duplicate, bool):
+            raise TypeError("predicted_is_duplicate must be a bool")
+
+    @property
+    def is_match(self) -> bool:
+        return self.predicted_is_duplicate == self.expected_is_duplicate
+
+    @property
+    def is_mismatch(self) -> bool:
+        return not self.is_match
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicatePairEvaluationReport:
+    """Relatório estruturado e imutável da avaliação de pares duplicados."""
+
+    dataset_id: str
+    cases: tuple[DuplicatePairCaseEvaluation, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "dataset_id",
+            _normalize_required_text(
+                self.dataset_id,
+                "dataset_id",
+            ),
+        )
+
+        if not isinstance(self.cases, tuple):
+            raise TypeError("cases must be a tuple")
+
+        seen_case_ids: set[str] = set()
+        for idx, item in enumerate(self.cases):
+            if not isinstance(
+                item,
+                DuplicatePairCaseEvaluation,
+            ):
+                raise TypeError(
+                    f"cases[{idx}] must be a "
+                    f"DuplicatePairCaseEvaluation instance"
+                )
+
+            if item.evaluation_case_id in seen_case_ids:
+                raise ValueError(
+                    "duplicate evaluation_case_id in cases: "
+                    f"{item.evaluation_case_id!r}"
+                )
+
+            seen_case_ids.add(item.evaluation_case_id)
+
+        canonical = tuple(
+            sorted(
+                self.cases,
+                key=lambda case: (
+                    case.evaluation_case_id,
+                    case.ground_truth_id,
+                ),
+            )
+        )
+        object.__setattr__(
+            self,
+            "cases",
+            canonical,
+        )
+
+    @property
+    def total_cases(self) -> int:
+        return len(self.cases)
+
+    @property
+    def matched_cases(self) -> int:
+        return sum(
+            1
+            for case in self.cases
+            if case.is_match
+        )
+
+    @property
+    def mismatched_cases(self) -> int:
+        return self.total_cases - self.matched_cases
+
+    @property
+    def accuracy(self) -> float | None:
+        if self.total_cases == 0:
+            return None
+
+        return self.matched_cases / self.total_cases
+
+    @property
+    def is_empty(self) -> bool:
+        return self.total_cases == 0
+
+    @property
+    def is_perfect_match(self) -> bool:
+        return (
+            self.total_cases > 0
+            and self.matched_cases == self.total_cases
+        )
+
+    @property
+    def matches(
+        self,
+    ) -> tuple[DuplicatePairCaseEvaluation, ...]:
+        return tuple(
+            case
+            for case in self.cases
+            if case.is_match
+        )
+
+    @property
+    def mismatches(
+        self,
+    ) -> tuple[DuplicatePairCaseEvaluation, ...]:
+        return tuple(
+            case
+            for case in self.cases
+            if case.is_mismatch
+        )
+
+
+def evaluate_duplicate_pair(
+    ground_truth: DuplicatePairGroundTruth,
+    prediction: DuplicatePairPrediction,
+) -> DuplicatePairCaseEvaluation:
+    """Compara deterministicamente uma predição contra um gabarito individual de par de duplicata."""
+    if not isinstance(ground_truth, DuplicatePairGroundTruth):
+        raise TypeError("ground_truth must be a DuplicatePairGroundTruth")
+
+    if not isinstance(prediction, DuplicatePairPrediction):
+        raise TypeError("prediction must be a DuplicatePairPrediction")
+
+    if (
+        prediction.material_id_a != ground_truth.material_id_a
+        or prediction.material_id_b != ground_truth.material_id_b
+    ):
+        raise ValueError(
+            f"material pair mismatch: prediction has "
+            f"({prediction.material_id_a!r}, {prediction.material_id_b!r}), "
+            f"ground_truth has "
+            f"({ground_truth.material_id_a!r}, {ground_truth.material_id_b!r})"
+        )
+
+    return DuplicatePairCaseEvaluation(
+        evaluation_case_id=ground_truth.evaluation_case_id,
+        ground_truth_id=ground_truth.ground_truth_id,
+        material_id_a=ground_truth.material_id_a,
+        material_id_b=ground_truth.material_id_b,
+        expected_is_duplicate=ground_truth.is_duplicate,
+        predicted_is_duplicate=prediction.is_duplicate,
+    )
+
+
+def evaluate_duplicate_pairs(
+    dataset: DuplicatePairGroundTruthDataset,
+    predictions: Mapping[str, DuplicatePairPrediction],
+) -> DuplicatePairEvaluationReport:
+    """Avalia em lote um mapeamento de predições indexado por evaluation_case_id contra um dataset de duplicatas."""
+    if not isinstance(
+        dataset,
+        DuplicatePairGroundTruthDataset,
+    ):
+        raise TypeError(
+            "dataset must be a DuplicatePairGroundTruthDataset"
+        )
+
+    if not isinstance(predictions, Mapping):
+        raise TypeError(
+            "predictions must be a Mapping[str, DuplicatePairPrediction]"
+        )
+
+    for case_id, prediction in predictions.items():
+        if (
+            not isinstance(case_id, str)
+            or isinstance(case_id, bool)
+        ):
+            raise TypeError(
+                f"prediction key {case_id!r} must be a str"
+            )
+        if not isinstance(
+            prediction,
+            DuplicatePairPrediction,
+        ):
+            raise TypeError(
+                f"prediction value for evaluation_case_id "
+                f"{case_id!r} must be a DuplicatePairPrediction, "
+                f"got {type(prediction).__name__}"
+            )
+
+    expected_case_ids = {
+        item.evaluation_case_id
+        for item in dataset.items
+    }
+
+    provided_case_ids = set(
+        predictions.keys()
+    )
+
+    missing = (
+        expected_case_ids
+        - provided_case_ids
+    )
+
+    if missing:
+        raise ValueError(
+            f"missing predictions for evaluation_case_id: "
+            f"{sorted(missing)!r}"
+        )
+
+    extra = (
+        provided_case_ids
+        - expected_case_ids
+    )
+
+    if extra:
+        raise ValueError(
+            f"unexpected predictions for evaluation_case_id: "
+            f"{sorted(extra)!r}"
+        )
+
+    evaluated_cases: list[
+        DuplicatePairCaseEvaluation
+    ] = []
+
+    for item in dataset.items:
+        prediction = predictions[
+            item.evaluation_case_id
+        ]
+
+        evaluated_case = evaluate_duplicate_pair(
+            item,
+            prediction,
+        )
+
+        evaluated_cases.append(
+            evaluated_case
+        )
+
+    return DuplicatePairEvaluationReport(
         dataset_id=dataset.dataset_id,
         cases=tuple(evaluated_cases),
     )

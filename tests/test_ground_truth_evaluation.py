@@ -4,11 +4,14 @@ from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 import unittest
 
+import agent_lab
 from agent_lab.decision import DecisionRecommendation
 from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
     DecisionRecommendationGroundTruthDataset,
+    DuplicatePairGroundTruth,
+    DuplicatePairGroundTruthDataset,
     LabelProvenance,
     MaterialRuleGroundTruth,
     MaterialRuleGroundTruthDataset,
@@ -16,11 +19,16 @@ from agent_lab.ground_truth import (
 from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationCaseEvaluation,
     DecisionRecommendationEvaluationReport,
+    DuplicatePairCaseEvaluation,
+    DuplicatePairEvaluationReport,
+    DuplicatePairPrediction,
     MaterialRuleCaseEvaluation,
     MaterialRuleEvaluationReport,
     MaterialRulePrediction,
     evaluate_decision_recommendation,
     evaluate_decision_recommendations,
+    evaluate_duplicate_pair,
+    evaluate_duplicate_pairs,
     evaluate_material_rule,
     evaluate_material_rules,
 )
@@ -105,6 +113,60 @@ def _make_rule_prediction(
     return MaterialRulePrediction(
         material_id=material_id,
         predicted_issue_types=predicted_issue_types,
+    )
+
+
+def _make_duplicate_pair_ground_truth(
+    *,
+    evaluation_case_id: str = "CASE-001",
+    ground_truth_id: str = "GT-001",
+    material_id_a: str = "MAT-001",
+    material_id_b: str = "MAT-002",
+    is_duplicate: bool = True,
+) -> DuplicatePairGroundTruth:
+    return DuplicatePairGroundTruth(
+        evaluation_case_id=evaluation_case_id,
+        ground_truth_id=ground_truth_id,
+        material_id_a=material_id_a,
+        material_id_b=material_id_b,
+        is_duplicate=is_duplicate,
+        provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+        source_reference="synthetic://spec-0133/test",
+        annotator=None,
+        labeled_at=datetime(2026, 9, 18, 10, 0, tzinfo=timezone.utc),
+        rationale="Referência de teste para avaliação de par de duplicata.",
+    )
+
+
+def _make_duplicate_pair_prediction(
+    *,
+    material_id_a: str = "MAT-001",
+    material_id_b: str = "MAT-002",
+    is_duplicate: bool = True,
+) -> DuplicatePairPrediction:
+    return DuplicatePairPrediction(
+        material_id_a=material_id_a,
+        material_id_b=material_id_b,
+        is_duplicate=is_duplicate,
+    )
+
+
+def _make_duplicate_pair_case_evaluation(
+    *,
+    evaluation_case_id: str = "CASE-001",
+    ground_truth_id: str = "GT-001",
+    material_id_a: str = "MAT-001",
+    material_id_b: str = "MAT-002",
+    expected_is_duplicate: bool = True,
+    predicted_is_duplicate: bool = True,
+) -> DuplicatePairCaseEvaluation:
+    return DuplicatePairCaseEvaluation(
+        evaluation_case_id=evaluation_case_id,
+        ground_truth_id=ground_truth_id,
+        material_id_a=material_id_a,
+        material_id_b=material_id_b,
+        expected_is_duplicate=expected_is_duplicate,
+        predicted_is_duplicate=predicted_is_duplicate,
     )
 
 
@@ -1744,6 +1806,1057 @@ class GroundTruthEvaluationPublicExportsTests(unittest.TestCase):
         self.assertIs(DirectRuleReport, MaterialRuleEvaluationReport)
         self.assertIs(direct_eval_rule_one, evaluate_material_rule)
         self.assertIs(direct_eval_rule_batch, evaluate_material_rules)
+
+
+class DuplicatePairPredictionTests(unittest.TestCase):
+    """Testes unitários e defensivos para DuplicatePairPrediction (Slice 1)."""
+
+    def test_nominal_construction_and_fields(self) -> None:
+        pred_true = DuplicatePairPrediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        self.assertEqual(pred_true.material_id_a, "MAT-001")
+        self.assertEqual(pred_true.material_id_b, "MAT-002")
+        self.assertIs(pred_true.is_duplicate, True)
+
+        pred_false = DuplicatePairPrediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        self.assertEqual(pred_false.material_id_a, "MAT-001")
+        self.assertEqual(pred_false.material_id_b, "MAT-002")
+        self.assertIs(pred_false.is_duplicate, False)
+
+    def test_string_fields_normalized_with_strip(self) -> None:
+        pred = DuplicatePairPrediction(
+            material_id_a="  MAT-001  ",
+            material_id_b="\tMAT-002 \n",
+            is_duplicate=True,
+        )
+        self.assertEqual(pred.material_id_a, "MAT-001")
+        self.assertEqual(pred.material_id_b, "MAT-002")
+
+    def test_ordering_evaluated_after_normalization(self) -> None:
+        pred = DuplicatePairPrediction(
+            material_id_a="   MAT-001   ",
+            material_id_b=" MAT-002 ",
+            is_duplicate=False,
+        )
+        self.assertEqual(pred.material_id_a, "MAT-001")
+        self.assertEqual(pred.material_id_b, "MAT-002")
+
+    def test_immutability_frozen_instance(self) -> None:
+        pred = DuplicatePairPrediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        with self.assertRaises(FrozenInstanceError):
+            pred.material_id_a = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            pred.material_id_b = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            pred.is_duplicate = False  # type: ignore[misc]
+
+    def test_rejects_non_string_material_ids(self) -> None:
+        invalid_types = (123, 45.6, True, False, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(field="material_id_a", value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a=val,  # type: ignore[arg-type]
+                        material_id_b="MAT-002",
+                        is_duplicate=True,
+                    )
+                self.assertIn("material_id_a must be a str", str(ctx.exception))
+            with self.subTest(field="material_id_b", value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a="MAT-001",
+                        material_id_b=val,  # type: ignore[arg-type]
+                        is_duplicate=True,
+                    )
+                self.assertIn("material_id_b must be a str", str(ctx.exception))
+
+    def test_rejects_empty_or_whitespace_material_ids(self) -> None:
+        invalid_strings = ("", "   ", "\t\n", "\r\n  \t")
+        for val in invalid_strings:
+            with self.subTest(field="material_id_a", value=repr(val)):
+                with self.assertRaises(ValueError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a=val,
+                        material_id_b="MAT-002",
+                        is_duplicate=True,
+                    )
+                self.assertIn(
+                    "material_id_a must not be empty or whitespace",
+                    str(ctx.exception),
+                )
+            with self.subTest(field="material_id_b", value=repr(val)):
+                with self.assertRaises(ValueError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a="MAT-001",
+                        material_id_b=val,
+                        is_duplicate=True,
+                    )
+                self.assertIn(
+                    "material_id_b must not be empty or whitespace",
+                    str(ctx.exception),
+                )
+
+    def test_rejects_self_pair_equal_ids(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a="MAT-001",
+                material_id_b="MAT-001",
+                is_duplicate=True,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a and material_id_b must be different",
+        )
+
+    def test_rejects_self_pair_equal_ids_after_strip(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a=" MAT-001 ",
+                material_id_b="MAT-001",
+                is_duplicate=False,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a and material_id_b must be different",
+        )
+
+    def test_rejects_inverted_pair_order(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a="MAT-002",
+                material_id_b="MAT-001",
+                is_duplicate=True,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a must be less than material_id_b",
+        )
+
+    def test_rejects_inverted_pair_order_after_strip(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairPrediction(
+                material_id_a=" MAT-002 ",
+                material_id_b=" MAT-001 ",
+                is_duplicate=False,
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "material_id_a must be less than material_id_b",
+        )
+
+    def test_rejects_non_bool_is_duplicate(self) -> None:
+        invalid_values = (0, 1, "True", "False", None, 0.0, 1.0, [], {})
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairPrediction(
+                        material_id_a="MAT-001",
+                        material_id_b="MAT-002",
+                        is_duplicate=val,  # type: ignore[arg-type]
+                    )
+                self.assertEqual(str(ctx.exception), "is_duplicate must be a bool")
+
+
+class DuplicatePairCaseEvaluationTests(unittest.TestCase):
+    """Testes unitários e defensivos para DuplicatePairCaseEvaluation (Slice 2)."""
+
+    def test_nominal_construction_and_fields(self) -> None:
+        evaluation = DuplicatePairCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+
+        self.assertEqual(evaluation.evaluation_case_id, "CASE-001")
+        self.assertEqual(evaluation.ground_truth_id, "GT-001")
+        self.assertEqual(evaluation.material_id_a, "MAT-001")
+        self.assertEqual(evaluation.material_id_b, "MAT-002")
+        self.assertIs(evaluation.expected_is_duplicate, True)
+        self.assertIs(evaluation.predicted_is_duplicate, True)
+        self.assertTrue(evaluation.is_match)
+        self.assertFalse(evaluation.is_mismatch)
+
+    def test_string_fields_normalized_with_strip(self) -> None:
+        evaluation = DuplicatePairCaseEvaluation(
+            evaluation_case_id="  CASE-001  ",
+            ground_truth_id="  GT-001\t",
+            material_id_a=" \nMAT-001 ",
+            material_id_b=" MAT-002\r\n",
+            expected_is_duplicate=False,
+            predicted_is_duplicate=False,
+        )
+
+        self.assertEqual(evaluation.evaluation_case_id, "CASE-001")
+        self.assertEqual(evaluation.ground_truth_id, "GT-001")
+        self.assertEqual(evaluation.material_id_a, "MAT-001")
+        self.assertEqual(evaluation.material_id_b, "MAT-002")
+
+    def test_immutability_frozen_instance(self) -> None:
+        evaluation = DuplicatePairCaseEvaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.evaluation_case_id = "CASE-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.ground_truth_id = "GT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.material_id_a = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.material_id_b = "MAT-099"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.expected_is_duplicate = False  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            evaluation.predicted_is_duplicate = False  # type: ignore[misc]
+
+    def test_truth_table_complete(self) -> None:
+        cases = (
+            (False, False, True, False),
+            (False, True, False, True),
+            (True, False, False, True),
+            (True, True, True, False),
+        )
+
+        for expected, predicted, exp_match, exp_mismatch in cases:
+            with self.subTest(expected=expected, predicted=predicted):
+                evaluation = DuplicatePairCaseEvaluation(
+                    evaluation_case_id="CASE-001",
+                    ground_truth_id="GT-001",
+                    material_id_a="MAT-001",
+                    material_id_b="MAT-002",
+                    expected_is_duplicate=expected,
+                    predicted_is_duplicate=predicted,
+                )
+                self.assertIs(evaluation.is_match, exp_match)
+                self.assertIs(evaluation.is_mismatch, exp_mismatch)
+
+    def test_rejects_non_string_text_fields(self) -> None:
+        invalid_types = (123, 45.6, True, False, None, object(), [], {})
+        text_fields = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id_a",
+            "material_id_b",
+        )
+
+        for field_name in text_fields:
+            for val in invalid_types:
+                kwargs: dict[str, object] = {
+                    "evaluation_case_id": "CASE-001",
+                    "ground_truth_id": "GT-001",
+                    "material_id_a": "MAT-001",
+                    "material_id_b": "MAT-002",
+                    "expected_is_duplicate": True,
+                    "predicted_is_duplicate": True,
+                }
+                kwargs[field_name] = val
+                with self.subTest(field=field_name, value=val):
+                    with self.assertRaises(TypeError) as ctx:
+                        DuplicatePairCaseEvaluation(**kwargs)  # type: ignore[arg-type]
+                    self.assertIn(f"{field_name} must be a str", str(ctx.exception))
+
+    def test_rejects_empty_or_whitespace_text_fields(self) -> None:
+        invalid_strings = ("", "   ", "\t\n", "\r\n \t")
+        text_fields = (
+            "evaluation_case_id",
+            "ground_truth_id",
+            "material_id_a",
+            "material_id_b",
+        )
+
+        for field_name in text_fields:
+            for val in invalid_strings:
+                kwargs: dict[str, object] = {
+                    "evaluation_case_id": "CASE-001",
+                    "ground_truth_id": "GT-001",
+                    "material_id_a": "MAT-001",
+                    "material_id_b": "MAT-002",
+                    "expected_is_duplicate": True,
+                    "predicted_is_duplicate": True,
+                }
+                kwargs[field_name] = val
+                with self.subTest(field=field_name, value=repr(val)):
+                    with self.assertRaises(ValueError) as ctx:
+                        DuplicatePairCaseEvaluation(**kwargs)
+                    self.assertIn(
+                        f"{field_name} must not be empty or whitespace",
+                        str(ctx.exception),
+                    )
+
+    def test_rejects_non_bool_expected_is_duplicate(self) -> None:
+        invalid_values = (0, 1, "True", "False", None, 0.0, 1.0, [], {})
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairCaseEvaluation(
+                        evaluation_case_id="CASE-001",
+                        ground_truth_id="GT-001",
+                        material_id_a="MAT-001",
+                        material_id_b="MAT-002",
+                        expected_is_duplicate=val,  # type: ignore[arg-type]
+                        predicted_is_duplicate=True,
+                    )
+                self.assertEqual(
+                    str(ctx.exception),
+                    "expected_is_duplicate must be a bool",
+                )
+
+    def test_rejects_non_bool_predicted_is_duplicate(self) -> None:
+        invalid_values = (0, 1, "True", "False", None, 0.0, 1.0, [], {})
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairCaseEvaluation(
+                        evaluation_case_id="CASE-001",
+                        ground_truth_id="GT-001",
+                        material_id_a="MAT-001",
+                        material_id_b="MAT-002",
+                        expected_is_duplicate=True,
+                        predicted_is_duplicate=val,  # type: ignore[arg-type]
+                    )
+                self.assertEqual(
+                    str(ctx.exception),
+                    "predicted_is_duplicate must be a bool",
+                )
+
+
+class EvaluateDuplicatePairTests(unittest.TestCase):
+    """Testes para a função atômica evaluate_duplicate_pair (Slice 3)."""
+
+    def test_evaluates_matching_duplicate_pair(self) -> None:
+        # Match True / True
+        gt_true = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        pred_true = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        res_true = evaluate_duplicate_pair(gt_true, pred_true)
+        self.assertIsInstance(res_true, DuplicatePairCaseEvaluation)
+        self.assertEqual(res_true.evaluation_case_id, "CASE-001")
+        self.assertEqual(res_true.ground_truth_id, "GT-001")
+        self.assertEqual(res_true.material_id_a, "MAT-001")
+        self.assertEqual(res_true.material_id_b, "MAT-002")
+        self.assertIs(res_true.expected_is_duplicate, True)
+        self.assertIs(res_true.predicted_is_duplicate, True)
+        self.assertTrue(res_true.is_match)
+        self.assertFalse(res_true.is_mismatch)
+
+        # Match False / False
+        gt_false = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        pred_false = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        res_false = evaluate_duplicate_pair(gt_false, pred_false)
+        self.assertIs(res_false.expected_is_duplicate, False)
+        self.assertIs(res_false.predicted_is_duplicate, False)
+        self.assertTrue(res_false.is_match)
+        self.assertFalse(res_false.is_mismatch)
+
+    def test_evaluates_mismatching_duplicate_pair(self) -> None:
+        # Mismatch True / False (esperado True, predito False)
+        gt_true = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        pred_false = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        res_1 = evaluate_duplicate_pair(gt_true, pred_false)
+        self.assertIs(res_1.expected_is_duplicate, True)
+        self.assertIs(res_1.predicted_is_duplicate, False)
+        self.assertFalse(res_1.is_match)
+        self.assertTrue(res_1.is_mismatch)
+
+        # Mismatch False / True (esperado False, predito True)
+        gt_false = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        pred_true = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        res_2 = evaluate_duplicate_pair(gt_false, pred_true)
+        self.assertIs(res_2.expected_is_duplicate, False)
+        self.assertIs(res_2.predicted_is_duplicate, True)
+        self.assertFalse(res_2.is_match)
+        self.assertTrue(res_2.is_mismatch)
+
+    def test_preserves_case_and_ground_truth_lineage(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-XYZ-999",
+            ground_truth_id="GT-ABC-123",
+            material_id_a="MAT-010",
+            material_id_b="MAT-020",
+            is_duplicate=True,
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-010",
+            material_id_b="MAT-020",
+            is_duplicate=True,
+        )
+        res = evaluate_duplicate_pair(gt, pred)
+        self.assertEqual(res.evaluation_case_id, "CASE-XYZ-999")
+        self.assertEqual(res.ground_truth_id, "GT-ABC-123")
+        self.assertEqual(res.material_id_a, "MAT-010")
+        self.assertEqual(res.material_id_b, "MAT-020")
+        self.assertIs(res.expected_is_duplicate, True)
+        self.assertIs(res.predicted_is_duplicate, True)
+
+    def test_rejects_invalid_ground_truth_type(self) -> None:
+        pred = _make_duplicate_pair_prediction()
+        invalid_types = ("invalid", 123, 45.6, True, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pair(val, pred)  # type: ignore[arg-type]
+                self.assertIn("ground_truth must be a DuplicatePairGroundTruth", str(ctx.exception))
+
+    def test_rejects_invalid_prediction_type(self) -> None:
+        gt = _make_duplicate_pair_ground_truth()
+        invalid_types = ("invalid", 123, 45.6, True, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pair(gt, val)  # type: ignore[arg-type]
+                self.assertIn("prediction must be a DuplicatePairPrediction", str(ctx.exception))
+
+    def test_rejects_material_id_a_mismatch(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            material_id_a="MAT-001",
+            material_id_b="MAT-003",
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-002",
+            material_id_b="MAT-003",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pair(gt, pred)
+        self.assertIn("material pair mismatch", str(ctx.exception))
+
+    def test_rejects_material_id_b_mismatch(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            material_id_a="MAT-001",
+            material_id_b="MAT-003",
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pair(gt, pred)
+        self.assertIn("material pair mismatch", str(ctx.exception))
+
+    def test_rejects_both_material_ids_mismatch(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-003",
+            material_id_b="MAT-004",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pair(gt, pred)
+        self.assertIn("material pair mismatch", str(ctx.exception))
+
+
+class DuplicatePairEvaluationReportTests(unittest.TestCase):
+    """Testes para DuplicatePairEvaluationReport (Slice 4)."""
+
+    def test_nominal_construction_and_fields(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1,),
+        )
+        self.assertEqual(report.dataset_id, "DATASET-001")
+        self.assertEqual(report.cases, (c1,))
+
+    def test_dataset_id_normalized_with_strip(self) -> None:
+        report = DuplicatePairEvaluationReport(
+            dataset_id="  DATASET-001  ",
+            cases=(),
+        )
+        self.assertEqual(report.dataset_id, "DATASET-001")
+
+    def test_dataset_id_rejects_invalid_types(self) -> None:
+        invalid_types = (123, 45.6, True, False, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id=val,  # type: ignore[arg-type]
+                        cases=(),
+                    )
+                self.assertIn("dataset_id must be a str", str(ctx.exception))
+
+    def test_dataset_id_rejects_empty_or_whitespace(self) -> None:
+        invalid_strings = ("", "   ", "\t\n", "\r\n \t")
+        for val in invalid_strings:
+            with self.subTest(value=repr(val)):
+                with self.assertRaises(ValueError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id=val,
+                        cases=(),
+                    )
+                self.assertIn("dataset_id must not be empty or whitespace", str(ctx.exception))
+
+    def test_cases_must_be_tuple(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation()
+        invalid_cases = ([c1], {c1}, {"cases": c1}, None, "invalid", 123)
+        for val in invalid_cases:
+            with self.subTest(cases_type=type(val)):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id="DATASET-001",
+                        cases=val,  # type: ignore[arg-type]
+                    )
+                self.assertEqual(str(ctx.exception), "cases must be a tuple")
+
+    def test_cases_rejects_invalid_elements(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation()
+        invalid_elements = ("invalid", 123, None, object(), [])
+        for val in invalid_elements:
+            with self.subTest(invalid_element=val):
+                with self.assertRaises(TypeError) as ctx:
+                    DuplicatePairEvaluationReport(
+                        dataset_id="DATASET-001",
+                        cases=(c1, val),  # type: ignore[arg-type]
+                    )
+                self.assertEqual(
+                    str(ctx.exception),
+                    "cases[1] must be a DuplicatePairCaseEvaluation instance",
+                )
+
+    def test_cases_rejects_duplicate_evaluation_case_id(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-002",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            DuplicatePairEvaluationReport(
+                dataset_id="DATASET-001",
+                cases=(c1, c2),
+            )
+        self.assertEqual(
+            str(ctx.exception),
+            "duplicate evaluation_case_id in cases: 'CASE-001'",
+        )
+
+    def test_canonical_ordering_by_evaluation_case_id_and_ground_truth_id(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+        )
+        c3 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+        )
+        report_unordered = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2, c3),
+        )
+        report_ordered = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c2, c3, c1),
+        )
+        self.assertEqual(report_unordered.cases, (c2, c3, c1))
+        self.assertEqual(report_ordered.cases, (c2, c3, c1))
+
+    def test_metrics_computation_and_matches_mismatches(self) -> None:
+        # 3 casos: 2 matches, 1 mismatch
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,  # match
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            expected_is_duplicate=False,
+            predicted_is_duplicate=False,  # match
+        )
+        c3 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=False,  # mismatch
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c3, c2, c1),
+        )
+        self.assertEqual(report.total_cases, 3)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertEqual(report.mismatched_cases, 1)
+        self.assertEqual(report.accuracy, 2 / 3)
+        self.assertEqual(report.matches, (c1, c2))
+        self.assertEqual(report.mismatches, (c3,))
+        self.assertFalse(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+
+    def test_empty_dataset_semantics(self) -> None:
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-EMPTY",
+            cases=(),
+        )
+        self.assertEqual(report.total_cases, 0)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertIsNone(report.accuracy)
+        self.assertTrue(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.matches, ())
+        self.assertEqual(report.mismatches, ())
+
+    def test_perfect_match_report(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=True,
+        )
+        c2 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            expected_is_duplicate=False,
+            predicted_is_duplicate=False,
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1, c2),
+        )
+        self.assertEqual(report.total_cases, 2)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertEqual(report.accuracy, 1.0)
+        self.assertFalse(report.is_empty)
+        self.assertTrue(report.is_perfect_match)
+        self.assertEqual(report.matches, (c1, c2))
+        self.assertEqual(report.mismatches, ())
+
+    def test_non_empty_with_mismatch_not_perfect_match(self) -> None:
+        c1 = _make_duplicate_pair_case_evaluation(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            expected_is_duplicate=True,
+            predicted_is_duplicate=False,  # mismatch
+        )
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(c1,),
+        )
+        self.assertEqual(report.total_cases, 1)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 1)
+        self.assertEqual(report.accuracy, 0.0)
+        self.assertFalse(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+        self.assertEqual(report.matches, ())
+        self.assertEqual(report.mismatches, (c1,))
+
+    def test_immutability_frozen_instance(self) -> None:
+        report = DuplicatePairEvaluationReport(
+            dataset_id="DATASET-001",
+            cases=(),
+        )
+        with self.assertRaises(FrozenInstanceError):
+            report.dataset_id = "DATASET-002"  # type: ignore[misc]
+        with self.assertRaises(FrozenInstanceError):
+            report.cases = ()  # type: ignore[misc]
+
+
+class EvaluateDuplicatePairsTests(unittest.TestCase):
+    """Testes para evaluate_duplicate_pairs (Slice 5)."""
+
+    def test_evaluates_empty_dataset_and_predictions(self) -> None:
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-EMPTY",
+            items=(),
+        )
+        report = evaluate_duplicate_pairs(dataset, {})
+        self.assertEqual(report.dataset_id, "DATASET-EMPTY")
+        self.assertEqual(report.cases, ())
+        self.assertEqual(report.total_cases, 0)
+        self.assertEqual(report.matched_cases, 0)
+        self.assertEqual(report.mismatched_cases, 0)
+        self.assertIsNone(report.accuracy)
+        self.assertTrue(report.is_empty)
+        self.assertFalse(report.is_perfect_match)
+
+    def test_evaluates_batch_with_matches_and_mismatches(self) -> None:
+        gt1 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        gt2 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-003",
+            material_id_b="MAT-004",
+            is_duplicate=False,
+        )
+        gt3 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            material_id_a="MAT-005",
+            material_id_b="MAT-006",
+            is_duplicate=False,
+        )
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-BATCH-001",
+            items=(gt1, gt2, gt3),
+        )
+
+        predictions = {
+            "CASE-001": _make_duplicate_pair_prediction(
+                material_id_a="MAT-001",
+                material_id_b="MAT-002",
+                is_duplicate=True,  # match
+            ),
+            "CASE-002": _make_duplicate_pair_prediction(
+                material_id_a="MAT-003",
+                material_id_b="MAT-004",
+                is_duplicate=True,  # mismatch (expected False, predicted True)
+            ),
+            "CASE-003": _make_duplicate_pair_prediction(
+                material_id_a="MAT-005",
+                material_id_b="MAT-006",
+                is_duplicate=False,  # match (expected False, predicted False)
+            ),
+        }
+
+        report = evaluate_duplicate_pairs(dataset, predictions)
+
+        self.assertEqual(report.total_cases, 3)
+        self.assertEqual(report.matched_cases, 2)
+        self.assertEqual(report.mismatched_cases, 1)
+        self.assertEqual(report.accuracy, 2 / 3)
+
+        c1, c2, c3 = report.cases
+        self.assertEqual(c1.evaluation_case_id, "CASE-001")
+        self.assertIs(c1.expected_is_duplicate, True)
+        self.assertIs(c1.predicted_is_duplicate, True)
+        self.assertTrue(c1.is_match)
+
+        self.assertEqual(c2.evaluation_case_id, "CASE-002")
+        self.assertIs(c2.expected_is_duplicate, False)
+        self.assertIs(c2.predicted_is_duplicate, True)
+        self.assertTrue(c2.is_mismatch)
+
+        self.assertEqual(c3.evaluation_case_id, "CASE-003")
+        self.assertIs(c3.expected_is_duplicate, False)
+        self.assertIs(c3.predicted_is_duplicate, False)
+        self.assertTrue(c3.is_match)
+
+    def test_preserves_dataset_id_lineage(self) -> None:
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-DUP-001",
+            items=(),
+        )
+        report = evaluate_duplicate_pairs(dataset, {})
+        self.assertEqual(report.dataset_id, "DATASET-DUP-001")
+        self.assertEqual(report.dataset_id, dataset.dataset_id)
+
+    def test_input_mapping_order_independence(self) -> None:
+        gt1 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        gt2 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-003",
+            material_id_b="MAT-004",
+            is_duplicate=False,
+        )
+        gt3 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-003",
+            ground_truth_id="GT-003",
+            material_id_a="MAT-005",
+            material_id_b="MAT-006",
+            is_duplicate=True,
+        )
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-ORDER-001",
+            items=(gt1, gt2, gt3),
+        )
+
+        pred1 = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        pred2 = _make_duplicate_pair_prediction(
+            material_id_a="MAT-003",
+            material_id_b="MAT-004",
+            is_duplicate=False,
+        )
+        pred3 = _make_duplicate_pair_prediction(
+            material_id_a="MAT-005",
+            material_id_b="MAT-006",
+            is_duplicate=True,
+        )
+
+        predictions_a = {
+            "CASE-001": pred1,
+            "CASE-002": pred2,
+            "CASE-003": pred3,
+        }
+        predictions_b = {
+            "CASE-003": pred3,
+            "CASE-001": pred1,
+            "CASE-002": pred2,
+        }
+
+        report_a = evaluate_duplicate_pairs(dataset, predictions_a)
+        report_b = evaluate_duplicate_pairs(dataset, predictions_b)
+
+        self.assertEqual(report_a, report_b)
+        self.assertEqual(report_a.cases, report_b.cases)
+        self.assertEqual(report_a.accuracy, report_b.accuracy)
+
+    def test_rejects_invalid_dataset_type(self) -> None:
+        invalid_datasets = (None, "invalid", 123, object(), [], {})
+        for val in invalid_datasets:
+            with self.subTest(dataset=val):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pairs(val, {})  # type: ignore[arg-type]
+                self.assertEqual(
+                    str(ctx.exception),
+                    "dataset must be a DuplicatePairGroundTruthDataset",
+                )
+
+    def test_rejects_non_mapping_predictions(self) -> None:
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+        invalid_predictions = ([], (), set(), None, "invalid", 123)
+        for val in invalid_predictions:
+            with self.subTest(predictions=val):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pairs(dataset, val)  # type: ignore[arg-type]
+                self.assertEqual(
+                    str(ctx.exception),
+                    "predictions must be a Mapping[str, DuplicatePairPrediction]",
+                )
+
+    def test_rejects_invalid_prediction_keys(self) -> None:
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+        pred = _make_duplicate_pair_prediction()
+        invalid_keys = (123, 1.0, True, False, None, object())
+        for key in invalid_keys:
+            with self.subTest(key=key):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pairs(dataset, {key: pred})  # type: ignore[dict-item]
+                self.assertEqual(
+                    str(ctx.exception),
+                    f"prediction key {key!r} must be a str",
+                )
+
+    def test_rejects_invalid_prediction_values(self) -> None:
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(),
+        )
+        invalid_values = (None, "invalid", 123, object(), [], {})
+        for val in invalid_values:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pairs(dataset, {"CASE-001": val})  # type: ignore[dict-item]
+                self.assertEqual(
+                    str(ctx.exception),
+                    f"prediction value for evaluation_case_id 'CASE-001' must be a DuplicatePairPrediction, got {type(val).__name__}",
+                )
+
+    def test_rejects_missing_predictions(self) -> None:
+        gt1 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+        )
+        gt2 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-003",
+            material_id_b="MAT-004",
+        )
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt1, gt2),
+        )
+        predictions = {
+            "CASE-001": _make_duplicate_pair_prediction(
+                material_id_a="MAT-001",
+                material_id_b="MAT-002",
+            )
+        }
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pairs(dataset, predictions)
+        self.assertEqual(
+            str(ctx.exception),
+            "missing predictions for evaluation_case_id: ['CASE-002']",
+        )
+
+    def test_rejects_unexpected_predictions(self) -> None:
+        gt1 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+        )
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt1,),
+        )
+        predictions = {
+            "CASE-001": _make_duplicate_pair_prediction(
+                material_id_a="MAT-001",
+                material_id_b="MAT-002",
+            ),
+            "CASE-999": _make_duplicate_pair_prediction(
+                material_id_a="MAT-010",
+                material_id_b="MAT-020",
+            ),
+        }
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pairs(dataset, predictions)
+        self.assertEqual(
+            str(ctx.exception),
+            "unexpected predictions for evaluation_case_id: ['CASE-999']",
+        )
+
+    def test_rejects_material_pair_mismatch_in_batch(self) -> None:
+        gt1 = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-003",
+        )
+        dataset = DuplicatePairGroundTruthDataset(
+            dataset_id="DATASET-001",
+            items=(gt1,),
+        )
+        predictions = {
+            "CASE-001": _make_duplicate_pair_prediction(
+                material_id_a="MAT-002",
+                material_id_b="MAT-003",
+            )
+        }
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pairs(dataset, predictions)
+        self.assertIn("material pair mismatch", str(ctx.exception))
+
+
+class DuplicatePairPublicExportsTests(unittest.TestCase):
+    """Testes de exportação pública dos símbolos de avaliação de pares de duplicatas."""
+
+    def test_public_exports_in_agent_lab_package(self) -> None:
+        expected_exports = {
+            "DuplicatePairPrediction": DuplicatePairPrediction,
+            "DuplicatePairCaseEvaluation": DuplicatePairCaseEvaluation,
+            "DuplicatePairEvaluationReport": DuplicatePairEvaluationReport,
+            "evaluate_duplicate_pair": evaluate_duplicate_pair,
+            "evaluate_duplicate_pairs": evaluate_duplicate_pairs,
+        }
+
+        for name, expected in expected_exports.items():
+            with self.subTest(name=name):
+                self.assertTrue(
+                    hasattr(agent_lab, name),
+                    msg=f"{name} must be publicly exported from agent_lab",
+                )
+                self.assertIs(
+                    getattr(agent_lab, name),
+                    expected,
+                )
+
+    def test_all_contains_duplicate_pair_evaluation_symbols(self) -> None:
+        expected_names = {
+            "DuplicatePairPrediction",
+            "DuplicatePairCaseEvaluation",
+            "DuplicatePairEvaluationReport",
+            "evaluate_duplicate_pair",
+            "evaluate_duplicate_pairs",
+        }
+
+        for name in expected_names:
+            with self.subTest(name=name):
+                self.assertIn(
+                    name,
+                    agent_lab.__all__,
+                )
 
 
 if __name__ == "__main__":
