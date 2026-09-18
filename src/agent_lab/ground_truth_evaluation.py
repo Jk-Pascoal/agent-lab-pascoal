@@ -10,6 +10,7 @@ from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
     DecisionRecommendationGroundTruthDataset,
+    DuplicatePairGroundTruth,
     MaterialRuleGroundTruth,
     MaterialRuleGroundTruthDataset,
 )
@@ -564,3 +565,35 @@ class DuplicatePairCaseEvaluation:
     @property
     def is_mismatch(self) -> bool:
         return not self.is_match
+
+
+def evaluate_duplicate_pair(
+    ground_truth: DuplicatePairGroundTruth,
+    prediction: DuplicatePairPrediction,
+) -> DuplicatePairCaseEvaluation:
+    """Compara deterministicamente uma predição contra um gabarito individual de par de duplicata."""
+    if not isinstance(ground_truth, DuplicatePairGroundTruth):
+        raise TypeError("ground_truth must be a DuplicatePairGroundTruth")
+
+    if not isinstance(prediction, DuplicatePairPrediction):
+        raise TypeError("prediction must be a DuplicatePairPrediction")
+
+    if (
+        prediction.material_id_a != ground_truth.material_id_a
+        or prediction.material_id_b != ground_truth.material_id_b
+    ):
+        raise ValueError(
+            f"material pair mismatch: prediction has "
+            f"({prediction.material_id_a!r}, {prediction.material_id_b!r}), "
+            f"ground_truth has "
+            f"({ground_truth.material_id_a!r}, {ground_truth.material_id_b!r})"
+        )
+
+    return DuplicatePairCaseEvaluation(
+        evaluation_case_id=ground_truth.evaluation_case_id,
+        ground_truth_id=ground_truth.ground_truth_id,
+        material_id_a=ground_truth.material_id_a,
+        material_id_b=ground_truth.material_id_b,
+        expected_is_duplicate=ground_truth.is_duplicate,
+        predicted_is_duplicate=prediction.is_duplicate,
+    )

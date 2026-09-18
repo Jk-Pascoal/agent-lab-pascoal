@@ -9,6 +9,7 @@ from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
     DecisionRecommendationGroundTruthDataset,
+    DuplicatePairGroundTruth,
     LabelProvenance,
     MaterialRuleGroundTruth,
     MaterialRuleGroundTruthDataset,
@@ -23,6 +24,7 @@ from agent_lab.ground_truth_evaluation import (
     MaterialRulePrediction,
     evaluate_decision_recommendation,
     evaluate_decision_recommendations,
+    evaluate_duplicate_pair,
     evaluate_material_rule,
     evaluate_material_rules,
 )
@@ -107,6 +109,41 @@ def _make_rule_prediction(
     return MaterialRulePrediction(
         material_id=material_id,
         predicted_issue_types=predicted_issue_types,
+    )
+
+
+def _make_duplicate_pair_ground_truth(
+    *,
+    evaluation_case_id: str = "CASE-001",
+    ground_truth_id: str = "GT-001",
+    material_id_a: str = "MAT-001",
+    material_id_b: str = "MAT-002",
+    is_duplicate: bool = True,
+) -> DuplicatePairGroundTruth:
+    return DuplicatePairGroundTruth(
+        evaluation_case_id=evaluation_case_id,
+        ground_truth_id=ground_truth_id,
+        material_id_a=material_id_a,
+        material_id_b=material_id_b,
+        is_duplicate=is_duplicate,
+        provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+        source_reference="synthetic://spec-0133/test",
+        annotator=None,
+        labeled_at=datetime(2026, 9, 18, 10, 0, tzinfo=timezone.utc),
+        rationale="Referência de teste para avaliação de par de duplicata.",
+    )
+
+
+def _make_duplicate_pair_prediction(
+    *,
+    material_id_a: str = "MAT-001",
+    material_id_b: str = "MAT-002",
+    is_duplicate: bool = True,
+) -> DuplicatePairPrediction:
+    return DuplicatePairPrediction(
+        material_id_a=material_id_a,
+        material_id_b=material_id_b,
+        is_duplicate=is_duplicate,
     )
 
 
@@ -2077,6 +2114,171 @@ class DuplicatePairCaseEvaluationTests(unittest.TestCase):
                     str(ctx.exception),
                     "predicted_is_duplicate must be a bool",
                 )
+
+
+class EvaluateDuplicatePairTests(unittest.TestCase):
+    """Testes para a função atômica evaluate_duplicate_pair (Slice 3)."""
+
+    def test_evaluates_matching_duplicate_pair(self) -> None:
+        # Match True / True
+        gt_true = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        pred_true = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        res_true = evaluate_duplicate_pair(gt_true, pred_true)
+        self.assertIsInstance(res_true, DuplicatePairCaseEvaluation)
+        self.assertEqual(res_true.evaluation_case_id, "CASE-001")
+        self.assertEqual(res_true.ground_truth_id, "GT-001")
+        self.assertEqual(res_true.material_id_a, "MAT-001")
+        self.assertEqual(res_true.material_id_b, "MAT-002")
+        self.assertIs(res_true.expected_is_duplicate, True)
+        self.assertIs(res_true.predicted_is_duplicate, True)
+        self.assertTrue(res_true.is_match)
+        self.assertFalse(res_true.is_mismatch)
+
+        # Match False / False
+        gt_false = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        pred_false = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        res_false = evaluate_duplicate_pair(gt_false, pred_false)
+        self.assertIs(res_false.expected_is_duplicate, False)
+        self.assertIs(res_false.predicted_is_duplicate, False)
+        self.assertTrue(res_false.is_match)
+        self.assertFalse(res_false.is_mismatch)
+
+    def test_evaluates_mismatching_duplicate_pair(self) -> None:
+        # Mismatch True / False (esperado True, predito False)
+        gt_true = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        pred_false = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        res_1 = evaluate_duplicate_pair(gt_true, pred_false)
+        self.assertIs(res_1.expected_is_duplicate, True)
+        self.assertIs(res_1.predicted_is_duplicate, False)
+        self.assertFalse(res_1.is_match)
+        self.assertTrue(res_1.is_mismatch)
+
+        # Mismatch False / True (esperado False, predito True)
+        gt_false = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=False,
+        )
+        pred_true = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+            is_duplicate=True,
+        )
+        res_2 = evaluate_duplicate_pair(gt_false, pred_true)
+        self.assertIs(res_2.expected_is_duplicate, False)
+        self.assertIs(res_2.predicted_is_duplicate, True)
+        self.assertFalse(res_2.is_match)
+        self.assertTrue(res_2.is_mismatch)
+
+    def test_preserves_case_and_ground_truth_lineage(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            evaluation_case_id="CASE-XYZ-999",
+            ground_truth_id="GT-ABC-123",
+            material_id_a="MAT-010",
+            material_id_b="MAT-020",
+            is_duplicate=True,
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-010",
+            material_id_b="MAT-020",
+            is_duplicate=True,
+        )
+        res = evaluate_duplicate_pair(gt, pred)
+        self.assertEqual(res.evaluation_case_id, "CASE-XYZ-999")
+        self.assertEqual(res.ground_truth_id, "GT-ABC-123")
+        self.assertEqual(res.material_id_a, "MAT-010")
+        self.assertEqual(res.material_id_b, "MAT-020")
+        self.assertIs(res.expected_is_duplicate, True)
+        self.assertIs(res.predicted_is_duplicate, True)
+
+    def test_rejects_invalid_ground_truth_type(self) -> None:
+        pred = _make_duplicate_pair_prediction()
+        invalid_types = ("invalid", 123, 45.6, True, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pair(val, pred)  # type: ignore[arg-type]
+                self.assertIn("ground_truth must be a DuplicatePairGroundTruth", str(ctx.exception))
+
+    def test_rejects_invalid_prediction_type(self) -> None:
+        gt = _make_duplicate_pair_ground_truth()
+        invalid_types = ("invalid", 123, 45.6, True, None, object(), [], {})
+        for val in invalid_types:
+            with self.subTest(value=val):
+                with self.assertRaises(TypeError) as ctx:
+                    evaluate_duplicate_pair(gt, val)  # type: ignore[arg-type]
+                self.assertIn("prediction must be a DuplicatePairPrediction", str(ctx.exception))
+
+    def test_rejects_material_id_a_mismatch(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            material_id_a="MAT-001",
+            material_id_b="MAT-003",
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-002",
+            material_id_b="MAT-003",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pair(gt, pred)
+        self.assertIn("material pair mismatch", str(ctx.exception))
+
+    def test_rejects_material_id_b_mismatch(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            material_id_a="MAT-001",
+            material_id_b="MAT-003",
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pair(gt, pred)
+        self.assertIn("material pair mismatch", str(ctx.exception))
+
+    def test_rejects_both_material_ids_mismatch(self) -> None:
+        gt = _make_duplicate_pair_ground_truth(
+            material_id_a="MAT-001",
+            material_id_b="MAT-002",
+        )
+        pred = _make_duplicate_pair_prediction(
+            material_id_a="MAT-003",
+            material_id_b="MAT-004",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            evaluate_duplicate_pair(gt, pred)
+        self.assertIn("material pair mismatch", str(ctx.exception))
 
 
 if __name__ == "__main__":
