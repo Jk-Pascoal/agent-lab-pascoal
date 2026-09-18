@@ -11,6 +11,7 @@ from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
     DecisionRecommendationGroundTruthDataset,
     DuplicatePairGroundTruth,
+    DuplicatePairGroundTruthDataset,
     MaterialRuleGroundTruth,
     MaterialRuleGroundTruthDataset,
 )
@@ -705,4 +706,95 @@ def evaluate_duplicate_pair(
         material_id_b=ground_truth.material_id_b,
         expected_is_duplicate=ground_truth.is_duplicate,
         predicted_is_duplicate=prediction.is_duplicate,
+    )
+
+
+def evaluate_duplicate_pairs(
+    dataset: DuplicatePairGroundTruthDataset,
+    predictions: Mapping[str, DuplicatePairPrediction],
+) -> DuplicatePairEvaluationReport:
+    """Avalia em lote um mapeamento de predições indexado por evaluation_case_id contra um dataset de duplicatas."""
+    if not isinstance(
+        dataset,
+        DuplicatePairGroundTruthDataset,
+    ):
+        raise TypeError(
+            "dataset must be a DuplicatePairGroundTruthDataset"
+        )
+
+    if not isinstance(predictions, Mapping):
+        raise TypeError(
+            "predictions must be a Mapping[str, DuplicatePairPrediction]"
+        )
+
+    for case_id, prediction in predictions.items():
+        if (
+            not isinstance(case_id, str)
+            or isinstance(case_id, bool)
+        ):
+            raise TypeError(
+                f"prediction key {case_id!r} must be a str"
+            )
+        if not isinstance(
+            prediction,
+            DuplicatePairPrediction,
+        ):
+            raise TypeError(
+                f"prediction value for evaluation_case_id "
+                f"{case_id!r} must be a DuplicatePairPrediction, "
+                f"got {type(prediction).__name__}"
+            )
+
+    expected_case_ids = {
+        item.evaluation_case_id
+        for item in dataset.items
+    }
+
+    provided_case_ids = set(
+        predictions.keys()
+    )
+
+    missing = (
+        expected_case_ids
+        - provided_case_ids
+    )
+
+    if missing:
+        raise ValueError(
+            f"missing predictions for evaluation_case_id: "
+            f"{sorted(missing)!r}"
+        )
+
+    extra = (
+        provided_case_ids
+        - expected_case_ids
+    )
+
+    if extra:
+        raise ValueError(
+            f"unexpected predictions for evaluation_case_id: "
+            f"{sorted(extra)!r}"
+        )
+
+    evaluated_cases: list[
+        DuplicatePairCaseEvaluation
+    ] = []
+
+    for item in dataset.items:
+        prediction = predictions[
+            item.evaluation_case_id
+        ]
+
+        evaluated_case = evaluate_duplicate_pair(
+            item,
+            prediction,
+        )
+
+        evaluated_cases.append(
+            evaluated_case
+        )
+
+    return DuplicatePairEvaluationReport(
+        dataset_id=dataset.dataset_id,
+        cases=tuple(evaluated_cases),
     )
