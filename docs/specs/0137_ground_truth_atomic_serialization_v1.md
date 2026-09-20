@@ -10,17 +10,21 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0137` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#137` |
 | **Título da Issue** | `Ground Truth Atomic Serialization v1` |
 | **Branch documental** | `docs/issue-137-ground-truth-atomic-serialization` |
-| **Branch funcional** | `feature/issue-137-ground-truth-atomic-serialization` (planejada) |
+| **Branch de closeout** | `docs/issue-137-ground-truth-atomic-serialization-closeout` |
+| **Branch funcional** | `feature/issue-137-ground-truth-atomic-serialization` (integrada via PR #139) |
+| **PR funcional** | `#139` |
+| **Merge commit** | `e8b2e41` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-19` |
-| **Última atualização** | `2026-09-19` |
+| **Última atualização** | `2026-09-20` |
 | **Domínio** | Governança de materiais industriais PDM/BOM e Master Data |
 | **Camada arquitetural** | Serialização Versionada (zero-I/O, pura em memória) |
 | **Baseline de entrada** | `936 testes aprovados` (100% GREEN) |
+| **Baseline final integrado** | `1015 testes aprovados` (100% GREEN) |
 | **Impacto SemVer** | `MINOR` (puramente aditivo, release formal permanece `v0.1.0`) |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
@@ -344,9 +348,9 @@ Cada tipo de registro define um conjunto fechado de chaves raiz permitidas:
 
 ---
 
-## 10. API pública planejada
+## 10. API pública implementada
 
-No novo módulo `src/agent_lab/ground_truth_serialization.py`:
+No módulo `src/agent_lab/ground_truth_serialization.py`:
 
 ```python
 # Constantes públicas
@@ -389,42 +393,46 @@ Exportações públicas canônicas em `src/agent_lab/__init__.py`:
 
 ## 11. Arquivos e módulos envolvidos
 
-1. `src/agent_lab/ground_truth_serialization.py` (novo módulo a ser criado na futura fase de implementação);
+1. `src/agent_lab/ground_truth_serialization.py` (módulo implementado);
 2. `src/agent_lab/__init__.py` (exportação canônica dos 9 símbolos não-ambíguos e inclusão em `__all__`);
 3. `tests/test_ground_truth_serialization.py` (nova suíte de testes unitários defensivos);
 4. `docs/specs/0137_ground_truth_atomic_serialization_v1.md` (esta especificação técnica).
 
 ---
 
-## 12. Estratégia futura de implementação (TDD em Slices)
+## 12. Estratégia de implementação executada (TDD em Slices)
 
-A execução funcional na futura branch de implementação seguirá rigorosamente o ciclo de micro-TDD em 4 slices atômicos:
+A execução funcional na branch de implementação `feature/issue-137-ground-truth-atomic-serialization` seguiu rigorosamente o ciclo de micro-TDD em 4 slices atômicos, complementados pela reconciliação documental pré-PR:
 
-- **Slice 1 — Serialização de `MaterialRuleGroundTruth`:**
+- **Slice 1 — Serialização de `MaterialRuleGroundTruth` (Commit `38875f1`):**
   - Implementação dos helpers internos autocontidos (`_require_canonical_non_empty_str`, `_parse_iso_datetime`, `_parse_specialist`, `_format_specialist`);
   - `material_rule_ground_truth_to_record` com emissão ordenada de `expected_issue_types`;
   - `material_rule_ground_truth_from_record` com validação closed-schema, integridade de `annotator`, `schema_version`, `record_type`, canonicalidade estrita de strings e validação de ordem canônica em `expected_issue_types`;
   - Testes de round-trip para proveniência `SPECIALIST_CURATED` e `SYNTHETIC_SPECIFIED`;
   - Testes defensivos de rejeição fail-closed (strings com espaços nas pontas, listas de enums desordenadas, etc.).
-- **Slice 2 — Serialização de `DuplicatePairGroundTruth`:**
+- **Slice 2 — Serialização de `DuplicatePairGroundTruth` (Commit `a852879`):**
   - `duplicate_pair_ground_truth_to_record` e `duplicate_pair_ground_truth_from_record`;
   - Validação estrita de `is_duplicate: bool`, strings canônicas e ordenação relacional `material_id_a < material_id_b`;
   - Testes de round-trip e testes defensivos fail-closed.
-- **Slice 3 — Serialização de `DecisionRecommendationGroundTruth`:**
+- **Slice 3 — Serialização de `DecisionRecommendationGroundTruth` (Commit `ea72def`):**
   - `decision_recommendation_ground_truth_to_record` e `decision_recommendation_ground_truth_from_record`;
-  - Validação estrita do enum `expected_recommendation` (`GovernanceDecision`) e strings canônicas;
+  - Validação estrita do enum `expected_recommendation` (`GovernanceDecision`) e strings canônicas (com rejeição de instâncias de `StrEnum` no payload serializado);
   - Testes de round-trip e testes defensivos fail-closed.
-- **Slice 4 — Integração de Exports Públicos e Regressão Global:**
+- **Slice 4 — Integração de Exports Públicos e Regressão Global (Commit `23151c2`):**
   - Exportação canônica dos 9 novos símbolos não-ambíguos em `src/agent_lab/__init__.py`;
-  - Inclusão em `__all__`;
+  - Inclusão dos 9 símbolos em `__all__`;
   - Preservação de `SCHEMA_VERSION_V1` com escopo estrito de módulo em `agent_lab.ground_truth_serialization`;
-  - Execução da suíte completa de testes comprovando `936 + novos testes GREEN`.
+  - Execução da suíte completa de testes elevando o baseline para 1015 testes 100% GREEN.
+- **Reconciliação Documental Pré-PR (Commit `41638e5`):**
+  - Reconciliação formal da SPEC-0137 documentando o escopo de módulo de `SCHEMA_VERSION_V1` e os 9 exports top-level (Decisão E).
+
+A implementação foi integrada na `main` através do PR funcional #139 (merge commit `e8b2e41`).
 
 ---
 
-## 13. Estratégia futura de testes
+## 13. Estratégia de testes implementada
 
-Os testes a serem implementados em `tests/test_ground_truth_serialization.py` cobrirão:
+Os testes implementados em `tests/test_ground_truth_serialization.py` cobrem:
 
 1. **Testes de Round-Trip Nominal (semanticamente lossless para os campos contratuais):**
    - Round-trip para cada um dos 3 tipos com `LabelProvenance.SPECIALIST_CURATED` (com `VerifiedSpecialistIdentity`);
@@ -454,18 +462,18 @@ Os testes a serem implementados em `tests/test_ground_truth_serialization.py` co
 
 ## 14. Critérios de aceite
 
-- [ ] Módulo `src/agent_lab/ground_truth_serialization.py` criado e contendo as 4 constantes canônicas e 6 funções públicas específicas;
-- [ ] Round-trip comprovadamente lossless para os campos contratuais dos três contratos atômicos:
+- [x] Módulo `src/agent_lab/ground_truth_serialization.py` criado e contendo as 4 constantes canônicas e 6 funções públicas específicas;
+- [x] Round-trip comprovadamente lossless para os campos contratuais dos três contratos atômicos:
   - `MaterialRuleGroundTruth`;
   - `DuplicatePairGroundTruth`;
   - `DecisionRecommendationGroundTruth`;
-- [ ] Validações *closed-schema* e *fail-closed* implementadas para todos os campos raiz e para o sub-schema `annotator`;
-- [ ] Validação estrita de canonicalidade de strings no `from_record`, rejeitando qualquer string com whitespace externo;
-- [ ] Validação estrita de canonicalidade em `expected_issue_types` no `from_record`, rejeitando listas fora de ordem canônica;
-- [ ] Preservação de timestamp timezone-aware e offset UTC representado em ISO 8601;
-- [ ] Invariante relacional temporal `annotator.verified_at <= labeled_at` garantida;
-- [ ] Suíte unitária implementada em `tests/test_ground_truth_serialization.py` com cobertura exaustiva de caminhos nominais e defensivos;
-- [ ] Exportação canônica dos 9 símbolos públicos não-ambíguos (3 constantes `RECORD_TYPE_*` e 6 funções específicas) em `src/agent_lab/__init__.py` e inclusão em `__all__`, com `SCHEMA_VERSION_V1` mantido com escopo de módulo e ausente de `agent_lab` e `agent_lab.__all__`;
-- [ ] Baseline oficial mantido 100% GREEN (`python -m unittest discover -s tests -v`);
-- [ ] `git diff --check` aprovado sem trailing whitespace;
-- [ ] Escopo negativo estritamente preservado (zero dispatchers polimórficos, zero repositories, zero datasets, zero I/O em disco).
+- [x] Validações *closed-schema* e *fail-closed* implementadas para todos os campos raiz e para o sub-schema `annotator`;
+- [x] Validação estrita de canonicalidade de strings no `from_record`, rejeitando qualquer string com whitespace externo;
+- [x] Validação estrita de canonicalidade em `expected_issue_types` no `from_record`, rejeitando listas fora de ordem canônica;
+- [x] Preservação de timestamp timezone-aware e offset UTC representado em ISO 8601;
+- [x] Invariante relacional temporal `annotator.verified_at <= labeled_at` garantida;
+- [x] Suíte unitária implementada em `tests/test_ground_truth_serialization.py` com cobertura exaustiva de caminhos nominais e defensivos (79 testes aprovados);
+- [x] Exportação canônica dos 9 símbolos públicos não-ambíguos (3 constantes `RECORD_TYPE_*` e 6 funções específicas) em `src/agent_lab/__init__.py` e inclusão em `__all__`, com `SCHEMA_VERSION_V1` mantido com escopo de módulo e ausente de `agent_lab` e `agent_lab.__all__`;
+- [x] Baseline oficial mantido 100% GREEN (1015/1015 testes aprovados em `python -m unittest discover -s tests -v`, com 0 failures, 0 errors, 0 skips);
+- [x] `git diff --check` aprovado sem trailing whitespace;
+- [x] Escopo negativo estritamente preservado (zero dispatchers polimórficos, zero repositories de Ground Truth, zero serialização de datasets e zero I/O em disco).
