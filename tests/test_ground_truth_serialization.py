@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 import unittest
 
+import agent_lab
+
 from agent_lab.domain import GovernanceDecision, IssueType
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
@@ -1584,3 +1586,86 @@ class DecisionRecommendationGroundTruthSerializationTests(unittest.TestCase):
             with self.subTest(invalid_input=invalid_input):
                 with self.assertRaises(TypeError):
                     decision_recommendation_ground_truth_to_record(invalid_input)  # type: ignore[arg-type]
+
+
+class GroundTruthSerializationPublicApiTests(unittest.TestCase):
+    def test_public_api_symbols_are_exposed_on_package(self) -> None:
+        expected_public_names = (
+            "RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH",
+            "RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH",
+            "RECORD_TYPE_DECISION_RECOMMENDATION_GROUND_TRUTH",
+            "material_rule_ground_truth_to_record",
+            "material_rule_ground_truth_from_record",
+            "duplicate_pair_ground_truth_to_record",
+            "duplicate_pair_ground_truth_from_record",
+            "decision_recommendation_ground_truth_to_record",
+            "decision_recommendation_ground_truth_from_record",
+        )
+        for name in expected_public_names:
+            with self.subTest(name=name):
+                self.assertTrue(
+                    hasattr(agent_lab, name),
+                    f"Symbol {name!r} is not exported on agent_lab",
+                )
+
+    def test_public_api_symbols_are_included_in_all(self) -> None:
+        self.assertTrue(hasattr(agent_lab, "__all__"))
+        expected_public_names = (
+            "RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH",
+            "RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH",
+            "RECORD_TYPE_DECISION_RECOMMENDATION_GROUND_TRUTH",
+            "material_rule_ground_truth_to_record",
+            "material_rule_ground_truth_from_record",
+            "duplicate_pair_ground_truth_to_record",
+            "duplicate_pair_ground_truth_from_record",
+            "decision_recommendation_ground_truth_to_record",
+            "decision_recommendation_ground_truth_from_record",
+        )
+        for name in expected_public_names:
+            with self.subTest(name=name):
+                self.assertIn(name, agent_lab.__all__)
+
+    def test_schema_version_is_not_exported_at_root(self) -> None:
+        self.assertFalse(
+            hasattr(agent_lab, "SCHEMA_VERSION_V1"),
+            "SCHEMA_VERSION_V1 must NOT be exported in top-level agent_lab package",
+        )
+        self.assertNotIn(
+            "SCHEMA_VERSION_V1",
+            agent_lab.__all__,
+            "SCHEMA_VERSION_V1 must NOT be included in agent_lab.__all__",
+        )
+
+    def test_public_api_symbol_identities(self) -> None:
+        self.assertIs(
+            getattr(agent_lab, "material_rule_ground_truth_to_record", None),
+            material_rule_ground_truth_to_record,
+        )
+        self.assertIs(
+            getattr(agent_lab, "material_rule_ground_truth_from_record", None),
+            material_rule_ground_truth_from_record,
+        )
+        self.assertIs(
+            getattr(agent_lab, "duplicate_pair_ground_truth_to_record", None),
+            duplicate_pair_ground_truth_to_record,
+        )
+        self.assertIs(
+            getattr(agent_lab, "duplicate_pair_ground_truth_from_record", None),
+            duplicate_pair_ground_truth_from_record,
+        )
+        self.assertIs(
+            getattr(
+                agent_lab,
+                "decision_recommendation_ground_truth_to_record",
+                None,
+            ),
+            decision_recommendation_ground_truth_to_record,
+        )
+        self.assertIs(
+            getattr(
+                agent_lab,
+                "decision_recommendation_ground_truth_from_record",
+                None,
+            ),
+            decision_recommendation_ground_truth_from_record,
+        )
