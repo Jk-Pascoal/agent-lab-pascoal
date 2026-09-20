@@ -33,6 +33,17 @@ from .ground_truth_evaluation import (
     evaluate_material_rule,
     evaluate_material_rules,
 )
+from .ground_truth_serialization import (
+    RECORD_TYPE_DECISION_RECOMMENDATION_GROUND_TRUTH,
+    RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH,
+    RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH,
+    decision_recommendation_ground_truth_from_record,
+    decision_recommendation_ground_truth_to_record,
+    duplicate_pair_ground_truth_from_record,
+    duplicate_pair_ground_truth_to_record,
+    material_rule_ground_truth_from_record,
+    material_rule_ground_truth_to_record,
+)
 from .human_review_claim import (
     HumanReviewClaim,
     HumanReviewClaimRelease,
@@ -132,4 +143,13 @@ __all__ = [
     "MaterialRuleEvaluationReport",
     "evaluate_material_rule",
     "evaluate_material_rules",
+    "RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH",
+    "RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH",
+    "RECORD_TYPE_DECISION_RECOMMENDATION_GROUND_TRUTH",
+    "material_rule_ground_truth_to_record",
+    "material_rule_ground_truth_from_record",
+    "duplicate_pair_ground_truth_to_record",
+    "duplicate_pair_ground_truth_from_record",
+    "decision_recommendation_ground_truth_to_record",
+    "decision_recommendation_ground_truth_from_record",
 ]
