@@ -97,8 +97,8 @@ Estabelecer no novo módulo `src/agent_lab/ground_truth_serialization.py` a cama
 
 ### Incluído
 - Criação do módulo `src/agent_lab/ground_truth_serialization.py`;
-- Constantes canônicas públicas de versão e discriminadores:
-  - `SCHEMA_VERSION_V1: int = 1`
+- Constantes canônicas de versão e discriminadores:
+  - `SCHEMA_VERSION_V1: int = 1` (com escopo estrito de módulo em `agent_lab.ground_truth_serialization`)
   - `RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH: str = "MATERIAL_RULE_GROUND_TRUTH"`
   - `RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH: str = "DUPLICATE_PAIR_GROUND_TRUTH"`
   - `RECORD_TYPE_DECISION_RECOMMENDATION_GROUND_TRUTH: str = "DECISION_RECOMMENDATION_GROUND_TRUTH"`
@@ -113,7 +113,7 @@ Estabelecer no novo módulo `src/agent_lab/ground_truth_serialization.py` a cama
 - Canonicalidade estrita de strings em `from_record`: exigência de `isinstance(val, str) and not isinstance(val, bool) and val != "" and val == val.strip()`, sem aplicação de `.strip()` corretivo;
 - Validação nominal estrita de tipos na entrada das funções (`TypeError` para instâncias de domínio inválidas em `to_record`, `ValueError` para registros corrompidos/inválidos em `from_record`);
 - Bateria completa de testes unitários defensivos e de round-trip em `tests/test_ground_truth_serialization.py`;
-- Exportação canônica dos 10 símbolos públicos em `src/agent_lab/__init__.py` e inclusão em `__all__`.
+- Exportação canônica dos 9 símbolos públicos em `src/agent_lab/__init__.py` e inclusão em `__all__` (com `SCHEMA_VERSION_V1` mantido com escopo de módulo por governança arquitetural).
 
 ### Fora de escopo (Não objetivos)
 - Dispatchers polimórficos (`ground_truth_to_record`, `ground_truth_from_record`), que permanecem expressamente diferidos até que surja necessidade arquitetural concreta;
@@ -216,6 +216,19 @@ O módulo declarará internamente suas próprias rotinas utilitárias:
 - `_parse_iso_datetime(value, field_name)`;
 - `_parse_specialist(data)`;
 - `_format_specialist(specialist)`.
+
+### Decisão E — Escopo de `SCHEMA_VERSION_V1` e Exposição Top-Level Reconciliada
+
+Originalmente, planejou-se exportar `SCHEMA_VERSION_V1` no nível do pacote raiz `agent_lab`.
+
+Entretanto, durante a integração e regressão global do Slice 4, constatou-se que promover `SCHEMA_VERSION_V1` ao namespace raiz conflita diretamente com invariantes arquiteturais prévias do laboratório, estabelecidas pelas suítes de `HumanReviewClaim` e `HumanReviewClaimRelease`, que exigem expressamente que `SCHEMA_VERSION_V1` **não** seja exportado em `agent_lab` nem conste em `__all__`.
+
+Como múltiplos módulos de serialização do Agent Lab possuem sua própria constante `SCHEMA_VERSION_V1 = 1`, um atributo raiz `agent_lab.SCHEMA_VERSION_V1` seria semanticamente ambíguo.
+
+**Decisão arquitetural final:**
+
+- `SCHEMA_VERSION_V1: int = 1` permanece pertencente ao contrato do módulo `agent_lab.ground_truth_serialization`, não sendo reexportado no pacote raiz nem incluído em `__all__`;
+- o namespace público de `src/agent_lab/__init__.py` expõe exclusivamente os **9 símbolos não-ambíguos**: os 3 discriminadores `RECORD_TYPE_*` e as 6 funções específicas de conversão.
 
 ---
 
@@ -369,14 +382,15 @@ def decision_recommendation_ground_truth_from_record(
 ```
 
 Exportações públicas canônicas em `src/agent_lab/__init__.py`:
-- Exatamente as 6 funções específicas e as 4 constantes (totalizando 10 novos símbolos) exportadas e incluídas em `__all__`.
+- Exatamente as 6 funções específicas e os 3 discriminadores `RECORD_TYPE_*` (totalizando 9 novos símbolos não-ambíguos) exportados e incluídos em `__all__`;
+- `SCHEMA_VERSION_V1` permanece module-scoped em `agent_lab.ground_truth_serialization.SCHEMA_VERSION_V1` e deliberadamente ausente de `agent_lab.__init__` para evitar colisão semântica com outros serializers do laboratório.
 
 ---
 
 ## 11. Arquivos e módulos envolvidos
 
 1. `src/agent_lab/ground_truth_serialization.py` (novo módulo a ser criado na futura fase de implementação);
-2. `src/agent_lab/__init__.py` (exportação canônica e inclusão em `__all__`);
+2. `src/agent_lab/__init__.py` (exportação canônica dos 9 símbolos não-ambíguos e inclusão em `__all__`);
 3. `tests/test_ground_truth_serialization.py` (nova suíte de testes unitários defensivos);
 4. `docs/specs/0137_ground_truth_atomic_serialization_v1.md` (esta especificação técnica).
 
@@ -401,8 +415,9 @@ A execução funcional na futura branch de implementação seguirá rigorosament
   - Validação estrita do enum `expected_recommendation` (`GovernanceDecision`) e strings canônicas;
   - Testes de round-trip e testes defensivos fail-closed.
 - **Slice 4 — Integração de Exports Públicos e Regressão Global:**
-  - Exportação canônica dos 10 novos símbolos em `src/agent_lab/__init__.py`;
+  - Exportação canônica dos 9 novos símbolos não-ambíguos em `src/agent_lab/__init__.py`;
   - Inclusão em `__all__`;
+  - Preservação de `SCHEMA_VERSION_V1` com escopo estrito de módulo em `agent_lab.ground_truth_serialization`;
   - Execução da suíte completa de testes comprovando `936 + novos testes GREEN`.
 
 ---
@@ -450,7 +465,7 @@ Os testes a serem implementados em `tests/test_ground_truth_serialization.py` co
 - [ ] Preservação de timestamp timezone-aware e offset UTC representado em ISO 8601;
 - [ ] Invariante relacional temporal `annotator.verified_at <= labeled_at` garantida;
 - [ ] Suíte unitária implementada em `tests/test_ground_truth_serialization.py` com cobertura exaustiva de caminhos nominais e defensivos;
-- [ ] Exportação canônica dos 10 símbolos em `src/agent_lab/__init__.py` e inclusão em `__all__`;
+- [ ] Exportação canônica dos 9 símbolos públicos não-ambíguos (3 constantes `RECORD_TYPE_*` e 6 funções específicas) em `src/agent_lab/__init__.py` e inclusão em `__all__`, com `SCHEMA_VERSION_V1` mantido com escopo de módulo e ausente de `agent_lab` e `agent_lab.__all__`;
 - [ ] Baseline oficial mantido 100% GREEN (`python -m unittest discover -s tests -v`);
 - [ ] `git diff --check` aprovado sem trailing whitespace;
 - [ ] Escopo negativo estritamente preservado (zero dispatchers polimórficos, zero repositories, zero datasets, zero I/O em disco).
