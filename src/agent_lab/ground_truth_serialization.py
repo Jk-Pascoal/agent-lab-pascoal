@@ -5,11 +5,16 @@ from datetime import datetime
 from typing import Any
 
 from agent_lab.domain import IssueType
-from agent_lab.ground_truth import LabelProvenance, MaterialRuleGroundTruth
+from agent_lab.ground_truth import (
+    DuplicatePairGroundTruth,
+    LabelProvenance,
+    MaterialRuleGroundTruth,
+)
 from agent_lab.human_review import VerifiedSpecialistIdentity
 
 SCHEMA_VERSION_V1: int = 1
 RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH: str = "MATERIAL_RULE_GROUND_TRUTH"
+RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH: str = "DUPLICATE_PAIR_GROUND_TRUTH"
 
 _SPECIALIST_REQUIRED_FIELDS = frozenset(
     {
@@ -18,6 +23,23 @@ _SPECIALIST_REQUIRED_FIELDS = frozenset(
         "identity_subject",
         "verification_id",
         "verified_at",
+    }
+)
+
+_DUPLICATE_PAIR_REQUIRED_FIELDS = frozenset(
+    {
+        "schema_version",
+        "record_type",
+        "ground_truth_id",
+        "evaluation_case_id",
+        "material_id_a",
+        "material_id_b",
+        "is_duplicate",
+        "provenance",
+        "source_reference",
+        "annotator",
+        "labeled_at",
+        "rationale",
     }
 )
 
@@ -305,6 +327,156 @@ def material_rule_ground_truth_from_record(
         ground_truth_id=ground_truth_id,
         material_id=material_id,
         expected_issue_types=tuple(parsed_issues),
+        provenance=provenance,
+        source_reference=source_reference,
+        annotator=annotator,
+        labeled_at=labeled_at,
+        rationale=rationale,
+    )
+
+
+def duplicate_pair_ground_truth_to_record(
+    ground_truth: DuplicatePairGroundTruth,
+) -> dict[str, object]:
+    """Serialize a DuplicatePairGroundTruth domain instance into a canonical record dictionary."""
+    if not isinstance(ground_truth, DuplicatePairGroundTruth):
+        raise TypeError(
+            f"ground_truth must be a DuplicatePairGroundTruth instance, got {type(ground_truth).__name__}"
+        )
+
+    annotator_record = (
+        _format_specialist(ground_truth.annotator)
+        if ground_truth.annotator is not None
+        else None
+    )
+
+    return {
+        "schema_version": SCHEMA_VERSION_V1,
+        "record_type": RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH,
+        "ground_truth_id": ground_truth.ground_truth_id,
+        "evaluation_case_id": ground_truth.evaluation_case_id,
+        "material_id_a": ground_truth.material_id_a,
+        "material_id_b": ground_truth.material_id_b,
+        "is_duplicate": ground_truth.is_duplicate,
+        "provenance": ground_truth.provenance.value,
+        "source_reference": ground_truth.source_reference,
+        "annotator": annotator_record,
+        "labeled_at": ground_truth.labeled_at.isoformat(),
+        "rationale": ground_truth.rationale,
+    }
+
+
+def duplicate_pair_ground_truth_from_record(
+    record: Mapping[str, object],
+) -> DuplicatePairGroundTruth:
+    """Deserialize a versioned record mapping into an immutable DuplicatePairGroundTruth."""
+    if not isinstance(record, Mapping) or isinstance(record, (str, bytes)):
+        raise ValueError(
+            f"Record must be a Mapping, got {type(record).__name__}"
+        )
+
+    actual_keys = set(record.keys())
+    missing = _DUPLICATE_PAIR_REQUIRED_FIELDS - actual_keys
+    if missing:
+        raise ValueError(f"Missing required field(s): {sorted(missing)}")
+
+    unknown = actual_keys - _DUPLICATE_PAIR_REQUIRED_FIELDS
+    if unknown:
+        raise ValueError(
+            f"Unknown field(s) detected: {_format_unknown_keys(unknown)}"
+        )
+
+    schema_version = record["schema_version"]
+    if type(schema_version) is not int or schema_version != SCHEMA_VERSION_V1:
+        raise ValueError(
+            f"Unsupported or invalid schema_version: {schema_version!r}"
+        )
+
+    record_type = record["record_type"]
+    if record_type != RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH:
+        raise ValueError(
+            f"Expected record_type {RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH!r}, got {record_type!r}"
+        )
+
+    ground_truth_id = _require_canonical_non_empty_str(
+        record["ground_truth_id"], "ground_truth_id"
+    )
+    evaluation_case_id = _require_canonical_non_empty_str(
+        record["evaluation_case_id"], "evaluation_case_id"
+    )
+    material_id_a = _require_canonical_non_empty_str(
+        record["material_id_a"], "material_id_a"
+    )
+    material_id_b = _require_canonical_non_empty_str(
+        record["material_id_b"], "material_id_b"
+    )
+
+    if material_id_a == material_id_b:
+        raise ValueError(
+            "material_id_a and material_id_b must be different"
+        )
+    if material_id_a > material_id_b:
+        raise ValueError(
+            "material_id_a must be less than material_id_b"
+        )
+
+    raw_is_duplicate = record["is_duplicate"]
+    if type(raw_is_duplicate) is not bool:
+        raise ValueError(
+            f"Field 'is_duplicate' must be a strict bool, got {type(raw_is_duplicate).__name__}"
+        )
+    is_duplicate = raw_is_duplicate
+
+    raw_provenance = record["provenance"]
+    if not isinstance(raw_provenance, str) or isinstance(raw_provenance, bool):
+        raise ValueError(
+            f"Field 'provenance' must be a string, got {type(raw_provenance).__name__}"
+        )
+    try:
+        provenance = LabelProvenance(raw_provenance)
+    except ValueError as exc:
+        raise ValueError(
+            f"Unknown LabelProvenance: {raw_provenance!r}"
+        ) from exc
+
+    raw_annotator = record["annotator"]
+    if provenance == LabelProvenance.SYNTHETIC_SPECIFIED:
+        if raw_annotator is not None:
+            raise ValueError(
+                "annotator must be None when provenance is SYNTHETIC_SPECIFIED"
+            )
+        annotator = None
+    elif provenance == LabelProvenance.SPECIALIST_CURATED:
+        if raw_annotator is None:
+            raise ValueError(
+                "annotator is required when provenance is SPECIALIST_CURATED"
+            )
+        annotator = _parse_specialist(raw_annotator)
+    else:
+        raise ValueError(f"Unhandled LabelProvenance: {provenance!r}")
+
+    labeled_at = _parse_iso_datetime(record["labeled_at"], "labeled_at")
+
+    if (
+        provenance == LabelProvenance.SPECIALIST_CURATED
+        and annotator is not None
+        and annotator.verified_at > labeled_at
+    ):
+        raise ValueError("annotator.verified_at cannot be after labeled_at")
+
+    source_reference = _require_canonical_non_empty_str(
+        record["source_reference"], "source_reference"
+    )
+    rationale = _require_canonical_non_empty_str(
+        record["rationale"], "rationale"
+    )
+
+    return DuplicatePairGroundTruth(
+        evaluation_case_id=evaluation_case_id,
+        ground_truth_id=ground_truth_id,
+        material_id_a=material_id_a,
+        material_id_b=material_id_b,
+        is_duplicate=is_duplicate,
         provenance=provenance,
         source_reference=source_reference,
         annotator=annotator,

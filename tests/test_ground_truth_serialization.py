@@ -3,12 +3,16 @@ import unittest
 
 from agent_lab.domain import IssueType
 from agent_lab.ground_truth import (
+    DuplicatePairGroundTruth,
     LabelProvenance,
     MaterialRuleGroundTruth,
 )
 from agent_lab.ground_truth_serialization import (
+    RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH,
     RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH,
     SCHEMA_VERSION_V1,
+    duplicate_pair_ground_truth_from_record,
+    duplicate_pair_ground_truth_to_record,
     material_rule_ground_truth_from_record,
     material_rule_ground_truth_to_record,
 )
@@ -534,3 +538,524 @@ class MaterialRuleGroundTruthSerializationTests(unittest.TestCase):
             with self.subTest(invalid_input=invalid_input):
                 with self.assertRaises(TypeError):
                     material_rule_ground_truth_to_record(invalid_input)  # type: ignore[arg-type]
+
+
+class DuplicatePairGroundTruthSerializationTests(unittest.TestCase):
+    def _create_valid_record(
+        self,
+        *,
+        provenance: str = LabelProvenance.SYNTHETIC_SPECIFIED.value,
+        annotator: dict[str, object] | None = None,
+        material_id_a: str = "MAT-100",
+        material_id_b: str = "MAT-200",
+        is_duplicate: bool = True,
+    ) -> dict[str, object]:
+        labeled_at = datetime(2026, 9, 20, 10, 0, 0, tzinfo=timezone.utc)
+        return {
+            "schema_version": 1,
+            "record_type": RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH,
+            "ground_truth_id": "GT-DP-001",
+            "evaluation_case_id": "CASE-DP-001",
+            "material_id_a": material_id_a,
+            "material_id_b": material_id_b,
+            "is_duplicate": is_duplicate,
+            "provenance": provenance,
+            "source_reference": "SYNTH-SPEC-DP-V1",
+            "annotator": annotator,
+            "labeled_at": labeled_at.isoformat(),
+            "rationale": "Synthetic duplicate pair ground truth",
+        }
+
+    def _create_valid_annotator(
+        self,
+        *,
+        verified_at: str = "2026-09-15T08:30:00+00:00",
+    ) -> dict[str, object]:
+        return {
+            "specialist_id": "SPEC-002",
+            "identity_provider": "CORP_IDP",
+            "identity_subject": "specialist.curator@corp.example",
+            "verification_id": "VER-888",
+            "verified_at": verified_at,
+        }
+
+    def test_record_type_constant(self) -> None:
+        self.assertEqual(
+            RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH,
+            "DUPLICATE_PAIR_GROUND_TRUTH",
+        )
+
+    def test_round_trip_synthetic_specified(self) -> None:
+        labeled_at = datetime(2026, 9, 20, 10, 0, 0, tzinfo=timezone.utc)
+        gt = DuplicatePairGroundTruth(
+            evaluation_case_id="CASE-DP-001",
+            ground_truth_id="GT-DP-001",
+            material_id_a="MAT-100",
+            material_id_b="MAT-200",
+            is_duplicate=True,
+            provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+            source_reference="SYNTH-SPEC-DP-V1",
+            annotator=None,
+            labeled_at=labeled_at,
+            rationale="Synthetic duplicate pair ground truth",
+        )
+
+        record = duplicate_pair_ground_truth_to_record(gt)
+
+        self.assertEqual(record["schema_version"], 1)
+        self.assertEqual(
+            record["record_type"],
+            "DUPLICATE_PAIR_GROUND_TRUTH",
+        )
+        self.assertEqual(record["ground_truth_id"], "GT-DP-001")
+        self.assertEqual(record["evaluation_case_id"], "CASE-DP-001")
+        self.assertEqual(record["material_id_a"], "MAT-100")
+        self.assertEqual(record["material_id_b"], "MAT-200")
+        self.assertIs(record["is_duplicate"], True)
+        self.assertEqual(
+            record["provenance"],
+            LabelProvenance.SYNTHETIC_SPECIFIED.value,
+        )
+        self.assertEqual(record["source_reference"], "SYNTH-SPEC-DP-V1")
+        self.assertIsNone(record["annotator"])
+        self.assertEqual(record["labeled_at"], labeled_at.isoformat())
+        self.assertEqual(
+            record["rationale"],
+            "Synthetic duplicate pair ground truth",
+        )
+
+        reconstructed = duplicate_pair_ground_truth_from_record(record)
+        self.assertEqual(reconstructed, gt)
+        self.assertEqual(reconstructed.material_id_a, "MAT-100")
+        self.assertEqual(reconstructed.material_id_b, "MAT-200")
+        self.assertIs(reconstructed.is_duplicate, True)
+        self.assertIsNone(reconstructed.annotator)
+        self.assertEqual(reconstructed.labeled_at, gt.labeled_at)
+
+    def test_round_trip_specialist_curated(self) -> None:
+        verified_at = datetime(2026, 9, 18, 9, 0, 0, tzinfo=timezone.utc)
+        labeled_at = datetime(2026, 9, 20, 11, 0, 0, tzinfo=timezone.utc)
+
+        specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-002",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist.curator@corp.example",
+            verification_id="VER-888",
+            verified_at=verified_at,
+        )
+
+        gt = DuplicatePairGroundTruth(
+            evaluation_case_id="CASE-DP-002",
+            ground_truth_id="GT-DP-002",
+            material_id_a="MAT-010",
+            material_id_b="MAT-020",
+            is_duplicate=False,
+            provenance=LabelProvenance.SPECIALIST_CURATED,
+            source_reference="CURATION-LOG-2026",
+            annotator=specialist,
+            labeled_at=labeled_at,
+            rationale="Specialist verified distinct materials",
+        )
+
+        record = duplicate_pair_ground_truth_to_record(gt)
+
+        self.assertEqual(record["schema_version"], 1)
+        self.assertEqual(
+            record["record_type"],
+            "DUPLICATE_PAIR_GROUND_TRUTH",
+        )
+        self.assertEqual(
+            record["provenance"],
+            LabelProvenance.SPECIALIST_CURATED.value,
+        )
+        self.assertIsInstance(record["annotator"], dict)
+        annotator_record = record["annotator"]
+        self.assertEqual(annotator_record["specialist_id"], "SPEC-002")
+        self.assertEqual(annotator_record["identity_provider"], "CORP_IDP")
+        self.assertEqual(
+            annotator_record["identity_subject"],
+            "specialist.curator@corp.example",
+        )
+        self.assertEqual(annotator_record["verification_id"], "VER-888")
+        self.assertEqual(
+            annotator_record["verified_at"],
+            verified_at.isoformat(),
+        )
+
+        reconstructed = duplicate_pair_ground_truth_from_record(record)
+        self.assertEqual(reconstructed, gt)
+        self.assertEqual(reconstructed.annotator, specialist)
+        self.assertEqual(
+            reconstructed.annotator.verified_at,
+            specialist.verified_at,
+        )
+
+    def test_canonical_pair_preservation(self) -> None:
+        gt = DuplicatePairGroundTruth(
+            evaluation_case_id="CASE-DP-003",
+            ground_truth_id="GT-DP-003",
+            material_id_a="MAT-100",
+            material_id_b="MAT-200",
+            is_duplicate=True,
+            provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+            source_reference="REF-CANONICAL-PAIR",
+            annotator=None,
+            labeled_at=datetime(2026, 9, 20, 10, 0, 0, tzinfo=timezone.utc),
+            rationale="Pair order preservation test",
+        )
+
+        record = duplicate_pair_ground_truth_to_record(gt)
+        self.assertEqual(record["material_id_a"], "MAT-100")
+        self.assertEqual(record["material_id_b"], "MAT-200")
+
+    def test_is_duplicate_boolean_preservation(self) -> None:
+        for is_dup in (True, False):
+            with self.subTest(is_duplicate=is_dup):
+                gt = DuplicatePairGroundTruth(
+                    evaluation_case_id=f"CASE-DP-BOOL-{is_dup}",
+                    ground_truth_id=f"GT-DP-BOOL-{is_dup}",
+                    material_id_a="MAT-100",
+                    material_id_b="MAT-200",
+                    is_duplicate=is_dup,
+                    provenance=LabelProvenance.SYNTHETIC_SPECIFIED,
+                    source_reference="REF-BOOL-TEST",
+                    annotator=None,
+                    labeled_at=datetime(
+                        2026, 9, 20, 10, 0, 0, tzinfo=timezone.utc
+                    ),
+                    rationale="Boolean preservation test",
+                )
+                record = duplicate_pair_ground_truth_to_record(gt)
+                self.assertIs(record["is_duplicate"], is_dup)
+                self.assertIsInstance(record["is_duplicate"], bool)
+
+                reconstructed = duplicate_pair_ground_truth_from_record(record)
+                self.assertIs(reconstructed.is_duplicate, is_dup)
+
+    # ==================================================
+    # 2. Closed-Schema do Record
+    # ==================================================
+
+    def test_from_record_rejects_non_mapping_root(self) -> None:
+        invalid_inputs = [None, "invalid_str", [1, 2], 123, True, False]
+        for invalid_input in invalid_inputs:
+            with self.subTest(invalid_input=invalid_input):
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(invalid_input)  # type: ignore[arg-type]
+
+    def test_from_record_rejects_missing_required_root_field(self) -> None:
+        record = self._create_valid_record()
+        del record["material_id_a"]
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_unknown_root_field(self) -> None:
+        record = self._create_valid_record()
+        record["unexpected_field"] = "unexpected_value"
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_heterogeneous_unknown_root_keys(self) -> None:
+        record = self._create_valid_record()
+        record["unexpected_field"] = "unexpected_value"
+        record[123] = "heterogeneous_key"  # type: ignore[index]
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    # ==================================================
+    # 3. schema_version e record_type
+    # ==================================================
+
+    def test_from_record_rejects_invalid_schema_version(self) -> None:
+        invalid_versions = [2, 0, "1", True, None]
+        for invalid_version in invalid_versions:
+            with self.subTest(invalid_version=invalid_version):
+                record = self._create_valid_record()
+                record["schema_version"] = invalid_version
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(record)
+
+        record_missing = self._create_valid_record()
+        del record_missing["schema_version"]
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record_missing)
+
+    def test_from_record_rejects_invalid_record_type(self) -> None:
+        invalid_types = [
+            "UNKNOWN_RECORD_TYPE",
+            "MATERIAL_RULE_GROUND_TRUTH",
+            "DECISION_RECOMMENDATION_GROUND_TRUTH",
+            " DUPLICATE_PAIR_GROUND_TRUTH",
+            "DUPLICATE_PAIR_GROUND_TRUTH ",
+            None,
+            True,
+        ]
+        for invalid_type in invalid_types:
+            with self.subTest(invalid_type=invalid_type):
+                record = self._create_valid_record()
+                record["record_type"] = invalid_type
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(record)
+
+    # ==================================================
+    # 4. Strings Canônicas
+    # ==================================================
+
+    def test_from_record_rejects_non_canonical_strings(self) -> None:
+        string_fields = [
+            "ground_truth_id",
+            "evaluation_case_id",
+            "material_id_a",
+            "material_id_b",
+            "source_reference",
+            "rationale",
+        ]
+        invalid_string_values = [
+            "",
+            "   ",
+            " valor",
+            "valor ",
+            "\tvalor",
+            "valor\n",
+            None,
+            123,
+            True,
+        ]
+        for field_name in string_fields:
+            for invalid_val in invalid_string_values:
+                with self.subTest(field=field_name, value=repr(invalid_val)):
+                    record = self._create_valid_record()
+                    record[field_name] = invalid_val
+                    with self.assertRaises(ValueError):
+                        duplicate_pair_ground_truth_from_record(record)
+
+    # ==================================================
+    # 5. is_duplicate — Tipo Estrito
+    # ==================================================
+
+    def test_from_record_rejects_non_boolean_is_duplicate(self) -> None:
+        invalid_values = [
+            0,
+            1,
+            "true",
+            "false",
+            "",
+            None,
+            [],
+            {},
+        ]
+        for invalid_val in invalid_values:
+            with self.subTest(is_duplicate=repr(invalid_val)):
+                record = self._create_valid_record()
+                record["is_duplicate"] = invalid_val
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(record)
+
+    # ==================================================
+    # 6. Par Canônico / Identidade Relacional
+    # ==================================================
+
+    def test_from_record_rejects_invalid_pair_relationships(self) -> None:
+        # A. Auto-par (material_id_a == material_id_b)
+        record_equal = self._create_valid_record(
+            material_id_a="MAT-100",
+            material_id_b="MAT-100",
+        )
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record_equal)
+
+        # B. Par invertido (material_id_a > material_id_b)
+        record_inverted = self._create_valid_record(
+            material_id_a="MAT-200",
+            material_id_b="MAT-100",
+        )
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record_inverted)
+
+    # ==================================================
+    # 7. provenance / annotator
+    # ==================================================
+
+    def test_from_record_rejects_invalid_provenance(self) -> None:
+        invalid_provenance_values = [
+            "UNKNOWN_PROVENANCE",
+            "",
+            "   ",
+            None,
+            123,
+            True,
+        ]
+        for invalid_val in invalid_provenance_values:
+            with self.subTest(provenance=repr(invalid_val)):
+                record = self._create_valid_record()
+                record["provenance"] = invalid_val
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_synthetic_specified_with_annotator(self) -> None:
+        record = self._create_valid_record(
+            provenance=LabelProvenance.SYNTHETIC_SPECIFIED.value,
+            annotator=self._create_valid_annotator(),
+        )
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_specialist_curated_with_none_annotator(self) -> None:
+        record = self._create_valid_record(
+            provenance=LabelProvenance.SPECIALIST_CURATED.value,
+            annotator=None,
+        )
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_annotator_non_mapping(self) -> None:
+        invalid_annotators = ["not_a_mapping", 123, True, [1, 2]]
+        for invalid_annotator in invalid_annotators:
+            with self.subTest(annotator=repr(invalid_annotator)):
+                record = self._create_valid_record(
+                    provenance=LabelProvenance.SPECIALIST_CURATED.value,
+                    annotator=invalid_annotator,  # type: ignore[arg-type]
+                )
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_annotator_missing_required_field(self) -> None:
+        annotator = self._create_valid_annotator()
+        del annotator["specialist_id"]
+        record = self._create_valid_record(
+            provenance=LabelProvenance.SPECIALIST_CURATED.value,
+            annotator=annotator,
+        )
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_annotator_unexpected_field(self) -> None:
+        annotator = self._create_valid_annotator()
+        annotator["extra_field"] = "extra_value"
+        record = self._create_valid_record(
+            provenance=LabelProvenance.SPECIALIST_CURATED.value,
+            annotator=annotator,
+        )
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_heterogeneous_unknown_annotator_keys(self) -> None:
+        annotator = self._create_valid_annotator()
+        annotator["unexpected_specialist_field"] = "unexpected_value"
+        annotator[456] = "heterogeneous_key"  # type: ignore[index]
+        record = self._create_valid_record(
+            provenance=LabelProvenance.SPECIALIST_CURATED.value,
+            annotator=annotator,
+        )
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_specialist_non_canonical_strings(self) -> None:
+        specialist_string_fields = [
+            "specialist_id",
+            "identity_provider",
+            "identity_subject",
+            "verification_id",
+        ]
+        invalid_strings = [
+            "",
+            "   ",
+            " valor",
+            "valor ",
+            "\tvalor",
+            "valor\n",
+            None,
+            123,
+            True,
+        ]
+        for field_name in specialist_string_fields:
+            for invalid_val in invalid_strings:
+                with self.subTest(field=field_name, value=repr(invalid_val)):
+                    annotator = self._create_valid_annotator()
+                    annotator[field_name] = invalid_val
+                    record = self._create_valid_record(
+                        provenance=LabelProvenance.SPECIALIST_CURATED.value,
+                        annotator=annotator,
+                    )
+                    with self.assertRaises(ValueError):
+                        duplicate_pair_ground_truth_from_record(record)
+
+    # ==================================================
+    # 8. Temporalidade
+    # ==================================================
+
+    def test_from_record_rejects_invalid_labeled_at(self) -> None:
+        invalid_timestamps = [
+            "invalid_timestamp",
+            "2026-09-20T10:00:00",  # naive (sem timezone)
+            123456,
+            None,
+            True,
+        ]
+        for invalid_ts in invalid_timestamps:
+            with self.subTest(labeled_at=repr(invalid_ts)):
+                record = self._create_valid_record()
+                record["labeled_at"] = invalid_ts
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_rejects_invalid_annotator_verified_at(self) -> None:
+        invalid_timestamps = [
+            "invalid_timestamp",
+            "2026-09-15T08:30:00",  # naive (sem timezone)
+            123456,
+            None,
+            True,
+        ]
+        for invalid_ts in invalid_timestamps:
+            with self.subTest(verified_at=repr(invalid_ts)):
+                annotator = self._create_valid_annotator()
+                annotator["verified_at"] = invalid_ts
+                record = self._create_valid_record(
+                    provenance=LabelProvenance.SPECIALIST_CURATED.value,
+                    annotator=annotator,
+                )
+                with self.assertRaises(ValueError):
+                    duplicate_pair_ground_truth_from_record(record)
+
+    def test_from_record_validates_temporal_relationship_between_verified_and_labeled(
+        self,
+    ) -> None:
+        # verified_at > labeled_at deve falhar
+        annotator = self._create_valid_annotator(
+            verified_at="2026-09-20T12:00:00+00:00"
+        )
+        record = self._create_valid_record(
+            provenance=LabelProvenance.SPECIALIST_CURATED.value,
+            annotator=annotator,
+        )
+        record["labeled_at"] = "2026-09-20T10:00:00+00:00"
+        with self.assertRaises(ValueError):
+            duplicate_pair_ground_truth_from_record(record)
+
+        # verified_at == labeled_at deve ser aceito
+        same_instant = "2026-09-20T10:00:00+00:00"
+        annotator_equal = self._create_valid_annotator(
+            verified_at=same_instant
+        )
+        record_equal = self._create_valid_record(
+            provenance=LabelProvenance.SPECIALIST_CURATED.value,
+            annotator=annotator_equal,
+        )
+        record_equal["labeled_at"] = same_instant
+        obj = duplicate_pair_ground_truth_from_record(record_equal)
+        self.assertIsNotNone(obj.annotator)
+        self.assertEqual(obj.annotator.verified_at, obj.labeled_at)
+
+    # ==================================================
+    # 9. Teste do to_record
+    # ==================================================
+
+    def test_to_record_rejects_non_duplicate_pair_ground_truth_instance(
+        self,
+    ) -> None:
+        invalid_inputs = [None, {}, "invalid_string", 123, True]
+        for invalid_input in invalid_inputs:
+            with self.subTest(invalid_input=invalid_input):
+                with self.assertRaises(TypeError):
+                    duplicate_pair_ground_truth_to_record(invalid_input)  # type: ignore[arg-type]
