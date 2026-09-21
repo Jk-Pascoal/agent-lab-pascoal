@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from .decision import DecisionRecommendation
 from .domain import MaterialRecord
+from .ground_truth import DecisionRecommendationGroundTruthDataset
+from .ground_truth_evaluation import (
+    DecisionRecommendationEvaluationReport,
+    evaluate_decision_recommendations,
+)
+
+RecommendationPipeline = Callable[[MaterialRecord], DecisionRecommendation]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,3 +39,29 @@ class DecisionRecommendationBenchmarkCase:
 
         if not isinstance(self.material, MaterialRecord):
             raise TypeError("material must be a MaterialRecord")
+
+
+class RunDecisionRecommendationBenchmarkUseCase:
+    """Caso de uso para execução e avaliação de benchmark de recomendação de governança."""
+
+    def __init__(
+        self,
+        pipeline: RecommendationPipeline,
+    ) -> None:
+        self._pipeline = pipeline
+
+    def execute(
+        self,
+        dataset: DecisionRecommendationGroundTruthDataset,
+        cases: Sequence[DecisionRecommendationBenchmarkCase],
+    ) -> DecisionRecommendationEvaluationReport:
+        predictions: dict[str, DecisionRecommendation] = {}
+
+        for case in cases:
+            prediction = self._pipeline(case.material)
+            predictions[case.evaluation_case_id] = prediction
+
+        return evaluate_decision_recommendations(
+            dataset,
+            predictions,
+        )
