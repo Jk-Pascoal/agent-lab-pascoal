@@ -1,8 +1,9 @@
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 import unittest
+from unittest.mock import MagicMock, patch
 
-from agent_lab.decision import DecisionRecommendation
+from agent_lab.decision import DecisionRecommendation, recommend_decision
 from agent_lab.domain import GovernanceDecision, MaterialRecord
 from agent_lab.ground_truth import (
     DecisionRecommendationGroundTruth,
@@ -12,6 +13,7 @@ from agent_lab.ground_truth import (
 from agent_lab.ground_truth_evaluation import (
     DecisionRecommendationEvaluationReport,
 )
+from agent_lab.validator import DeterministicGovernanceValidator
 from agent_lab.decision_recommendation_benchmark_use_case import (
     DecisionRecommendationBenchmarkCase,
 )
@@ -700,6 +702,115 @@ class RunDecisionRecommendationBenchmarkUseCaseTests(unittest.TestCase):
         self.assertIsNone(report.accuracy)
         self.assertTrue(report.is_empty)
         self.assertEqual(len(report.cases), 0)
+
+    def test_default_pipeline_runs_real_deterministic_governance_flow(
+        self,
+    ) -> None:
+        material = MaterialRecord(
+            material_id="MAT-001",
+            description_short="PARAFUSO SEXTAVADO M8",
+            material_group="FIXACAO",
+        )
+        assessment = DeterministicGovernanceValidator().analyze(material)
+        self.assertIsNotNone(assessment.evidence_collection)
+        expected = recommend_decision(assessment.evidence_collection)
+
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-001",
+            expected_recommendation=expected.decision,
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        case = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=material,
+        )
+
+        use_case = self.use_case_cls()
+        report = use_case.execute(dataset, [case])
+
+        self.assertIsInstance(report, DecisionRecommendationEvaluationReport)
+        self.assertEqual(report.total_cases, 1)
+        self.assertEqual(report.matched_cases, 1)
+        self.assertEqual(report.accuracy, 1.0)
+        self.assertTrue(report.is_perfect_match)
+        self.assertEqual(report.cases[0].predicted_decision, expected.decision)
+
+    def test_default_pipeline_rejects_assessment_without_evidence_collection(
+        self,
+    ) -> None:
+        material = MaterialRecord(material_id="MAT-001")
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-001",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        case = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=material,
+        )
+
+        fake_assessment = MagicMock()
+        fake_assessment.evidence_collection = None
+
+        fake_validator = MagicMock()
+        fake_validator.analyze.return_value = fake_assessment
+
+        with patch(
+            "agent_lab.decision_recommendation_benchmark_use_case.DeterministicGovernanceValidator",
+            return_value=fake_validator,
+        ), patch(
+            "agent_lab.decision_recommendation_benchmark_use_case.recommend_decision"
+        ) as mock_recommend_decision:
+            use_case = self.use_case_cls()
+            with self.assertRaises(ValueError):
+                use_case.execute(dataset, [case])
+
+            mock_recommend_decision.assert_not_called()
+
+    def test_explicit_pipeline_override_does_not_use_default_validator(
+        self,
+    ) -> None:
+        material = MaterialRecord(material_id="MAT-001")
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-001",
+            expected_recommendation=GovernanceDecision.APPROVE,
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        case = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=material,
+        )
+
+        custom_called: list[str] = []
+
+        def custom_pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+            custom_called.append(mat.material_id)
+            return _make_recommendation(
+                material_id=mat.material_id,
+                decision=GovernanceDecision.APPROVE,
+            )
+
+        with patch(
+            "agent_lab.decision_recommendation_benchmark_use_case.DeterministicGovernanceValidator",
+            side_effect=AssertionError("Default validator must not be used when pipeline is overridden"),
+        ):
+            use_case = self.use_case_cls(pipeline=custom_pipeline)
+            report = use_case.execute(dataset, [case])
+
+        self.assertEqual(report.total_cases, 1)
+        self.assertEqual(report.matched_cases, 1)
+        self.assertEqual(custom_called, ["MAT-001"])
 
 
 if __name__ == "__main__":

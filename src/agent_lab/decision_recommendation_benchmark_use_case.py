@@ -5,15 +5,34 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from .decision import DecisionRecommendation
+from .decision import (
+    DecisionRecommendation,
+    recommend_decision,
+)
 from .domain import MaterialRecord
 from .ground_truth import DecisionRecommendationGroundTruthDataset
 from .ground_truth_evaluation import (
     DecisionRecommendationEvaluationReport,
     evaluate_decision_recommendations,
 )
+from .validator import DeterministicGovernanceValidator
 
 RecommendationPipeline = Callable[[MaterialRecord], DecisionRecommendation]
+
+
+def _default_deterministic_pipeline(
+    material: MaterialRecord,
+) -> DecisionRecommendation:
+    assessment = DeterministicGovernanceValidator().analyze(material)
+
+    if assessment.evidence_collection is None:
+        raise ValueError(
+            "deterministic governance assessment must contain evidence_collection"
+        )
+
+    return recommend_decision(
+        assessment.evidence_collection
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,9 +65,13 @@ class RunDecisionRecommendationBenchmarkUseCase:
 
     def __init__(
         self,
-        pipeline: RecommendationPipeline,
+        pipeline: RecommendationPipeline | None = None,
     ) -> None:
-        self._pipeline = pipeline
+        self._pipeline = (
+            pipeline
+            if pipeline is not None
+            else _default_deterministic_pipeline
+        )
 
     def execute(
         self,
