@@ -1,5 +1,9 @@
 """Núcleo do laboratório de agentes para governança PDM/BOM."""
 
+from .decision_recommendation_benchmark_use_case import (
+    DecisionRecommendationBenchmarkCase,
+    RunDecisionRecommendationBenchmarkUseCase,
+)
 from .domain import (
     GovernanceAssessment,
     GovernanceDecision,
@@ -152,4 +156,6 @@ __all__ = [
     "duplicate_pair_ground_truth_from_record",
     "decision_recommendation_ground_truth_to_record",
     "decision_recommendation_ground_truth_from_record",
+    "DecisionRecommendationBenchmarkCase",
+    "RunDecisionRecommendationBenchmarkUseCase",
 ]
