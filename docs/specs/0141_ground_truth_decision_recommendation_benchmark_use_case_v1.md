@@ -10,16 +10,18 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0141` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#141` |
 | **Título da Issue** | `Ground Truth Decision Recommendation Benchmark Use Case v1` |
-| **Branch documental** | `docs/issue-141-decision-recommendation-benchmark-use-case` |
+| **Branch documental** | `docs/issue-141-decision-recommendation-benchmark-closeout` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-21` |
 | **Última atualização** | `2026-09-21` |
 | **Domínio** | Governança de materiais industriais PDM/BOM e Master Data |
 | **Camada arquitetural** | Camada de Aplicação (`Application Layer`) |
 | **Baseline de entrada** | `1015 testes aprovados` (100% GREEN) |
+| **Baseline final integrado** | `1045 testes aprovados` (100% GREEN: 0 failures, 0 errors, 0 skips) |
+| **PR funcional integrado** | `#143` (Merge commit `c70e91ca2ec45dc217c334869f597795c491e220`) |
 | **Impacto SemVer** | `MINOR` (puramente aditivo, release formal permanece `v0.1.0`) |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
@@ -368,18 +370,18 @@ Por ser uma adição modular na camada de aplicação:
 
 ## 14. Critérios de Aceite (Acceptance Criteria)
 
-- [ ] SPEC técnica aprovada e consolidada (`SPEC-0141`);
-- [ ] Criação do módulo `src/agent_lab/decision_recommendation_benchmark_use_case.py`;
-- [ ] Implementação de `DecisionRecommendationBenchmarkCase` imutável com `slots=True, frozen=True`;
-- [ ] Implementação de `RunDecisionRecommendationBenchmarkUseCase` com suporte a injeção e pipeline padrão determinístico;
-- [ ] Validações fail-closed para argumentos inválidos, casos duplicados e divergências de `material_id`;
-- [ ] Delegação estrita da metrologia a `evaluate_decision_recommendations`;
-- [ ] Preservação formal da independência semântica entre `evaluation_case_id` e `material_id`, com suporte comprovado a valores textuais coincidentes fornecidos explicitamente;
-- [ ] Suporte determinístico a datasets vazios;
-- [ ] Exportação pública em `src/agent_lab/__init__.py` e inclusão em `__all__`;
-- [ ] Suíte completa de testes unitários e de integração aprovada;
-- [ ] Suíte de regressão completa (1015 + novos testes) 100% GREEN;
-- [ ] `git diff --check` limpo sem trailing whitespace.
+- [x] SPEC técnica aprovada e consolidada (`SPEC-0141`);
+- [x] Criação do módulo `src/agent_lab/decision_recommendation_benchmark_use_case.py`;
+- [x] Implementação de `DecisionRecommendationBenchmarkCase` imutável com `slots=True, frozen=True`;
+- [x] Implementação de `RunDecisionRecommendationBenchmarkUseCase` com suporte a injeção e pipeline padrão determinístico;
+- [x] Validações fail-closed para argumentos inválidos, casos duplicados e divergências de `material_id`;
+- [x] Delegação estrita da metrologia a `evaluate_decision_recommendations`;
+- [x] Preservação formal da independência semântica entre `evaluation_case_id` e `material_id`, com suporte comprovado a valores textuais coincidentes fornecidos explicitamente;
+- [x] Suporte determinístico a datasets vazios;
+- [x] Exportação pública em `src/agent_lab/__init__.py` e inclusão em `__all__`;
+- [x] Suíte completa de testes unitários e de integração aprovada;
+- [x] Suíte de regressão completa: baseline de entrada `1015/1015 GREEN` e baseline final integrado `1045/1045 GREEN`;
+- [x] `git diff --check` limpo sem trailing whitespace.
 
 ---
 
@@ -397,3 +399,42 @@ Por ser uma adição modular na camada de aplicação:
 | `2026-09-21` | Suporte a injeção de pipeline com default determinístico | Permitir execução imediata zero-configuração via `DeterministicGovernanceValidator` e `recommend_decision`, mantendo testabilidade desacoplada com mocks/fakes. | `Jk-Pascoal` |
 | `2026-09-21` | Delegação compulsória a `evaluate_decision_recommendations` | Cumprir o princípio "Application coordena; Pipeline produz; Evaluator mede", impedindo duplicação de regras metrológicas no use case. | `Jk-Pascoal` |
 | `2026-09-21` | Restrição do escopo da Issue #141 a `DecisionRecommendation` | Entregar a menor fatia vertical ponta a ponta testável sem expandir escopo para múltiplos domínios simultaneamente. | `Jk-Pascoal` |
+
+---
+
+## 17. Registro de Implementação e Fechamento Funcional
+
+### 17.1 Integração na Main
+- **PR Funcional:** [#143](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/143) (*feat: add decision recommendation benchmark use case*)
+- **Merge Commit:** `c70e91ca2ec45dc217c334869f597795c491e220`
+- **Baseline Histórico de Entrada:** `1015/1015 GREEN`
+- **Baseline Final Integrado:** `1045/1045 GREEN` (0 failures, 0 errors, 0 skips)
+
+### 17.2 Commits Funcionais (TDD)
+- `c163e7e` — feat: add decision recommendation benchmark case
+- `7eb49d5` — feat: add decision recommendation benchmark orchestration
+- `0401154` — feat: harden decision recommendation benchmark boundary
+- `72dcaff` — test: cover benchmark evaluator delegation
+- `d0a878c` — feat: add default decision recommendation benchmark pipeline
+- `e1c06af` — feat: export decision recommendation benchmark use case
+
+### 17.3 Resultado Arquitetural Final
+```text
+Application coordena.
+Pipeline produz.
+Evaluator mede.
+```
+
+### 17.4 Entregas da v1
+A implementação funcional da v1 entrega formalmente:
+- `DecisionRecommendationBenchmarkCase`
+- `RunDecisionRecommendationBenchmarkUseCase`
+- pipeline determinístico default real
+- pipeline injetável para experimentação
+- indexação por evaluation_case_id
+- independência semântica de evaluation_case_id e material_id
+- boundary fail-closed
+- delegação metrológica ao evaluator oficial
+- `DecisionRecommendationEvaluationReport` oficial
+- zero-I/O
+- API pública canônica
