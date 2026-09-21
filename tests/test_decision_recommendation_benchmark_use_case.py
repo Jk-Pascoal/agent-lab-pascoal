@@ -812,6 +812,41 @@ class RunDecisionRecommendationBenchmarkUseCaseTests(unittest.TestCase):
         self.assertEqual(report.matched_cases, 1)
         self.assertEqual(custom_called, ["MAT-001"])
 
+    def test_public_package_exports_benchmark_contracts(self) -> None:
+        from agent_lab import (  # type: ignore[attr-defined]
+            DecisionRecommendationBenchmarkCase as PublicBenchmarkCase,
+            RunDecisionRecommendationBenchmarkUseCase as PublicBenchmarkUseCase,
+        )
+        from agent_lab.decision_recommendation_benchmark_use_case import (
+            DecisionRecommendationBenchmarkCase,
+            RunDecisionRecommendationBenchmarkUseCase,
+        )
+
+        self.assertIs(
+            PublicBenchmarkCase,
+            DecisionRecommendationBenchmarkCase,
+        )
+        self.assertIs(
+            PublicBenchmarkUseCase,
+            RunDecisionRecommendationBenchmarkUseCase,
+        )
+
+    def test_public_all_contains_benchmark_contracts(self) -> None:
+        import agent_lab
+
+        self.assertIn(
+            "DecisionRecommendationBenchmarkCase",
+            agent_lab.__all__,
+        )
+        self.assertIn(
+            "RunDecisionRecommendationBenchmarkUseCase",
+            agent_lab.__all__,
+        )
+        self.assertNotIn(
+            "_default_deterministic_pipeline",
+            agent_lab.__all__,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
