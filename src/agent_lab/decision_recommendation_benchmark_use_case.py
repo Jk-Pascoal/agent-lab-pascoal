@@ -55,10 +55,42 @@ class RunDecisionRecommendationBenchmarkUseCase:
         dataset: DecisionRecommendationGroundTruthDataset,
         cases: Sequence[DecisionRecommendationBenchmarkCase],
     ) -> DecisionRecommendationEvaluationReport:
+        if not isinstance(dataset, DecisionRecommendationGroundTruthDataset):
+            raise TypeError("dataset must be a DecisionRecommendationGroundTruthDataset")
+
+        if not isinstance(cases, Sequence) or isinstance(cases, (str, bytes)):
+            raise TypeError("cases must be a Sequence, excluding str and bytes")
+
+        for case in cases:
+            if not isinstance(case, DecisionRecommendationBenchmarkCase):
+                raise TypeError(
+                    "all items in cases must be DecisionRecommendationBenchmarkCase instances"
+                )
+
+        seen_case_ids: set[str] = set()
+        for case in cases:
+            if case.evaluation_case_id in seen_case_ids:
+                raise ValueError(
+                    f"duplicate evaluation_case_id in cases: {case.evaluation_case_id!r}"
+                )
+            seen_case_ids.add(case.evaluation_case_id)
+
         predictions: dict[str, DecisionRecommendation] = {}
 
         for case in cases:
             prediction = self._pipeline(case.material)
+
+            if not isinstance(prediction, DecisionRecommendation):
+                raise TypeError(
+                    f"pipeline return must be a DecisionRecommendation, got {type(prediction).__name__}"
+                )
+
+            if prediction.material_id != case.material.material_id:
+                raise ValueError(
+                    f"prediction.material_id mismatch: expected {case.material.material_id!r}, "
+                    f"got {prediction.material_id!r}"
+                )
+
             predictions[case.evaluation_case_id] = prediction
 
         return evaluate_decision_recommendations(

@@ -370,6 +370,210 @@ class RunDecisionRecommendationBenchmarkUseCaseTests(unittest.TestCase):
             GovernanceDecision.REJECT,
         )
 
+    def test_rejects_non_dataset_object_without_invoking_pipeline(self) -> None:
+        case = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=MaterialRecord(material_id="MAT-001"),
+        )
+        calls: list[str] = []
+
+        def pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+            calls.append(mat.material_id)
+            return _make_recommendation(material_id=mat.material_id)
+
+        use_case = self.use_case_cls(pipeline=pipeline)
+
+        for invalid_dataset in (None, "DS-001", object(), 123):
+            with self.subTest(invalid_dataset=invalid_dataset):
+                with self.assertRaises(TypeError):
+                    use_case.execute(invalid_dataset, [case])  # type: ignore[arg-type]
+                self.assertEqual(len(calls), 0)
+
+    def test_rejects_non_sequence_or_str_bytes_cases_without_invoking_pipeline(
+        self,
+    ) -> None:
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-001",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        calls: list[str] = []
+
+        def pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+            calls.append(mat.material_id)
+            return _make_recommendation(material_id=mat.material_id)
+
+        use_case = self.use_case_cls(pipeline=pipeline)
+
+        for invalid_cases in (None, object(), "CASE-001", b"CASE-001", 123):
+            with self.subTest(invalid_cases=invalid_cases):
+                with self.assertRaises(TypeError):
+                    use_case.execute(dataset, invalid_cases)  # type: ignore[arg-type]
+                self.assertEqual(len(calls), 0)
+
+    def test_rejects_invalid_case_element_without_invoking_pipeline_at_all(
+        self,
+    ) -> None:
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-001",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        valid_case = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=MaterialRecord(material_id="MAT-001"),
+        )
+        calls: list[str] = []
+
+        def pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+            calls.append(mat.material_id)
+            return _make_recommendation(material_id=mat.material_id)
+
+        use_case = self.use_case_cls(pipeline=pipeline)
+
+        with self.assertRaises(TypeError):
+            use_case.execute(dataset, [valid_case, object()])  # type: ignore[list-item]
+
+        self.assertEqual(len(calls), 0)
+
+    def test_rejects_duplicate_evaluation_case_id_without_invoking_pipeline(
+        self,
+    ) -> None:
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-001",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        case_1 = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=MaterialRecord(material_id="MAT-001"),
+        )
+        case_2 = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=MaterialRecord(material_id="MAT-001"),
+        )
+        calls: list[str] = []
+
+        def pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+            calls.append(mat.material_id)
+            return _make_recommendation(material_id=mat.material_id)
+
+        use_case = self.use_case_cls(pipeline=pipeline)
+
+        with self.assertRaises(ValueError):
+            use_case.execute(dataset, [case_1, case_2])
+
+        self.assertEqual(len(calls), 0)
+
+    def test_rejects_pipeline_returning_non_decision_recommendation(
+        self,
+    ) -> None:
+        gt_1 = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            ground_truth_id="GT-001",
+            material_id="MAT-001",
+        )
+        gt_2 = _make_ground_truth(
+            evaluation_case_id="CASE-002",
+            ground_truth_id="GT-002",
+            material_id="MAT-002",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt_1, gt_2),
+        )
+        case_1 = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=MaterialRecord(material_id="MAT-001"),
+        )
+        case_2 = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-002",
+            material=MaterialRecord(material_id="MAT-002"),
+        )
+
+        for invalid_return in (None, object(), "APPROVE", 123):
+            with self.subTest(invalid_return=invalid_return):
+                calls: list[str] = []
+
+                def pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+                    calls.append(mat.material_id)
+                    return invalid_return  # type: ignore[return-value]
+
+                use_case = self.use_case_cls(pipeline=pipeline)
+
+                with self.assertRaises(TypeError):
+                    use_case.execute(dataset, [case_1, case_2])
+
+                self.assertEqual(len(calls), 1)
+
+    def test_rejects_prediction_with_mismatched_material_id_relative_to_case(
+        self,
+    ) -> None:
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-999",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        case = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=MaterialRecord(material_id="MAT-001"),
+        )
+
+        def pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+            return _make_recommendation(
+                material_id="MAT-999",
+                decision=GovernanceDecision.APPROVE,
+            )
+
+        use_case = self.use_case_cls(pipeline=pipeline)
+
+        with self.assertRaises(ValueError):
+            use_case.execute(dataset, [case])
+
+    def test_rejects_sequence_with_invalid_element_without_partial_execution(
+        self,
+    ) -> None:
+        gt = _make_ground_truth(
+            evaluation_case_id="CASE-001",
+            material_id="MAT-001",
+        )
+        dataset = DecisionRecommendationGroundTruthDataset(
+            dataset_id="DS-001",
+            items=(gt,),
+        )
+        case_1 = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-001",
+            material=MaterialRecord(material_id="MAT-001"),
+        )
+        case_2 = DecisionRecommendationBenchmarkCase(
+            evaluation_case_id="CASE-002",
+            material=MaterialRecord(material_id="MAT-002"),
+        )
+        calls: list[str] = []
+
+        def pipeline(mat: MaterialRecord) -> DecisionRecommendation:
+            calls.append(mat.material_id)
+            return _make_recommendation(material_id=mat.material_id)
+
+        use_case = self.use_case_cls(pipeline=pipeline)
+
+        with self.assertRaises(TypeError):
+            use_case.execute(dataset, [case_1, object(), case_2])  # type: ignore[list-item]
+
+        self.assertEqual(len(calls), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
