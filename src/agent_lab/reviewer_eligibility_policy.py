@@ -7,6 +7,7 @@ from agent_lab.human_review import VerifiedSpecialistIdentity
 from agent_lab.human_review_claim_projection import (
     HumanReviewClaimFactState,
     HumanReviewClaimState,
+    ReleaseAwareClaimState,
 )
 
 
@@ -51,6 +52,17 @@ class ReviewerEligibilityDecision:
         raise AssertionError("unsupported reviewer eligibility status")
 
 
+def _same_stable_principal(
+    left: VerifiedSpecialistIdentity,
+    right: VerifiedSpecialistIdentity,
+) -> bool:
+    return (
+        left.specialist_id == right.specialist_id
+        and left.identity_provider == right.identity_provider
+        and left.identity_subject == right.identity_subject
+    )
+
+
 def evaluate_reviewer_claim_eligibility(
     claim_state: HumanReviewClaimState,
     reviewer_identity: VerifiedSpecialistIdentity,
@@ -82,15 +94,7 @@ def evaluate_reviewer_claim_eligibility(
 
         claimant = sole_claim.specialist
 
-        same_stable_principal = (
-            claimant.specialist_id == reviewer_identity.specialist_id
-            and claimant.identity_provider
-            == reviewer_identity.identity_provider
-            and claimant.identity_subject
-            == reviewer_identity.identity_subject
-        )
-
-        if same_stable_principal:
+        if _same_stable_principal(claimant, reviewer_identity):
             return ReviewerEligibilityDecision(
                 status=ReviewerEligibilityStatus.ELIGIBLE
             )
@@ -100,6 +104,63 @@ def evaluate_reviewer_claim_eligibility(
         )
 
     if claim_state.state is HumanReviewClaimFactState.MULTIPLE_CLAIMS:
+        return ReviewerEligibilityDecision(
+            status=ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT
+        )
+
+    raise AssertionError("unsupported human review claim fact state")
+
+
+def evaluate_release_aware_reviewer_claim_eligibility(
+    release_aware_state: ReleaseAwareClaimState,
+    reviewer_identity: VerifiedSpecialistIdentity,
+) -> ReviewerEligibilityDecision:
+    if not isinstance(release_aware_state, ReleaseAwareClaimState):
+        raise TypeError(
+            "release_aware_state must be a ReleaseAwareClaimState instance"
+        )
+
+    if not isinstance(
+        reviewer_identity,
+        VerifiedSpecialistIdentity,
+    ):
+        raise TypeError(
+            "reviewer_identity must be a VerifiedSpecialistIdentity instance"
+        )
+
+    if (
+        release_aware_state.unreleased_claim_state
+        is HumanReviewClaimFactState.NO_CLAIM
+    ):
+        return ReviewerEligibilityDecision(
+            status=ReviewerEligibilityStatus.CLAIM_REQUIRED
+        )
+
+    if (
+        release_aware_state.unreleased_claim_state
+        is HumanReviewClaimFactState.SINGLE_CLAIM
+    ):
+        sole_unreleased_claim = release_aware_state.sole_unreleased_claim
+        if sole_unreleased_claim is None:
+            raise AssertionError(
+                "single-unreleased-claim state must expose a sole unreleased claim"
+            )
+
+        claimant = sole_unreleased_claim.specialist
+
+        if _same_stable_principal(claimant, reviewer_identity):
+            return ReviewerEligibilityDecision(
+                status=ReviewerEligibilityStatus.ELIGIBLE
+            )
+
+        return ReviewerEligibilityDecision(
+            status=ReviewerEligibilityStatus.CLAIMANT_MISMATCH
+        )
+
+    if (
+        release_aware_state.unreleased_claim_state
+        is HumanReviewClaimFactState.MULTIPLE_CLAIMS
+    ):
         return ReviewerEligibilityDecision(
             status=ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT
         )

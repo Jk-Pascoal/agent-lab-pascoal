@@ -5,10 +5,11 @@ from datetime import datetime, timezone
 import unittest
 
 from agent_lab.human_review import VerifiedSpecialistIdentity
-from agent_lab.human_review_claim import HumanReviewClaim
+from agent_lab.human_review_claim import HumanReviewClaim, HumanReviewClaimRelease
 from agent_lab.human_review_claim_projection import (
     HumanReviewClaimFactState,
     HumanReviewClaimState,
+    ReleaseAwareClaimState,
 )
 
 from agent_lab.reviewer_eligibility_policy import (
@@ -664,6 +665,322 @@ class ReviewerEligibilityPublicExportTests(unittest.TestCase):
             evaluate_reviewer_claim_eligibility,
             ModuleEvaluate,
         )
+
+
+class ReleaseAwareReviewerEligibilityExportTests(unittest.TestCase):
+    def test_package_root_exports_release_aware_reviewer_eligibility_symbols(self) -> None:
+        from agent_lab import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility as ModuleEvaluate,
+        )
+
+        self.assertIs(
+            evaluate_release_aware_reviewer_claim_eligibility,
+            ModuleEvaluate,
+        )
+
+    def test_package_root_all_includes_release_aware_reviewer_eligibility_symbols(self) -> None:
+        import agent_lab
+
+        self.assertIn(
+            "evaluate_release_aware_reviewer_claim_eligibility",
+            agent_lab.__all__,
+        )
+
+
+class ReleaseAwareReviewerEligibilityEvaluationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.specialist_1 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist1@corp.local",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 2, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        self.specialist_2 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-002",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist2@corp.local",
+            verification_id="VER-002",
+            verified_at=datetime(2026, 9, 2, 9, 5, 0, tzinfo=timezone.utc),
+        )
+        self.claim_1 = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist_1,
+            claimed_at=datetime(2026, 9, 2, 9, 15, 0, tzinfo=timezone.utc),
+        )
+        self.claim_2 = HumanReviewClaim(
+            claim_id="CLM-002",
+            workflow_id="WF-001",
+            specialist=self.specialist_2,
+            claimed_at=datetime(2026, 9, 2, 9, 20, 0, tzinfo=timezone.utc),
+        )
+        self.release_1 = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist_1,
+            released_at=datetime(2026, 9, 2, 9, 30, 0, tzinfo=timezone.utc),
+        )
+
+    def test_no_unreleased_claim_requires_claim_even_with_released_claims_history(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1,),
+            releases=(self.release_1,),
+            unreleased_claims=(),
+        )
+
+        decision = evaluate_release_aware_reviewer_claim_eligibility(
+            state,
+            self.specialist_1,
+        )
+
+        self.assertEqual(decision.status, ReviewerEligibilityStatus.CLAIM_REQUIRED)
+        self.assertIs(decision.is_eligible, False)
+
+    def test_single_unreleased_claim_matching_stable_principal_is_eligible(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1, self.claim_2),
+            releases=(self.release_1,),
+            unreleased_claims=(self.claim_2,),
+        )
+
+        decision = evaluate_release_aware_reviewer_claim_eligibility(
+            state,
+            self.specialist_2,
+        )
+
+        self.assertEqual(decision.status, ReviewerEligibilityStatus.ELIGIBLE)
+        self.assertIs(decision.is_eligible, True)
+
+    def test_single_unreleased_claim_different_verification_metadata_preserves_eligibility(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1, self.claim_2),
+            releases=(self.release_1,),
+            unreleased_claims=(self.claim_2,),
+        )
+
+        renewed_reviewer = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-002",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist2@corp.local",
+            verification_id="VER-RENEWED-999",
+            verified_at=datetime(2026, 9, 2, 9, 25, 0, tzinfo=timezone.utc),
+        )
+
+        decision = evaluate_release_aware_reviewer_claim_eligibility(
+            state,
+            renewed_reviewer,
+        )
+
+        self.assertEqual(decision.status, ReviewerEligibilityStatus.ELIGIBLE)
+        self.assertIs(decision.is_eligible, True)
+
+    def test_single_unreleased_claim_divergent_stable_principal_is_claimant_mismatch(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1, self.claim_2),
+            releases=(self.release_1,),
+            unreleased_claims=(self.claim_2,),
+        )
+
+        divergences = [
+            (
+                "specialist_id_mismatch",
+                VerifiedSpecialistIdentity(
+                    specialist_id="SPEC-DIVERGENT",
+                    identity_provider="CORP_IDP",
+                    identity_subject="specialist2@corp.local",
+                    verification_id="VER-002",
+                    verified_at=datetime(2026, 9, 2, 9, 5, 0, tzinfo=timezone.utc),
+                ),
+            ),
+            (
+                "identity_provider_mismatch",
+                VerifiedSpecialistIdentity(
+                    specialist_id="SPEC-002",
+                    identity_provider="OTHER_IDP",
+                    identity_subject="specialist2@corp.local",
+                    verification_id="VER-002",
+                    verified_at=datetime(2026, 9, 2, 9, 5, 0, tzinfo=timezone.utc),
+                ),
+            ),
+            (
+                "identity_subject_mismatch",
+                VerifiedSpecialistIdentity(
+                    specialist_id="SPEC-002",
+                    identity_provider="CORP_IDP",
+                    identity_subject="divergent@corp.local",
+                    verification_id="VER-002",
+                    verified_at=datetime(2026, 9, 2, 9, 5, 0, tzinfo=timezone.utc),
+                ),
+            ),
+        ]
+
+        for desc, divergent_reviewer in divergences:
+            with self.subTest(desc=desc):
+                decision = evaluate_release_aware_reviewer_claim_eligibility(
+                    state,
+                    divergent_reviewer,
+                )
+                self.assertEqual(decision.status, ReviewerEligibilityStatus.CLAIMANT_MISMATCH)
+                self.assertIs(decision.is_eligible, False)
+
+    def test_canonical_scenario_released_claim_a_and_unreleased_claim_b(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1, self.claim_2),
+            releases=(self.release_1,),
+            unreleased_claims=(self.claim_2,),
+        )
+
+        # Avaliação 1: reviewer com Stable Principal de B -> ELIGIBLE
+        decision_b = evaluate_release_aware_reviewer_claim_eligibility(
+            state,
+            self.specialist_2,
+        )
+        self.assertEqual(decision_b.status, ReviewerEligibilityStatus.ELIGIBLE)
+        self.assertIs(decision_b.is_eligible, True)
+
+        # Avaliação 2 SOBRE O MESMO STATE: reviewer com Stable Principal de A -> CLAIMANT_MISMATCH
+        decision_a = evaluate_release_aware_reviewer_claim_eligibility(
+            state,
+            self.specialist_1,
+        )
+        self.assertEqual(decision_a.status, ReviewerEligibilityStatus.CLAIMANT_MISMATCH)
+        self.assertIs(decision_a.is_eligible, False)
+
+        # Comprova preservação factual e governança exclusiva por unreleased_claims
+        self.assertEqual(state.all_claims, (self.claim_1, self.claim_2))
+        self.assertEqual(state.releases, (self.release_1,))
+        self.assertEqual(state.unreleased_claims, (self.claim_2,))
+        self.assertIs(state.sole_unreleased_claim, self.claim_2)
+
+    def test_multiple_unreleased_claims_is_conflict(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1, self.claim_2),
+            releases=(),
+            unreleased_claims=(self.claim_1, self.claim_2),
+        )
+
+        decision = evaluate_release_aware_reviewer_claim_eligibility(
+            state,
+            self.specialist_1,
+        )
+
+        self.assertEqual(decision.status, ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT)
+        self.assertIs(decision.is_eligible, False)
+
+    def test_multiple_unreleased_claims_with_same_stable_principal_remain_conflict(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        renewed_specialist_1 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist1@corp.local",
+            verification_id="VER-RENEWED-001",
+            verified_at=datetime(2026, 9, 2, 9, 10, 0, tzinfo=timezone.utc),
+        )
+        claim_1_repeat = HumanReviewClaim(
+            claim_id="CLM-001-REPEAT",
+            workflow_id="WF-001",
+            specialist=renewed_specialist_1,
+            claimed_at=datetime(2026, 9, 2, 9, 25, 0, tzinfo=timezone.utc),
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1, claim_1_repeat),
+            releases=(),
+            unreleased_claims=(self.claim_1, claim_1_repeat),
+        )
+
+        decision = evaluate_release_aware_reviewer_claim_eligibility(
+            state,
+            self.specialist_1,
+        )
+
+        self.assertEqual(decision.status, ReviewerEligibilityStatus.MULTIPLE_CLAIMS_CONFLICT)
+        self.assertIs(decision.is_eligible, False)
+
+    def test_legacy_evaluate_reviewer_claim_eligibility_rejects_release_aware_state_with_type_error(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1,),
+            releases=(),
+            unreleased_claims=(self.claim_1,),
+        )
+
+        with self.assertRaises(TypeError):
+            evaluate_reviewer_claim_eligibility(
+                state,  # type: ignore[arg-type]
+                self.specialist_1,
+            )
+
+    def test_evaluate_release_aware_rejects_invalid_inputs(self) -> None:
+        from agent_lab.reviewer_eligibility_policy import (
+            evaluate_release_aware_reviewer_claim_eligibility,
+        )
+
+        state = ReleaseAwareClaimState(
+            workflow_id="WF-001",
+            all_claims=(self.claim_1,),
+            releases=(),
+            unreleased_claims=(self.claim_1,),
+        )
+
+        for invalid_state in [None, True, "not-state", 123, []]:
+            with self.subTest(invalid_state=type(invalid_state)):
+                with self.assertRaises(TypeError):
+                    evaluate_release_aware_reviewer_claim_eligibility(
+                        invalid_state,  # type: ignore[arg-type]
+                        self.specialist_1,
+                    )
+
+        for invalid_reviewer in [None, True, "not-identity", 123, []]:
+            with self.subTest(invalid_reviewer=type(invalid_reviewer)):
+                with self.assertRaises(TypeError):
+                    evaluate_release_aware_reviewer_claim_eligibility(
+                        state,
+                        invalid_reviewer,  # type: ignore[arg-type]
+                    )
 
 
 if __name__ == "__main__":

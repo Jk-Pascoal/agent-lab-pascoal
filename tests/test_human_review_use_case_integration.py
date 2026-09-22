@@ -15,6 +15,9 @@ from agent_lab.human_review import (
     VerifiedSpecialistIdentity,
 )
 from agent_lab.human_review_claim import claim_pending_human_review
+from agent_lab.human_review_claim_release_repository import (
+    JsonlHumanReviewClaimReleaseRepository,
+)
 from agent_lab.human_review_claim_repository import (
     HumanReviewClaimCorruptionError,
     JsonlHumanReviewClaimRepository,
@@ -31,6 +34,15 @@ from agent_lab.workflow import WorkflowStatus
 from agent_lab.workflow_events import WorkflowConcluded, WorkflowOpened
 from agent_lab.workflow_projection import rehydrate_workflow
 from agent_lab.workflow_repository import JsonlWorkflowLifecycleRepository
+from agent_lab.human_review_claim_projection import (
+    HumanReviewClaimFactState,
+)
+from agent_lab.human_review_claim_release_use_case import (
+    ReleaseHumanReviewClaimUseCase,
+)
+from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+    ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+)
 
 
 class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
@@ -41,6 +53,7 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             Path(self.temp_dir.name) / "workflow_lifecycle.jsonl"
         )
         self.claim_path = Path(self.temp_dir.name) / "claims.jsonl"
+        self.release_path = Path(self.temp_dir.name) / "claim_releases.jsonl"
 
         self.verified_at = datetime(2026, 8, 28, 8, 0, 0, tzinfo=timezone.utc)
         self.opened_at = datetime(2026, 8, 28, 8, 30, 0, tzinfo=timezone.utc)
@@ -114,6 +127,9 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             audit_repository=audit_repo_1,
             workflow_lifecycle_repository=lifecycle_repo_1,
             claim_repository=claim_repo_1,
+            claim_release_repository=JsonlHumanReviewClaimReleaseRepository(
+                self.release_path
+            ),
         )
 
         result = use_case.execute(
@@ -196,6 +212,9 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=JsonlHumanReviewClaimReleaseRepository(
+                self.release_path
+            ),
         )
 
         use_case.execute(
@@ -279,6 +298,9 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo_2,
+            claim_release_repository=JsonlHumanReviewClaimReleaseRepository(
+                self.release_path
+            ),
         )
 
         result = use_case.execute(
@@ -354,6 +376,9 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             audit_repository=audit_repo_restart,
             workflow_lifecycle_repository=lifecycle_repo_restart,
             claim_repository=claim_repo_restart,
+            claim_release_repository=JsonlHumanReviewClaimReleaseRepository(
+                self.release_path
+            ),
         )
 
         with self.assertRaises(ReviewerNotEligibleError) as ctx:
@@ -437,6 +462,9 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=JsonlHumanReviewClaimReleaseRepository(
+                self.release_path
+            ),
         )
 
         # 5. Execução do caso de uso falha com a exceção real de corrupção do repositório
@@ -476,6 +504,300 @@ class HumanReviewUseCaseIntegrationTests(unittest.TestCase):
             rehydrated_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
         )
         self.assertIsNone(rehydrated_workflow.review)
+
+    def test_release_aware_claim_handoff_survives_restart_and_allows_new_claimant_decision(
+        self,
+    ) -> None:
+        # 1. Linha temporal estritamente causal e timezone-aware UTC
+        opened_at = datetime(2026, 8, 28, 8, 30, 0, tzinfo=timezone.utc)
+        claim_a_at = datetime(2026, 8, 28, 9, 0, 0, tzinfo=timezone.utc)
+        release_a_at = datetime(2026, 8, 28, 9, 10, 0, tzinfo=timezone.utc)
+        claim_b_at = datetime(2026, 8, 28, 9, 20, 0, tzinfo=timezone.utc)
+        reviewed_at = datetime(2026, 8, 28, 9, 30, 0, tzinfo=timezone.utc)
+
+        # 2. Identidades com Stable Principals distintos
+        specialist_a = VerifiedSpecialistIdentity(
+            specialist_id="spec-handoff-a",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist.a@corp.local",
+            verification_id="ver-handoff-a",
+            verified_at=datetime(2026, 8, 28, 8, 0, 0, tzinfo=timezone.utc),
+        )
+        specialist_b = VerifiedSpecialistIdentity(
+            specialist_id="spec-handoff-b",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist.b@corp.local",
+            verification_id="ver-handoff-b",
+            verified_at=datetime(2026, 8, 28, 8, 5, 0, tzinfo=timezone.utc),
+        )
+        specialist_c = VerifiedSpecialistIdentity(
+            specialist_id="spec-handoff-c",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist.c@corp.local",
+            verification_id="ver-handoff-c",
+            verified_at=datetime(2026, 8, 28, 8, 10, 0, tzinfo=timezone.utc),
+        )
+
+        workflow_id = "wf-release-aware-handoff-01"
+        opened = WorkflowOpened(
+            event_id="evt-open-handoff-01",
+            workflow_id=workflow_id,
+            recommendation=self.recommendation,
+            opened_at=opened_at,
+        )
+
+        # 3. Sessão 1 de escrita: uso exclusivo dos Casos de Uso de Aplicação reais
+        audit_repo_1 = JsonlAuditRepository(self.audit_path)
+        lifecycle_repo_1 = JsonlWorkflowLifecycleRepository(self.lifecycle_path)
+        claim_repo_1 = JsonlHumanReviewClaimRepository(self.claim_path)
+        release_repo_1 = JsonlHumanReviewClaimReleaseRepository(
+            self.release_path
+        )
+
+        lifecycle_repo_1.append_opened(opened)
+        pending_workflow = rehydrate_workflow(
+            lifecycle_repo_1.get_events_by_workflow_id(workflow_id)
+        )
+        self.assertEqual(
+            pending_workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+
+        record_claim_use_case_1 = RecordHumanReviewClaimUseCase(
+            claim_repository=claim_repo_1
+        )
+        release_claim_use_case_1 = ReleaseHumanReviewClaimUseCase(
+            claim_release_repository=release_repo_1
+        )
+
+        # Especialista A assume o claim
+        claim_a = record_claim_use_case_1.execute(
+            pending_workflow,
+            claim_id="claim-handoff-a",
+            specialist=specialist_a,
+            claimed_at=claim_a_at,
+        )
+
+        # Especialista A libera o claim
+        release_a = release_claim_use_case_1.execute(
+            pending_workflow,
+            claim_a,
+            release_id="rel-handoff-a",
+            releasing_specialist=specialist_a,
+            released_at=release_a_at,
+        )
+
+        # Especialista B assume novo claim para o workflow
+        claim_b = record_claim_use_case_1.execute(
+            pending_workflow,
+            claim_id="claim-handoff-b",
+            specialist=specialist_b,
+            claimed_at=claim_b_at,
+        )
+
+        self.assertEqual(
+            claim_repo_1.list_by_workflow_id(workflow_id), (claim_a, claim_b)
+        )
+        self.assertEqual(
+            release_repo_1.list_by_workflow_id(workflow_id), (release_a,)
+        )
+
+        # 4. Primeiro Restart: descarte total das instâncias e reconstrução sobre os arquivos físicos JSONL
+        del audit_repo_1
+        del lifecycle_repo_1
+        del claim_repo_1
+        del release_repo_1
+        del record_claim_use_case_1
+        del release_claim_use_case_1
+
+        audit_repo_restarted = JsonlAuditRepository(self.audit_path)
+        lifecycle_repo_restarted = JsonlWorkflowLifecycleRepository(
+            self.lifecycle_path
+        )
+        claim_repo_restarted = JsonlHumanReviewClaimRepository(self.claim_path)
+        release_repo_restarted = JsonlHumanReviewClaimReleaseRepository(
+            self.release_path
+        )
+
+        workflow_after_restart = rehydrate_workflow(
+            lifecycle_repo_restarted.get_events_by_workflow_id(workflow_id)
+        )
+        self.assertEqual(
+            workflow_after_restart.status,
+            WorkflowStatus.PENDING_HUMAN_REVIEW,
+        )
+        self.assertIsNone(workflow_after_restart.review)
+
+        # 5. Consulta da Pending Queue release-aware pós-restart
+        queue_use_case = (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+                workflow_lifecycle_repository=lifecycle_repo_restarted,
+                claim_repository=claim_repo_restarted,
+                claim_release_repository=release_repo_restarted,
+            )
+        )
+        queue_items = queue_use_case.execute()
+        self.assertEqual(len(queue_items), 1)
+
+        item = queue_items[0]
+        self.assertEqual(item.workflow.workflow_id, workflow_id)
+        self.assertEqual(
+            item.workflow.status, WorkflowStatus.PENDING_HUMAN_REVIEW
+        )
+        self.assertEqual(item.claim_state.all_claims, (claim_a, claim_b))
+        self.assertEqual(item.claim_state.releases, (release_a,))
+        # claim A + release A + claim B = SINGLE_CLAIM sobre unreleased_claims, preservando integralmente a história
+        self.assertEqual(item.claim_state.unreleased_claims, (claim_b,))
+        self.assertEqual(item.claim_state.all_claims_count, 2)
+        self.assertEqual(item.claim_state.releases_count, 1)
+        self.assertEqual(item.claim_state.unreleased_claim_count, 1)
+        self.assertIs(
+            item.claim_state.unreleased_claim_state,
+            HumanReviewClaimFactState.SINGLE_CLAIM,
+        )
+        self.assertEqual(item.claim_state.sole_unreleased_claim, claim_b)
+        self.assertTrue(item.claim_state.has_unreleased_claims)
+        self.assertFalse(item.claim_state.has_no_unreleased_claims)
+        self.assertFalse(item.claim_state.has_multiple_unreleased_claims)
+
+        # 6. Tentativa de decisão por Especialista C rejeitada fail-closed (CLAIMANT_MISMATCH)
+        decision_use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo_restarted,
+            workflow_lifecycle_repository=lifecycle_repo_restarted,
+            claim_repository=claim_repo_restarted,
+            claim_release_repository=release_repo_restarted,
+        )
+
+        with self.assertRaises(ReviewerNotEligibleError) as ctx:
+            decision_use_case.execute(
+                workflow_after_restart,
+                review_id="rev-handoff-invalid",
+                audit_event_id="evt-aud-release-aware-handoff-invalid",
+                lifecycle_event_id="evt-conc-handoff-invalid",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=specialist_c,
+                reviewed_at=reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertIs(
+            ctx.exception.decision.status,
+            ReviewerEligibilityStatus.CLAIMANT_MISMATCH,
+        )
+        self.assertFalse(ctx.exception.decision.is_eligible)
+
+        # Comprovação física de zero writes após tentativa não elegível
+        self.assertIsNone(
+            audit_repo_restarted.get_by_id(
+                "evt-aud-release-aware-handoff-invalid"
+            )
+        )
+        events_after_invalid = (
+            lifecycle_repo_restarted.get_events_by_workflow_id(workflow_id)
+        )
+        self.assertEqual(len(events_after_invalid), 1)
+        self.assertEqual(events_after_invalid[0], opened)
+        rehydrated_after_invalid = rehydrate_workflow(events_after_invalid)
+        self.assertEqual(
+            rehydrated_after_invalid.status,
+            WorkflowStatus.PENDING_HUMAN_REVIEW,
+        )
+        self.assertIsNone(rehydrated_after_invalid.review)
+
+        # 7. Deliberação válida submetida pelo Especialista B (sole unreleased claimant)
+        result = decision_use_case.execute(
+            workflow_after_restart,
+            review_id="rev-handoff-valid",
+            audit_event_id="evt-aud-handoff-valid",
+            lifecycle_event_id="evt-conc-handoff-valid",
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=specialist_b,
+            reviewed_at=reviewed_at,
+            justification="Decisão fundamentada aprovada pelo especialista B.",
+            corrections=(),
+        )
+
+        self.assertEqual(result.workflow.status, WorkflowStatus.REVIEWED)
+        self.assertEqual(result.review.human_decision, HumanDecision.APPROVE)
+        self.assertEqual(result.review.reviewer_identity, specialist_b)
+        self.assertEqual(result.review.reviewed_at, reviewed_at)
+
+        # Repositórios de claims e releases permanecem intactos após a decisão
+        self.assertEqual(
+            claim_repo_restarted.list_by_workflow_id(workflow_id),
+            (claim_a, claim_b),
+        )
+        self.assertEqual(
+            release_repo_restarted.list_by_workflow_id(workflow_id),
+            (release_a,),
+        )
+
+        # 8. Reinicialização Final: comprovação de persistência e reidratação definitiva pós-restart
+        del audit_repo_restarted
+        del lifecycle_repo_restarted
+        del claim_repo_restarted
+        del release_repo_restarted
+        del decision_use_case
+        del queue_use_case
+
+        audit_repo_final = JsonlAuditRepository(self.audit_path)
+        lifecycle_repo_final = JsonlWorkflowLifecycleRepository(
+            self.lifecycle_path
+        )
+        claim_repo_final = JsonlHumanReviewClaimRepository(self.claim_path)
+        release_repo_final = JsonlHumanReviewClaimReleaseRepository(
+            self.release_path
+        )
+
+        # a) Auditoria física persistida e íntegra
+        persisted_audit = audit_repo_final.get_by_id("evt-aud-handoff-valid")
+        self.assertIsNotNone(persisted_audit)
+        self.assertEqual(persisted_audit, result.audit_event)
+
+        # b) Ciclo de vida persistido com WorkflowConcluded e status REVIEWED reidratado
+        final_events = lifecycle_repo_final.get_events_by_workflow_id(
+            workflow_id
+        )
+        self.assertEqual(len(final_events), 2)
+        self.assertEqual(final_events[0], opened)
+        self.assertEqual(final_events[1], result.lifecycle_event)
+
+        final_workflow = rehydrate_workflow(final_events)
+        self.assertEqual(final_workflow.status, WorkflowStatus.REVIEWED)
+        self.assertEqual(final_workflow.review, result.review)
+        self.assertEqual(final_workflow.closed_at, reviewed_at)
+
+        # c) Claims e releases históricos persistem intactos e inalterados
+        self.assertEqual(
+            claim_repo_final.list_by_workflow_id(workflow_id),
+            (claim_a, claim_b),
+        )
+        self.assertEqual(
+            release_repo_final.list_by_workflow_id(workflow_id),
+            (release_a,),
+        )
+
+        # d) Fila de workflows pendentes agora está vazia para este workflow
+        final_queue_use_case = (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+                workflow_lifecycle_repository=lifecycle_repo_final,
+                claim_repository=claim_repo_final,
+                claim_release_repository=release_repo_final,
+            )
+        )
+        self.assertEqual(final_queue_use_case.execute(), ())
+
+        # e) Consistência cruzada dual-write Audit + Lifecycle validada
+        report = verify_repositories_consistency(
+            lifecycle_repo=lifecycle_repo_final,
+            audit_repo=audit_repo_final,
+        )
+        self.assertTrue(report.is_consistent)
+        self.assertEqual(report.issue_count, 0)
+        self.assertEqual(report.total_concluded_events, 1)
+        self.assertEqual(report.total_audit_review_events, 1)
+        self.assertEqual(report.matched_pairs_count, 1)
+        self.assertEqual(report.issues, ())
 
 
 if __name__ == "__main__":

@@ -13,12 +13,15 @@ from agent_lab.human_review import (
     VerifiedSpecialistIdentity,
 )
 from agent_lab.human_review_claim_projection import (
-    project_human_review_claim_state,
+    project_release_aware_claim_state,
+)
+from agent_lab.human_review_claim_release_repository import (
+    HumanReviewClaimReleaseRepository,
 )
 from agent_lab.human_review_claim_repository import HumanReviewClaimRepository
 from agent_lab.reviewer_eligibility_policy import (
     ReviewerEligibilityDecision,
-    evaluate_reviewer_claim_eligibility,
+    evaluate_release_aware_reviewer_claim_eligibility,
 )
 from agent_lab.workflow import GovernanceWorkflow, conclude_governance_workflow
 from agent_lab.workflow_events import WorkflowConcluded
@@ -53,10 +56,12 @@ class RecordHumanDecisionUseCase:
         audit_repository: AuditRepository,
         workflow_lifecycle_repository: WorkflowLifecycleRepository,
         claim_repository: HumanReviewClaimRepository,
+        claim_release_repository: HumanReviewClaimReleaseRepository,
     ) -> None:
         self._audit_repository = audit_repository
         self._workflow_lifecycle_repository = workflow_lifecycle_repository
         self._claim_repository = claim_repository
+        self._claim_release_repository = claim_release_repository
 
     def execute(
         self,
@@ -102,12 +107,17 @@ class RecordHumanDecisionUseCase:
             workflow.workflow_id
         )
 
-        claim_state = project_human_review_claim_state(
-            workflow.workflow_id,
-            claims,
+        releases = self._claim_release_repository.list_by_workflow_id(
+            workflow.workflow_id
         )
 
-        eligibility = evaluate_reviewer_claim_eligibility(
+        claim_state = project_release_aware_claim_state(
+            workflow.workflow_id,
+            claims,
+            releases,
+        )
+
+        eligibility = evaluate_release_aware_reviewer_claim_eligibility(
             claim_state,
             reviewer_identity,
         )

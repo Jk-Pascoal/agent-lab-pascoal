@@ -14,7 +14,13 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
-from agent_lab.human_review_claim import claim_pending_human_review
+from agent_lab.human_review_claim import (
+    claim_pending_human_review,
+    release_human_review_claim,
+)
+from agent_lab.human_review_claim_release_repository import (
+    HumanReviewClaimReleasePersistenceError,
+)
 from agent_lab.human_review_claim_repository import (
     HumanReviewClaimPersistenceError,
 )
@@ -34,6 +40,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         self.dummy_audit_repo = Mock()
         self.dummy_lifecycle_repo = Mock()
         self.dummy_claim_repo = Mock()
+        self.dummy_claim_release_repo = Mock()
 
         self.verified_at = datetime(2026, 8, 28, 9, 0, 0, tzinfo=timezone.utc)
         self.opened_at = datetime(2026, 8, 28, 9, 30, 0, tzinfo=timezone.utc)
@@ -99,12 +106,14 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
         self.dummy_claim_repo.list_by_workflow_id.return_value = (
             self.claim,
         )
+        self.dummy_claim_release_repo.list_by_workflow_id.return_value = ()
 
     def test_record_human_decision_use_case_initialization(self) -> None:
         use_case = RecordHumanDecisionUseCase(
             audit_repository=self.dummy_audit_repo,
             workflow_lifecycle_repository=self.dummy_lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
         self.assertIsInstance(use_case, RecordHumanDecisionUseCase)
 
@@ -113,6 +122,15 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             RecordHumanDecisionUseCase(
                 audit_repository=self.dummy_audit_repo,
                 workflow_lifecycle_repository=self.dummy_lifecycle_repo,
+                claim_release_repository=self.dummy_claim_release_repo,
+            )
+
+    def test_initialization_requires_claim_release_repository(self) -> None:
+        with self.assertRaises(TypeError):
+            RecordHumanDecisionUseCase(
+                audit_repository=self.dummy_audit_repo,
+                workflow_lifecycle_repository=self.dummy_lifecycle_repo,
+                claim_repository=self.dummy_claim_repo,
             )
 
     def test_record_human_decision_result_structure_and_immutability(self) -> None:
@@ -147,6 +165,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         result = use_case.execute(
@@ -218,6 +237,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         reviewed_workflow = conclude_governance_workflow(
@@ -238,6 +258,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             )
 
         self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
+        self.dummy_claim_release_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -251,6 +272,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(ValueError):
@@ -267,6 +289,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             )
 
         self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
+        self.dummy_claim_release_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -280,6 +303,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(TypeError):
@@ -296,6 +320,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             )
 
         self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
+        self.dummy_claim_release_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -309,6 +334,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(ValueError):
@@ -325,6 +351,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             )
 
         self.dummy_claim_repo.list_by_workflow_id.assert_not_called()
+        self.dummy_claim_release_repo.list_by_workflow_id.assert_not_called()
         audit_repo.append.assert_not_called()
         lifecycle_repo.append_concluded.assert_not_called()
 
@@ -342,6 +369,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(AuditPersistenceError):
@@ -382,6 +410,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=self.dummy_claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(WorkflowPersistenceError):
@@ -414,6 +443,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(ReviewerNotEligibleError) as ctx:
@@ -460,6 +490,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(ReviewerNotEligibleError) as ctx:
@@ -512,6 +543,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(ReviewerNotEligibleError) as ctx:
@@ -563,6 +595,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(ReviewerNotEligibleError) as ctx:
@@ -615,6 +648,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         result = use_case.execute(
@@ -657,6 +691,7 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             audit_repository=audit_repo,
             workflow_lifecycle_repository=lifecycle_repo,
             claim_repository=claim_repo,
+            claim_release_repository=self.dummy_claim_release_repo,
         )
 
         with self.assertRaises(HumanReviewClaimPersistenceError):
@@ -673,6 +708,180 @@ class HumanReviewUseCasePublicContractTests(unittest.TestCase):
             )
 
         claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        self.dummy_claim_release_repo.list_by_workflow_id.assert_not_called()
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
+    def test_execute_allows_sole_unreleased_claimant_after_prior_claim_was_released(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+        release_repo = Mock()
+
+        claim_a = claim_pending_human_review(
+            self.workflow,
+            claim_id="claim-001",
+            specialist=self.identity,
+            claimed_at=datetime(2026, 8, 28, 9, 35, 0, tzinfo=timezone.utc),
+        )
+        release_a = release_human_review_claim(
+            self.workflow,
+            claim_a,
+            release_id="release-001",
+            releasing_specialist=self.identity,
+            released_at=datetime(2026, 8, 28, 9, 40, 0, tzinfo=timezone.utc),
+        )
+
+        identity_b = VerifiedSpecialistIdentity(
+            specialist_id="spec-002",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist2@corp.local",
+            verification_id="ver-002",
+            verified_at=datetime(2026, 8, 28, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        claim_b = claim_pending_human_review(
+            self.workflow,
+            claim_id="claim-002",
+            specialist=identity_b,
+            claimed_at=datetime(2026, 8, 28, 9, 45, 0, tzinfo=timezone.utc),
+        )
+
+        claim_repo.list_by_workflow_id.return_value = (claim_a, claim_b)
+        release_repo.list_by_workflow_id.return_value = (release_a,)
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute(
+            self.workflow,
+            review_id="rev-001",
+            audit_event_id="evt-aud-001",
+            lifecycle_event_id="evt-life-001",
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=identity_b,
+            reviewed_at=datetime(2026, 8, 28, 10, 0, 0, tzinfo=timezone.utc),
+            justification=None,
+            corrections=(),
+        )
+
+        self.assertEqual(result.workflow.status.value, "REVIEWED")
+        self.assertEqual(result.review.reviewer_identity, identity_b)
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        release_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_called_once_with(result.audit_event)
+        lifecycle_repo.append_concluded.assert_called_once_with(
+            result.lifecycle_event
+        )
+
+    def test_execute_rejects_when_all_persisted_claims_are_released(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+        release_repo = Mock()
+
+        claim_a = claim_pending_human_review(
+            self.workflow,
+            claim_id="claim-001",
+            specialist=self.identity,
+            claimed_at=datetime(2026, 8, 28, 9, 35, 0, tzinfo=timezone.utc),
+        )
+        release_a = release_human_review_claim(
+            self.workflow,
+            claim_a,
+            release_id="release-001",
+            releasing_specialist=self.identity,
+            released_at=datetime(2026, 8, 28, 9, 40, 0, tzinfo=timezone.utc),
+        )
+
+        claim_repo.list_by_workflow_id.return_value = (claim_a,)
+        release_repo.list_by_workflow_id.return_value = (release_a,)
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        with self.assertRaises(ReviewerNotEligibleError) as ctx:
+            use_case.execute(
+                self.workflow,
+                review_id="rev-001",
+                audit_event_id="evt-aud-001",
+                lifecycle_event_id="evt-life-001",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=datetime(2026, 8, 28, 10, 0, 0, tzinfo=timezone.utc),
+                justification=None,
+                corrections=(),
+            )
+
+        self.assertEqual(
+            ctx.exception.decision.status,
+            ReviewerEligibilityStatus.CLAIM_REQUIRED,
+        )
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        release_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        audit_repo.append.assert_not_called()
+        lifecycle_repo.append_concluded.assert_not_called()
+
+    def test_execute_propagates_claim_release_repository_failure_before_any_write(
+        self,
+    ) -> None:
+        audit_repo = Mock()
+        lifecycle_repo = Mock()
+        claim_repo = Mock()
+        release_repo = Mock()
+
+        claim_repo.list_by_workflow_id.return_value = (self.claim,)
+        release_repo.list_by_workflow_id.side_effect = (
+            HumanReviewClaimReleasePersistenceError(
+                "Simulated claim release storage read failure"
+            )
+        )
+
+        use_case = RecordHumanDecisionUseCase(
+            audit_repository=audit_repo,
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        with self.assertRaises(HumanReviewClaimReleasePersistenceError):
+            use_case.execute(
+                self.workflow,
+                review_id="rev-014",
+                audit_event_id="evt-aud-014",
+                lifecycle_event_id="evt-life-014",
+                human_decision=HumanDecision.APPROVE,
+                reviewer_identity=self.identity,
+                reviewed_at=self.reviewed_at,
+                justification=None,
+                corrections=(),
+            )
+
+        claim_repo.list_by_workflow_id.assert_called_once_with(
+            self.workflow.workflow_id
+        )
+        release_repo.list_by_workflow_id.assert_called_once_with(
             self.workflow.workflow_id
         )
         audit_repo.append.assert_not_called()
