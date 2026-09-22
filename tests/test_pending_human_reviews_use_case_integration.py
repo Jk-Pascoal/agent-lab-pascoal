@@ -14,6 +14,9 @@ from agent_lab.human_review import (
     VerifiedSpecialistIdentity,
 )
 from agent_lab.human_review_claim import claim_pending_human_review
+from agent_lab.human_review_claim_release_repository import (
+    JsonlHumanReviewClaimReleaseRepository,
+)
 from agent_lab.human_review_claim_repository import (
     JsonlHumanReviewClaimRepository,
 )
@@ -32,6 +35,7 @@ class PendingHumanReviewsUseCaseIntegrationTests(unittest.TestCase):
         self.file_path = Path(self.temp_dir.name) / "workflow_lifecycle.jsonl"
         self.audit_path = Path(self.temp_dir.name) / "audit.jsonl"
         self.claim_path = Path(self.temp_dir.name) / "claims.jsonl"
+        self.release_path = Path(self.temp_dir.name) / "claim_releases.jsonl"
 
         self.opened_at_1 = datetime(2026, 8, 30, 8, 0, 0, tzinfo=timezone.utc)
         self.reviewed_at_1 = datetime(2026, 8, 30, 8, 30, 0, tzinfo=timezone.utc)
@@ -147,6 +151,9 @@ class PendingHumanReviewsUseCaseIntegrationTests(unittest.TestCase):
             audit_repository=audit_repository,
             workflow_lifecycle_repository=lifecycle_repository,
             claim_repository=claim_repository,
+            claim_release_repository=JsonlHumanReviewClaimReleaseRepository(
+                self.release_path
+            ),
         )
 
         record_use_case.execute(

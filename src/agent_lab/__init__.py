@@ -71,7 +71,9 @@ from .human_review_claim_release_repository import (
 from .human_review_claim_projection import (
     HumanReviewClaimFactState,
     HumanReviewClaimState,
+    ReleaseAwareClaimState,
     project_human_review_claim_state,
+    project_release_aware_claim_state,
 )
 from .human_review_claim_serialization import (
     human_review_claim_from_record,
@@ -88,6 +90,7 @@ from .human_review_claim_release_use_case import (
 from .reviewer_eligibility_policy import (
     ReviewerEligibilityDecision,
     ReviewerEligibilityStatus,
+    evaluate_release_aware_reviewer_claim_eligibility,
     evaluate_reviewer_claim_eligibility,
 )
 from .validator import DeterministicGovernanceValidator
@@ -122,9 +125,12 @@ __all__ = [
     "ReleaseHumanReviewClaimUseCase",
     "HumanReviewClaimFactState",
     "HumanReviewClaimState",
+    "ReleaseAwareClaimState",
     "project_human_review_claim_state",
+    "project_release_aware_claim_state",
     "ReviewerEligibilityDecision",
     "ReviewerEligibilityStatus",
+    "evaluate_release_aware_reviewer_claim_eligibility",
     "evaluate_reviewer_claim_eligibility",
     "DecisionRecommendationGroundTruth",
     "DecisionRecommendationGroundTruthDataset",

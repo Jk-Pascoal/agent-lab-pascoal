@@ -12,11 +12,16 @@ from agent_lab.human_review import (
     HumanReview,
     VerifiedSpecialistIdentity,
 )
-from agent_lab.human_review_claim import HumanReviewClaim
+from agent_lab.human_review_claim import (
+    HumanReviewClaim,
+    HumanReviewClaimRelease,
+)
 from agent_lab.human_review_claim_projection import (
     HumanReviewClaimFactState,
     HumanReviewClaimState,
+    ReleaseAwareClaimState,
     project_human_review_claim_state,
+    project_release_aware_claim_state,
 )
 from agent_lab.pending_human_reviews_with_claim_state_use_case import (
     ListPendingHumanReviewsWithClaimStateUseCase,
@@ -72,6 +77,30 @@ class FakeHumanReviewClaimRepository:
             raise self._fail_with
         return tuple(claim for claim in self._claims if claim.workflow_id == workflow_id)
 
+
+class FakeHumanReviewClaimReleaseRepository:
+    def __init__(
+        self,
+        releases: Sequence[HumanReviewClaimRelease] = (),
+        *,
+        fail_with: Exception | None = None,
+    ) -> None:
+        self._releases = tuple(releases)
+        self._fail_with = fail_with
+        self.list_all_call_count = 0
+        self.list_by_workflow_id_call_count = 0
+
+    def list_all(self) -> tuple[HumanReviewClaimRelease, ...]:
+        self.list_all_call_count += 1
+        if self._fail_with is not None:
+            raise self._fail_with
+        return self._releases
+
+    def list_by_workflow_id(self, workflow_id: str) -> tuple[HumanReviewClaimRelease, ...]:
+        self.list_by_workflow_id_call_count += 1
+        if self._fail_with is not None:
+            raise self._fail_with
+        return tuple(release for release in self._releases if release.workflow_id == workflow_id)
 
 
 class PendingHumanReviewWithClaimStateItemTests(unittest.TestCase):
@@ -547,3 +576,697 @@ class ListPendingHumanReviewsWithClaimStateUseCaseScopeAndResilienceTests(unitte
         self.assertIn("Claim repository read failure", str(ctx.exception))
         self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
         self.assertEqual(claim_repo.list_all_call_count, 1)
+
+
+class PendingHumanReviewWithReleaseAwareClaimStateItemTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.recommendation = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Recomendação REVIEW",
+            requires_human_decision=True,
+        )
+        self.workflow = GovernanceWorkflow(
+            workflow_id="WF-001",
+            recommendation=self.recommendation,
+            opened_at=datetime(2026, 9, 4, 10, 0, 0, tzinfo=timezone.utc),
+        )
+        self.claim_state = project_release_aware_claim_state("WF-001", (), ())
+
+    def test_valid_construction_preserves_attributes(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        item = PendingHumanReviewWithReleaseAwareClaimStateItem(
+            workflow=self.workflow,
+            claim_state=self.claim_state,
+        )
+
+        self.assertIs(item.workflow, self.workflow)
+        self.assertIs(item.claim_state, self.claim_state)
+        self.assertIsInstance(item.claim_state, ReleaseAwareClaimState)
+        self.assertEqual(item.workflow.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.workflow_id, "WF-001")
+
+    def test_rejects_invalid_workflow_type(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        invalid_workflows = [
+            None,
+            "not-a-workflow",
+            True,
+            123,
+            {"workflow_id": "WF-001"},
+        ]
+        for invalid in invalid_workflows:
+            with self.subTest(invalid=type(invalid)):
+                with self.assertRaises(TypeError):
+                    PendingHumanReviewWithReleaseAwareClaimStateItem(
+                        workflow=invalid,  # type: ignore[arg-type]
+                        claim_state=self.claim_state,
+                    )
+
+    def test_rejects_invalid_claim_state_type(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        historical_claim_state = project_human_review_claim_state("WF-001", ())
+        invalid_claim_states = [
+            None,
+            "not-a-claim-state",
+            True,
+            123,
+            (),
+            historical_claim_state,
+        ]
+        for invalid in invalid_claim_states:
+            with self.subTest(invalid=type(invalid)):
+                with self.assertRaises(TypeError):
+                    PendingHumanReviewWithReleaseAwareClaimStateItem(
+                        workflow=self.workflow,
+                        claim_state=invalid,  # type: ignore[arg-type]
+                    )
+
+    def test_rejects_relational_mismatch_of_workflow_id(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        mismatched_claim_state = project_release_aware_claim_state("WF-OTHER", (), ())
+
+        with self.assertRaises(ValueError) as ctx:
+            PendingHumanReviewWithReleaseAwareClaimStateItem(
+                workflow=self.workflow,
+                claim_state=mismatched_claim_state,
+            )
+
+        self.assertIn("WF-001", str(ctx.exception))
+        self.assertIn("WF-OTHER", str(ctx.exception))
+
+    def test_item_is_immutable(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        item = PendingHumanReviewWithReleaseAwareClaimStateItem(
+            workflow=self.workflow,
+            claim_state=self.claim_state,
+        )
+
+        with self.assertRaises((FrozenInstanceError, AttributeError)):
+            item.workflow = self.workflow  # type: ignore[misc]
+
+        with self.assertRaises((FrozenInstanceError, AttributeError)):
+            item.claim_state = self.claim_state  # type: ignore[misc]
+
+        self.assertTrue(hasattr(item, "__slots__"))
+
+
+class ListPendingHumanReviewsWithReleaseAwareClaimStateUseCaseOrchestrationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.recommendation_1 = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-001",
+            requires_human_decision=True,
+        )
+        self.recommendation_2 = DecisionRecommendation(
+            material_id="MAT-002",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-002",
+            requires_human_decision=True,
+        )
+        self.specialist_1 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist1@corp.local",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 4, 8, 0, 0, tzinfo=timezone.utc),
+        )
+        self.specialist_2 = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-002",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist2@corp.local",
+            verification_id="VER-002",
+            verified_at=datetime(2026, 9, 4, 8, 5, 0, tzinfo=timezone.utc),
+        )
+
+    def test_execute_with_empty_repository_returns_empty_tuple(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=())
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=())
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(result, ())
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+        self.assertEqual(claim_repo.list_all_call_count, 1)
+        self.assertEqual(release_repo.list_all_call_count, 1)
+
+    def test_execute_pending_workflow_with_zero_claims_returns_no_claim_item(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=())
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(len(result), 1)
+        item = result[0]
+        self.assertIsInstance(item, PendingHumanReviewWithReleaseAwareClaimStateItem)
+        self.assertEqual(item.workflow.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.all_claims, ())
+        self.assertEqual(item.claim_state.releases, ())
+        self.assertEqual(item.claim_state.unreleased_claims, ())
+        self.assertIs(item.claim_state.unreleased_claim_state, HumanReviewClaimFactState.NO_CLAIM)
+        self.assertIsNone(item.claim_state.sole_unreleased_claim)
+
+    def test_execute_pending_workflow_with_claim_and_matching_release_returns_no_claim_item(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        claim_a = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist_1,
+            claimed_at=datetime(2026, 9, 4, 9, 15, 0, tzinfo=timezone.utc),
+        )
+        release_a = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist_1,
+            released_at=datetime(2026, 9, 4, 9, 30, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(claims=(claim_a,))
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=(release_a,))
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(len(result), 1)
+        item = result[0]
+        self.assertIsInstance(item, PendingHumanReviewWithReleaseAwareClaimStateItem)
+        self.assertEqual(item.workflow.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.all_claims, (claim_a,))
+        self.assertEqual(item.claim_state.releases, (release_a,))
+        self.assertEqual(item.claim_state.unreleased_claims, ())
+        self.assertIs(item.claim_state.unreleased_claim_state, HumanReviewClaimFactState.NO_CLAIM)
+        self.assertIsNone(item.claim_state.sole_unreleased_claim)
+
+    def test_execute_canonical_scenario_claim_a_release_a_and_claim_b(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        claim_a = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist_1,
+            claimed_at=datetime(2026, 9, 4, 9, 15, 0, tzinfo=timezone.utc),
+        )
+        release_a = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist_1,
+            released_at=datetime(2026, 9, 4, 9, 30, 0, tzinfo=timezone.utc),
+        )
+        claim_b = HumanReviewClaim(
+            claim_id="CLM-002",
+            workflow_id="WF-001",
+            specialist=self.specialist_2,
+            claimed_at=datetime(2026, 9, 4, 9, 45, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        # Fornecidos deliberadamente fora de ordem física (claim_b antes de claim_a)
+        claim_repo = FakeHumanReviewClaimRepository(claims=(claim_b, claim_a))
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=(release_a,))
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(len(result), 1)
+        item = result[0]
+        self.assertIsInstance(item, PendingHumanReviewWithReleaseAwareClaimStateItem)
+        self.assertEqual(item.workflow.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.all_claims, (claim_a, claim_b))
+        self.assertEqual(item.claim_state.releases, (release_a,))
+        self.assertEqual(item.claim_state.unreleased_claims, (claim_b,))
+        self.assertIs(item.claim_state.unreleased_claim_state, HumanReviewClaimFactState.SINGLE_CLAIM)
+        self.assertIs(item.claim_state.sole_unreleased_claim, claim_b)
+
+    def test_execute_pending_workflow_with_multiple_unreleased_claims_returns_multiple_claims_item(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        claim_a = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist_1,
+            claimed_at=datetime(2026, 9, 4, 9, 15, 0, tzinfo=timezone.utc),
+        )
+        claim_b = HumanReviewClaim(
+            claim_id="CLM-002",
+            workflow_id="WF-001",
+            specialist=self.specialist_2,
+            claimed_at=datetime(2026, 9, 4, 9, 30, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(claims=(claim_a, claim_b))
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=())
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(len(result), 1)
+        item = result[0]
+        self.assertIsInstance(item, PendingHumanReviewWithReleaseAwareClaimStateItem)
+        self.assertEqual(item.workflow.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.all_claims, (claim_a, claim_b))
+        self.assertEqual(item.claim_state.releases, ())
+        self.assertEqual(item.claim_state.unreleased_claims, (claim_a, claim_b))
+        self.assertIs(item.claim_state.unreleased_claim_state, HumanReviewClaimFactState.MULTIPLE_CLAIMS)
+        self.assertEqual(item.claim_state.unreleased_claim_count, 2)
+        self.assertIsNone(item.claim_state.sole_unreleased_claim)
+
+    def test_execute_multiple_workflows_preserves_canonical_queue_order(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        opened_later = WorkflowOpened(
+            event_id="EVT-002",
+            workflow_id="WF-B",
+            recommendation=self.recommendation_2,
+            opened_at=datetime(2026, 9, 4, 11, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_earlier = WorkflowOpened(
+            event_id="EVT-001",
+            workflow_id="WF-A",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        # Fornecidos fisicamente fora de ordem (WF-B antes de WF-A)
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened_later, opened_earlier))
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=())
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].workflow.workflow_id, "WF-A")
+        self.assertEqual(result[1].workflow.workflow_id, "WF-B")
+
+
+class ListPendingHumanReviewsWithReleaseAwareClaimStateUseCaseScopeAndResilienceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.recommendation_1 = DecisionRecommendation(
+            material_id="MAT-001",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-001",
+            requires_human_decision=True,
+        )
+        self.recommendation_2 = DecisionRecommendation(
+            material_id="MAT-002",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-002",
+            requires_human_decision=True,
+        )
+        self.recommendation_3 = DecisionRecommendation(
+            material_id="MAT-003",
+            decision=GovernanceDecision.REVIEW,
+            evidence=(),
+            rationale="Revisão necessária MAT-003",
+            requires_human_decision=True,
+        )
+        self.specialist = VerifiedSpecialistIdentity(
+            specialist_id="SPEC-001",
+            identity_provider="CORP_IDP",
+            identity_subject="specialist@corp.local",
+            verification_id="VER-001",
+            verified_at=datetime(2026, 9, 4, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+    def test_concluded_workflow_with_claims_and_releases_does_not_produce_queue_item(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-REV-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        review = HumanReview(
+            review_id="REV-001",
+            material_id="MAT-001",
+            system_recommendation=GovernanceDecision.REVIEW,
+            human_decision=HumanDecision.APPROVE,
+            reviewer_identity=self.specialist,
+            reviewed_at=datetime(2026, 9, 4, 10, 0, 0, tzinfo=timezone.utc),
+            justification="Aprovado na revisão formal",
+            corrections=(),
+        )
+        concluded = WorkflowConcluded(
+            event_id="EVT-CONC-001",
+            workflow_id="WF-REV-001",
+            review=review,
+        )
+        claim = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-REV-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 4, 9, 30, 0, tzinfo=timezone.utc),
+        )
+        release = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLM-001",
+            workflow_id="WF-REV-001",
+            released_by=self.specialist,
+            released_at=datetime(2026, 9, 4, 9, 45, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened, concluded))
+        claim_repo = FakeHumanReviewClaimRepository(claims=(claim,))
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=(release,))
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(result, ())
+
+    def test_single_read_of_repositories_and_no_n_plus_one_calls(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        opened_1 = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_2 = WorkflowOpened(
+            event_id="EVT-OPEN-002",
+            workflow_id="WF-002",
+            recommendation=self.recommendation_2,
+            opened_at=datetime(2026, 9, 4, 10, 0, 0, tzinfo=timezone.utc),
+        )
+        opened_3 = WorkflowOpened(
+            event_id="EVT-OPEN-003",
+            workflow_id="WF-003",
+            recommendation=self.recommendation_3,
+            opened_at=datetime(2026, 9, 4, 11, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened_1, opened_2, opened_3))
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=())
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 0)
+        self.assertEqual(claim_repo.list_all_call_count, 0)
+        self.assertEqual(release_repo.list_all_call_count, 0)
+
+        use_case.execute()
+
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+        self.assertEqual(claim_repo.list_all_call_count, 1)
+        self.assertEqual(release_repo.list_all_call_count, 1)
+
+        self.assertEqual(claim_repo.list_by_workflow_id_call_count, 0)
+        self.assertEqual(release_repo.list_by_workflow_id_call_count, 0)
+
+    def test_fail_closed_when_workflow_lifecycle_repository_fails(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        lifecycle_repo = FakeWorkflowLifecycleRepository(
+            events=(),
+            fail_with=RuntimeError("Lifecycle repository read failure"),
+        )
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=())
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            use_case.execute()
+
+        self.assertIn("Lifecycle repository read failure", str(ctx.exception))
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+        self.assertEqual(claim_repo.list_all_call_count, 0)
+        self.assertEqual(release_repo.list_all_call_count, 0)
+
+    def test_fail_closed_when_claim_repository_fails_no_partial_result(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(
+            claims=(),
+            fail_with=RuntimeError("Claim repository read failure"),
+        )
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=())
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            use_case.execute()
+
+        self.assertIn("Claim repository read failure", str(ctx.exception))
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+        self.assertEqual(claim_repo.list_all_call_count, 1)
+        self.assertEqual(release_repo.list_all_call_count, 0)
+
+    def test_fail_closed_when_claim_release_repository_fails_no_partial_result(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(claims=())
+        release_repo = FakeHumanReviewClaimReleaseRepository(
+            releases=(),
+            fail_with=RuntimeError("Release repository read failure"),
+        )
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            use_case.execute()
+
+        self.assertIn("Release repository read failure", str(ctx.exception))
+        self.assertEqual(lifecycle_repo.list_all_events_call_count, 1)
+        self.assertEqual(claim_repo.list_all_call_count, 1)
+        self.assertEqual(release_repo.list_all_call_count, 1)
+
+    def test_fail_closed_propagates_orphan_release_projection_error(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        claim_a = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 4, 9, 15, 0, tzinfo=timezone.utc),
+        )
+        orphan_release = HumanReviewClaimRelease(
+            release_id="REL-ORPHAN",
+            claim_id="CLM-UNKNOWN",
+            workflow_id="WF-001",
+            released_by=self.specialist,
+            released_at=datetime(2026, 9, 4, 9, 30, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(claims=(claim_a,))
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=(orphan_release,))
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        with self.assertRaises(ValueError) as ctx:
+            use_case.execute()
+
+        self.assertIn("CLM-UNKNOWN", str(ctx.exception))
+
+    def test_global_snapshot_filtering_preserves_target_workflow_claims_and_releases(self) -> None:
+        from agent_lab.pending_human_reviews_with_claim_state_use_case import (
+            ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase,
+            PendingHumanReviewWithReleaseAwareClaimStateItem,
+        )
+
+        opened = WorkflowOpened(
+            event_id="EVT-OPEN-001",
+            workflow_id="WF-001",
+            recommendation=self.recommendation_1,
+            opened_at=datetime(2026, 9, 4, 9, 0, 0, tzinfo=timezone.utc),
+        )
+        claim_target = HumanReviewClaim(
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 4, 9, 15, 0, tzinfo=timezone.utc),
+        )
+        release_target = HumanReviewClaimRelease(
+            release_id="REL-001",
+            claim_id="CLM-001",
+            workflow_id="WF-001",
+            released_by=self.specialist,
+            released_at=datetime(2026, 9, 4, 9, 30, 0, tzinfo=timezone.utc),
+        )
+        claim_other = HumanReviewClaim(
+            claim_id="CLM-OTHER",
+            workflow_id="WF-OTHER",
+            specialist=self.specialist,
+            claimed_at=datetime(2026, 9, 4, 9, 20, 0, tzinfo=timezone.utc),
+        )
+        release_other = HumanReviewClaimRelease(
+            release_id="REL-OTHER",
+            claim_id="CLM-OTHER",
+            workflow_id="WF-OTHER",
+            released_by=self.specialist,
+            released_at=datetime(2026, 9, 4, 9, 35, 0, tzinfo=timezone.utc),
+        )
+        lifecycle_repo = FakeWorkflowLifecycleRepository(events=(opened,))
+        claim_repo = FakeHumanReviewClaimRepository(claims=(claim_target, claim_other))
+        release_repo = FakeHumanReviewClaimReleaseRepository(releases=(release_target, release_other))
+        use_case = ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase(
+            workflow_lifecycle_repository=lifecycle_repo,
+            claim_repository=claim_repo,
+            claim_release_repository=release_repo,
+        )
+
+        result = use_case.execute()
+
+        self.assertEqual(len(result), 1)
+        item = result[0]
+        self.assertIsInstance(item, PendingHumanReviewWithReleaseAwareClaimStateItem)
+        self.assertEqual(item.workflow.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.workflow_id, "WF-001")
+        self.assertEqual(item.claim_state.all_claims, (claim_target,))
+        self.assertEqual(item.claim_state.releases, (release_target,))
+        self.assertEqual(item.claim_state.unreleased_claims, ())
+        self.assertIs(item.claim_state.unreleased_claim_state, HumanReviewClaimFactState.NO_CLAIM)
+
+
+if __name__ == "__main__":
+    unittest.main()
