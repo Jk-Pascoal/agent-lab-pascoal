@@ -11,16 +11,21 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0145` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#145` |
 | **Título da Issue** | `Human Review Claim Release-Aware Read Path v1` |
 | **Branch documental** | `docs/issue-145-release-aware-read-path` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-22` |
 | **Última atualização** | `2026-09-22` |
+| **Data de integração** | `2026-09-22` |
 | **Domínio** | Governança de materiais industriais PDM/BOM e Master Data |
 | **Camada arquitetural** | Projeção, Policy e Camada de Aplicação (`Projection`, `Policy`, `Application Layer`) |
 | **Baseline de entrada** | `1045 testes aprovados` (100% GREEN) |
+| **Baseline final integrado** | `1102 testes aprovados` (100% GREEN) |
+| **PR funcional** | `#147` |
+| **Commit funcional** | `1c6058a944cf0c4803bb4097a1996b82290953ba` |
+| **Merge funcional** | `6a24a20a315de25d3adfc6fe6e6fbe21e156d4b8` |
 | **Impacto SemVer** | `MINOR — novas capacidades públicas aditivas e evolução controlada de boundary existente; release formal permanece v0.1.0` |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
@@ -522,9 +527,9 @@ O desenvolvimento será conduzido estritamente em micro-TDD em fatias isoladas:
 
 ## 17. Definition of Done (DoD)
 
-- [ ] SPEC técnica correspondente criada em `docs/specs/` e aprovada em PR documental prévio (`SPEC-0145`).
-- [ ] Implementação conduzida via micro-TDD com testes unitários, defensivos e de integração vertical pós-restart.
-- [ ] Suíte de testes 100% GREEN via `python -m unittest discover -s tests -v` com baseline incrementado.
-- [ ] PR funcional revisado e integrado na `main`.
+- [x] SPEC técnica correspondente criada em `docs/specs/` e aprovada em PR documental prévio (`SPEC-0145` via PR #146).
+- [x] Implementação conduzida via micro-TDD com testes unitários, defensivos e de integração vertical pós-restart.
+- [x] Suíte de testes 100% GREEN via `python -m unittest discover -s tests -v` com baseline incrementado (1102/1102 GREEN).
+- [x] PR funcional revisado e integrado na `main` (PR #147, commit funcional `1c6058a`, merge `6a24a20`).
 - [ ] PR documental de closeout atualizando o `PROJECT_COMPASS.md` e marcando a SPEC como `IMPLEMENTED`.
 - [ ] Higienização completa das branches de trabalho.
