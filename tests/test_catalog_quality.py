@@ -482,5 +482,78 @@ class CatalogQualityReportSlice1DBTests(unittest.TestCase):
             by_type[IssueType.AMBIGUOUS_DESCRIPTION] = 99  # type: ignore[index]
 
 
+class CatalogQualityReportSlice1ETests(unittest.TestCase):
+    """Testes de caracterização e hardening de métricas agregadas (Slice 1E)."""
+
+    def test_populated_catalog_basic_metrics(self) -> None:
+        issue = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="description_short",
+            message="descrição ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        a1_clean = _make_assessment("MAT-001")
+        a2_clean = _make_assessment("MAT-002")
+        a3_with_issue = _make_assessment("MAT-003", issues=(issue,))
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-POP",
+            assessments=(a1_clean, a2_clean, a3_with_issue),
+        )
+
+        self.assertEqual(report.total_records, 3)
+        self.assertFalse(report.is_empty)
+        self.assertEqual(report.clean_records_count, 2)
+
+    def test_clean_records_ratio_in_populated_catalog(self) -> None:
+        issue = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="description_short",
+            message="descrição ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        a1_clean = _make_assessment("MAT-001")
+        a2_clean = _make_assessment("MAT-002")
+        a3_with_issue = _make_assessment("MAT-003", issues=(issue,))
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-RATIO",
+            assessments=(a1_clean, a2_clean, a3_with_issue),
+        )
+
+        self.assertIsNotNone(report.clean_records_ratio)
+        self.assertAlmostEqual(report.clean_records_ratio, 2 / 3)  # type: ignore[arg-type]
+
+    def test_average_completeness_in_populated_catalog(self) -> None:
+        a1 = _make_assessment("MAT-001", completeness=1.0)
+        a2 = _make_assessment("MAT-002", completeness=0.5)
+        a3 = _make_assessment("MAT-003", completeness=0.0)
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-COMP",
+            assessments=(a1, a2, a3),
+        )
+
+        self.assertIsNotNone(report.average_completeness)
+        self.assertAlmostEqual(report.average_completeness, 0.5)  # type: ignore[arg-type]
+
+    def test_multiple_duplicate_pairs_and_count(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-002", "MAT-003"))
+        a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
+        a3 = _make_assessment("MAT-003", duplicate_candidates=("MAT-001",))
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-MULTI-DUP",
+            assessments=(a1, a2, a3),
+        )
+
+        expected_pairs = (
+            ("MAT-001", "MAT-002"),
+            ("MAT-001", "MAT-003"),
+        )
+        self.assertEqual(report.duplicate_pairs, expected_pairs)
+        self.assertEqual(report.duplicate_pairs_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
