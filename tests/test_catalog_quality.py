@@ -2,8 +2,10 @@
 
 import unittest
 from dataclasses import FrozenInstanceError
+from itertools import permutations
 from types import MappingProxyType
 
+import agent_lab.catalog_quality as catalog_quality
 from agent_lab.catalog_quality import CatalogQualityReport
 from agent_lab.domain import (
     GovernanceAssessment,
@@ -11,7 +13,10 @@ from agent_lab.domain import (
     GovernanceIssue,
     IssueSeverity,
     IssueType,
+    MaterialRecord,
 )
+from agent_lab.evidence import EvidenceSource
+from agent_lab.validator import DeterministicGovernanceValidator
 
 
 def _make_assessment(
@@ -553,6 +558,485 @@ class CatalogQualityReportSlice1ETests(unittest.TestCase):
         )
         self.assertEqual(report.duplicate_pairs, expected_pairs)
         self.assertEqual(report.duplicate_pairs_count, 2)
+
+
+class CatalogQualityPipelineSlice2ATests(unittest.TestCase):
+    """Testes do pipeline de diagnóstico de catálogo: existência e entrada (Slice 2A)."""
+
+    def test_empty_catalog(self) -> None:
+        report = catalog_quality.diagnose_catalog_quality(
+            (),
+            catalog_id="CAT-EMPTY",
+        )
+        self.assertIsInstance(report, CatalogQualityReport)
+        self.assertEqual(report.catalog_id, "CAT-EMPTY")
+        self.assertEqual(report.assessments, ())
+        self.assertEqual(report.total_records, 0)
+        self.assertTrue(report.is_empty)
+
+    def test_rejects_non_sequence_catalog(self) -> None:
+        with self.assertRaises(TypeError):
+            catalog_quality.diagnose_catalog_quality(
+                123,  # type: ignore[arg-type]
+                catalog_id="CAT-01",
+            )
+
+    def test_rejects_textual_pseudo_sequences(self) -> None:
+        for invalid_seq in ["MAT-001", b"MAT-001", bytearray(b"MAT-001")]:
+            with self.subTest(invalid_seq=type(invalid_seq)):
+                with self.assertRaises(TypeError):
+                    catalog_quality.diagnose_catalog_quality(
+                        invalid_seq,  # type: ignore[arg-type]
+                        catalog_id="CAT-01",
+                    )
+
+    def test_rejects_invalid_items_in_catalog(self) -> None:
+        with self.assertRaises(TypeError):
+            catalog_quality.diagnose_catalog_quality(
+                (object(),),  # type: ignore[arg-type]
+                catalog_id="CAT-01",
+            )
+
+
+class CatalogQualityPipelineSlice2BTests(unittest.TestCase):
+    """Testes de invariantes de identidade de material_id e unicidade no catálogo (Slice 2B)."""
+
+    def test_material_id_rejects_non_string(self) -> None:
+        for invalid_id in [123, None, ["MAT-001"]]:
+            with self.subTest(invalid_id=invalid_id):
+                record = MaterialRecord(material_id="MAT-001")
+                object.__setattr__(record, "material_id", invalid_id)
+                with self.assertRaises(TypeError):
+                    catalog_quality.diagnose_catalog_quality(
+                        (record,),
+                        catalog_id="CAT-01",
+                    )
+
+    def test_material_id_rejects_bool(self) -> None:
+        for b in [True, False]:
+            with self.subTest(b=b):
+                record = MaterialRecord(material_id="MAT-001")
+                object.__setattr__(record, "material_id", b)
+                with self.assertRaises(TypeError):
+                    catalog_quality.diagnose_catalog_quality(
+                        (record,),
+                        catalog_id="CAT-01",
+                    )
+
+    def test_material_id_rejects_empty_whitespace_and_outer_whitespace(self) -> None:
+        for empty_or_padded in ["", "   ", "\t\n", " MAT-001", "MAT-001 "]:
+            with self.subTest(material_id=repr(empty_or_padded)):
+                record = MaterialRecord(material_id=empty_or_padded)
+                with self.assertRaises(ValueError):
+                    catalog_quality.diagnose_catalog_quality(
+                        (record,),
+                        catalog_id="CAT-01",
+                    )
+
+    def test_rejects_duplicate_material_id(self) -> None:
+        record_a = MaterialRecord(material_id="MAT-001")
+        record_b = MaterialRecord(material_id="MAT-001")
+        with self.assertRaises(ValueError) as ctx:
+            catalog_quality.diagnose_catalog_quality(
+                (record_a, record_b),
+                catalog_id="CAT-01",
+            )
+
+        self.assertEqual(
+            str(ctx.exception),
+            "duplicate material_id in catalog: 'MAT-001'",
+        )
+
+
+class CatalogQualityPipelineSlice2CTests(unittest.TestCase):
+    """Testes do contrato de catalog_id no pipeline de diagnóstico (Slice 2C)."""
+
+    def test_catalog_id_rejects_non_string(self) -> None:
+        for invalid_id in [123, None, []]:
+            with self.subTest(invalid_id=invalid_id):
+                with self.assertRaises(TypeError):
+                    catalog_quality.diagnose_catalog_quality(
+                        (),
+                        catalog_id=invalid_id,  # type: ignore[arg-type]
+                    )
+
+    def test_catalog_id_rejects_bool(self) -> None:
+        for b in [True, False]:
+            with self.subTest(b=b):
+                with self.assertRaises(TypeError):
+                    catalog_quality.diagnose_catalog_quality(
+                        (),
+                        catalog_id=b,  # type: ignore[arg-type]
+                    )
+
+    def test_catalog_id_empty_whitespace_and_stripping(self) -> None:
+        for empty_val in ["", "   ", "\t\n"]:
+            with self.subTest(empty_val=repr(empty_val)):
+                with self.assertRaises(ValueError):
+                    catalog_quality.diagnose_catalog_quality(
+                        (),
+                        catalog_id=empty_val,
+                    )
+
+        report = catalog_quality.diagnose_catalog_quality(
+            (),
+            catalog_id="  CAT-01  ",
+        )
+        self.assertEqual(report.catalog_id, "CAT-01")
+
+    def test_catalog_id_validation_precedes_non_empty_analysis(self) -> None:
+        record = MaterialRecord(material_id="MAT-001")
+        cases = (
+            (123, TypeError),
+            (None, TypeError),
+            ([], TypeError),
+            (True, TypeError),
+            (False, TypeError),
+            ("", ValueError),
+            ("   ", ValueError),
+            ("\t\n", ValueError),
+        )
+
+        for invalid_id, expected_exception in cases:
+            with self.subTest(invalid_id=repr(invalid_id)):
+                with self.assertRaises(expected_exception):
+                    catalog_quality.diagnose_catalog_quality(
+                        (record,),
+                        catalog_id=invalid_id,  # type: ignore[arg-type]
+                    )
+
+
+class CatalogQualityPipelineSlice2DTests(unittest.TestCase):
+    """Testes do pipeline de diagnóstico com catálogo unitário não-vazio (Slice 2D)."""
+
+    def test_single_record_catalog_is_analyzed(self) -> None:
+        record = MaterialRecord(
+            material_id="MAT-001",
+            description_short="PARAFUSO ACO",
+            unit="UN",
+        )
+        expected = DeterministicGovernanceValidator().analyze(
+            record,
+            [],
+        )
+        report = catalog_quality.diagnose_catalog_quality(
+            (record,),
+            catalog_id="  CAT-01  ",
+        )
+        self.assertIsInstance(report, CatalogQualityReport)
+        self.assertEqual(report.catalog_id, "CAT-01")
+        self.assertEqual(report.total_records, 1)
+        self.assertEqual(report.assessments, (expected,))
+
+
+class CatalogQualityPipelineSlice2EATests(unittest.TestCase):
+    """Testes do pipeline de diagnóstico com catálogo multi-registro fechado (Slice 2E-A)."""
+
+    def test_two_record_catalog_is_sorted_and_analyzed_against_all_others(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="PARAFUSO ACO 10 20",
+            unit="UN",
+        )
+        record_b = MaterialRecord(
+            material_id="MAT-002",
+            description_short="ROLAMENTO SKF 30 40",
+            unit="UN",
+        )
+        validator = DeterministicGovernanceValidator()
+        expected_a = validator.analyze(
+            record_a,
+            [record_b],
+        )
+        expected_b = validator.analyze(
+            record_b,
+            [record_a],
+        )
+        report = catalog_quality.diagnose_catalog_quality(
+            (record_b, record_a),
+            catalog_id="CAT-02",
+        )
+        self.assertEqual(report.catalog_id, "CAT-02")
+        self.assertEqual(report.total_records, 2)
+        self.assertEqual(
+            tuple(a.material_id for a in report.assessments),
+            ("MAT-001", "MAT-002"),
+        )
+        self.assertEqual(
+            report.assessments,
+            (expected_a, expected_b),
+        )
+
+
+class CatalogQualityPipelineSlice2EBTests(unittest.TestCase):
+    """Testes de simetria de duplicidade e evidências no pipeline (Slice 2E-B)."""
+
+    def test_duplicate_relationship_is_symmetric_with_duplicate_evidence(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="ROLAMENTO INDUSTRIAL A",
+            unit="UN",
+            manufacturer="SKF",
+            manufacturer_part_number="6205-ZZ",
+        )
+        record_b = MaterialRecord(
+            material_id="MAT-002",
+            description_short="ROLAMENTO INDUSTRIAL B",
+            unit="UN",
+            manufacturer="SKF",
+            manufacturer_part_number="6205-ZZ",
+        )
+
+        report = catalog_quality.diagnose_catalog_quality(
+            (record_b, record_a),
+            catalog_id="CAT-DUP",
+        )
+
+        assessment_a, assessment_b = report.assessments
+
+        self.assertEqual(assessment_a.material_id, "MAT-001")
+        self.assertEqual(assessment_b.material_id, "MAT-002")
+
+        self.assertEqual(
+            assessment_a.duplicate_candidates,
+            ("MAT-002",),
+        )
+        self.assertEqual(
+            assessment_b.duplicate_candidates,
+            ("MAT-001",),
+        )
+
+        self.assertTrue(
+            any(
+                issue.issue_type is IssueType.POSSIBLE_DUPLICATE
+                for issue in assessment_a.issues
+            )
+        )
+        self.assertTrue(
+            any(
+                issue.issue_type is IssueType.POSSIBLE_DUPLICATE
+                for issue in assessment_b.issues
+            )
+        )
+
+        self.assertIsNotNone(assessment_a.evidence_collection)
+        self.assertIsNotNone(assessment_b.evidence_collection)
+
+        assert assessment_a.evidence_collection is not None
+        assert assessment_b.evidence_collection is not None
+
+        self.assertTrue(
+            any(
+                evidence.source is EvidenceSource.DUPLICATE
+                and evidence.issue_type is IssueType.POSSIBLE_DUPLICATE
+                for evidence in assessment_a.evidence_collection.evidence
+            )
+        )
+        self.assertTrue(
+            any(
+                evidence.source is EvidenceSource.DUPLICATE
+                and evidence.issue_type is IssueType.POSSIBLE_DUPLICATE
+                for evidence in assessment_b.evidence_collection.evidence
+            )
+        )
+
+        self.assertEqual(
+            report.duplicate_pairs,
+            (("MAT-001", "MAT-002"),),
+        )
+        self.assertEqual(report.duplicate_pairs_count, 1)
+
+
+class CatalogQualityPipelineSlice2ECTests(unittest.TestCase):
+    """Testes de invariância à ordem física de entrada no pipeline (Slice 2E-C)."""
+
+    def test_report_is_invariant_to_catalog_input_order(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="ROLAMENTO INDUSTRIAL A",
+            unit="UN",
+            manufacturer="SKF",
+            manufacturer_part_number="6205-ZZ",
+        )
+        record_b = MaterialRecord(
+            material_id="MAT-002",
+            description_short="ROLAMENTO INDUSTRIAL B",
+            unit="UN",
+            manufacturer="SKF",
+            manufacturer_part_number="6205-ZZ",
+        )
+        record_c = MaterialRecord(
+            material_id="MAT-003",
+            description_short="CORREIA INDUSTRIAL 30 40",
+            unit="UN",
+            manufacturer="GATES",
+            manufacturer_part_number="A-999",
+        )
+
+        expected = catalog_quality.diagnose_catalog_quality(
+            (record_a, record_b, record_c),
+            catalog_id="CAT-ORDER",
+        )
+
+        self.assertEqual(
+            tuple(
+                assessment.material_id
+                for assessment in expected.assessments
+            ),
+            ("MAT-001", "MAT-002", "MAT-003"),
+        )
+        self.assertEqual(
+            expected.duplicate_pairs,
+            (("MAT-001", "MAT-002"),),
+        )
+
+        for permuted_catalog in permutations(
+            (record_a, record_b, record_c)
+        ):
+            with self.subTest(
+                order=tuple(record.material_id for record in permuted_catalog)
+            ):
+                actual = catalog_quality.diagnose_catalog_quality(
+                    permuted_catalog,
+                    catalog_id="CAT-ORDER",
+                )
+                self.assertEqual(actual, expected)
+
+
+class CatalogQualityPipelineSlice2EDTests(unittest.TestCase):
+    """Testes de catálogo limpo e violações determinísticas no pipeline (Slice 2E-D)."""
+
+    def test_clean_catalog_produces_approved_assessments_without_issues(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="PARAFUSO SEXTAVADO M10",
+            unit="UN",
+            status="ACTIVE",
+        )
+        record_b = MaterialRecord(
+            material_id="MAT-002",
+            description_short="PORCA SEXTAVADA M10",
+            unit="UN",
+            status="ACTIVE",
+        )
+
+        report = catalog_quality.diagnose_catalog_quality(
+            (record_b, record_a),
+            catalog_id="CAT-CLEAN",
+        )
+
+        self.assertEqual(report.total_records, 2)
+        self.assertEqual(
+            tuple(a.material_id for a in report.assessments),
+            ("MAT-001", "MAT-002"),
+        )
+        self.assertEqual(report.clean_records_count, 2)
+        self.assertEqual(report.records_with_blocking_issues_count, 0)
+        self.assertEqual(report.records_with_non_blocking_issues_count, 0)
+        self.assertEqual(report.duplicate_pairs, ())
+
+        for assessment in report.assessments:
+            with self.subTest(material_id=assessment.material_id):
+                self.assertIs(
+                    assessment.decision,
+                    GovernanceDecision.APPROVE,
+                )
+                self.assertEqual(assessment.issues, ())
+                self.assertEqual(assessment.duplicate_candidates, ())
+
+    def test_catalog_surfaces_deterministic_rule_violations(self) -> None:
+        record = MaterialRecord(
+            material_id="MAT-ERR",
+            description_short="",
+            unit="INVALID",
+            status="BROKEN",
+        )
+
+        report = catalog_quality.diagnose_catalog_quality(
+            (record,),
+            catalog_id="CAT-RULES",
+        )
+
+        assessment = report.assessments[0]
+        issue_types = tuple(
+            issue.issue_type
+            for issue in assessment.issues
+        )
+
+        self.assertIn(
+            IssueType.MISSING_CRITICAL_FIELD,
+            issue_types,
+        )
+        self.assertIn(
+            IssueType.INVALID_UNIT,
+            issue_types,
+        )
+        self.assertIn(
+            IssueType.INVALID_STATUS,
+            issue_types,
+        )
+
+        self.assertIs(
+            assessment.decision,
+            GovernanceDecision.REJECT,
+        )
+        self.assertEqual(report.records_with_blocking_issues_count, 1)
+        self.assertEqual(report.clean_records_count, 0)
+
+
+class CatalogQualityPipelineSlice2EETests(unittest.TestCase):
+    """Testes de caracterização do comportamento sequencial legado de analyze_all() (Slice 2E-E)."""
+
+    def test_analyze_all_preserves_legacy_sequential_duplicate_behavior(self) -> None:
+        record_a = MaterialRecord(
+            material_id="MAT-001",
+            description_short="ROLAMENTO INDUSTRIAL A",
+            unit="UN",
+            status="ACTIVE",
+            manufacturer="SKF",
+            manufacturer_part_number="6205-ZZ",
+        )
+
+        record_b = MaterialRecord(
+            material_id="MAT-002",
+            description_short="ROLAMENTO INDUSTRIAL B",
+            unit="UN",
+            status="ACTIVE",
+            manufacturer="SKF",
+            manufacturer_part_number="6205-ZZ",
+        )
+
+        assessments = DeterministicGovernanceValidator().analyze_all(
+            [record_a, record_b]
+        )
+
+        self.assertEqual(len(assessments), 2)
+        self.assertEqual(
+            tuple(a.material_id for a in assessments),
+            ("MAT-001", "MAT-002"),
+        )
+
+        self.assertEqual(
+            assessments[0].duplicate_candidates,
+            (),
+        )
+        self.assertEqual(
+            assessments[1].duplicate_candidates,
+            ("MAT-001",),
+        )
+
+        self.assertFalse(
+            any(
+                issue.issue_type is IssueType.POSSIBLE_DUPLICATE
+                for issue in assessments[0].issues
+            )
+        )
+        self.assertTrue(
+            any(
+                issue.issue_type is IssueType.POSSIBLE_DUPLICATE
+                for issue in assessments[1].issues
+            )
+        )
 
 
 if __name__ == "__main__":

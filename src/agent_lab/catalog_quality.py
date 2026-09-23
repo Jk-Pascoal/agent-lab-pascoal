@@ -1,10 +1,16 @@
 """Read-model de domínio para diagnóstico de qualidade de catálogo (Slice 1A)."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from .domain import GovernanceAssessment, IssueSeverity, IssueType
+from .domain import (
+    GovernanceAssessment,
+    IssueSeverity,
+    IssueType,
+    MaterialRecord,
+)
+from .validator import DeterministicGovernanceValidator
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,3 +192,80 @@ class CatalogQualityReport:
         if self.is_empty:
             return None
         return sum(a.completeness for a in self.assessments) / self.total_records
+
+
+def diagnose_catalog_quality(
+    catalog: Sequence[MaterialRecord],
+    *,
+    catalog_id: str,
+) -> CatalogQualityReport:
+    if isinstance(catalog, (str, bytes, bytearray)):
+        raise TypeError("catalog must be a sequence of MaterialRecord")
+
+    if not isinstance(catalog, Sequence):
+        raise TypeError("catalog must be a sequence of MaterialRecord")
+
+    for item in catalog:
+        if not isinstance(item, MaterialRecord):
+            raise TypeError("all catalog items must be MaterialRecord instances")
+
+    if not isinstance(catalog_id, str) or isinstance(catalog_id, bool):
+        raise TypeError("catalog_id must be a str")
+
+    canonical_catalog_id = catalog_id.strip()
+    if not canonical_catalog_id:
+        raise ValueError("catalog_id must not be empty or whitespace")
+
+    for record in catalog:
+        material_id = record.material_id
+        if not isinstance(material_id, str) or isinstance(material_id, bool):
+            raise TypeError("MaterialRecord.material_id must be a str")
+
+        if not material_id.strip():
+            raise ValueError("MaterialRecord.material_id must not be empty or whitespace")
+
+        if material_id != material_id.strip():
+            raise ValueError("MaterialRecord.material_id must not contain outer whitespace")
+
+    seen_ids: set[str] = set()
+    for record in catalog:
+        if record.material_id in seen_ids:
+            raise ValueError(
+                f"duplicate material_id in catalog: {record.material_id!r}"
+            )
+        seen_ids.add(record.material_id)
+
+    if len(catalog) == 0:
+        return CatalogQualityReport(
+            catalog_id=canonical_catalog_id,
+            assessments=(),
+        )
+
+    sorted_catalog = tuple(
+        sorted(
+            catalog,
+            key=lambda record: record.material_id,
+        )
+    )
+
+    validator = DeterministicGovernanceValidator()
+    assessments: list[GovernanceAssessment] = []
+
+    for record in sorted_catalog:
+        other_records: list[MaterialRecord] = [
+            other
+            for other in sorted_catalog
+            if other.material_id != record.material_id
+        ]
+
+        assessments.append(
+            validator.analyze(
+                record,
+                other_records,
+            )
+        )
+
+    return CatalogQualityReport(
+        catalog_id=canonical_catalog_id,
+        assessments=tuple(assessments),
+    )
