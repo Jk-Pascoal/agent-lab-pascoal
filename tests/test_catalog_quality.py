@@ -2,6 +2,7 @@
 
 import unittest
 from dataclasses import FrozenInstanceError
+from types import MappingProxyType
 
 from agent_lab.catalog_quality import CatalogQualityReport
 from agent_lab.domain import (
@@ -353,6 +354,132 @@ class CatalogQualityReportSlice1DATests(unittest.TestCase):
         )
         self.assertEqual(report.duplicate_candidate_records_count, 2)
         self.assertEqual(report.duplicate_pairs_count, 1)
+
+
+class CatalogQualityReportSlice1DBTests(unittest.TestCase):
+    """Testes de distribuições derivadas e read-only (Slice 1D-B)."""
+
+    def test_empty_catalog_distributions(self) -> None:
+        report = CatalogQualityReport(catalog_id="CAT-EMPTY", assessments=())
+        self.assertEqual(report.issues_by_severity, {})
+        self.assertEqual(report.issues_by_type, {})
+        self.assertIsInstance(report.issues_by_severity, MappingProxyType)
+        self.assertIsInstance(report.issues_by_type, MappingProxyType)
+
+    def test_issues_by_severity_distribution(self) -> None:
+        issue_blocking = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="description_short",
+            message="descrição ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        issue_warning_1 = GovernanceIssue(
+            issue_type=IssueType.SUSPICIOUS_UNIT,
+            field_name="unit",
+            message="unidade suspeita 1",
+            severity=IssueSeverity.WARNING,
+        )
+        issue_warning_2 = GovernanceIssue(
+            issue_type=IssueType.INVALID_STATUS,
+            field_name="status",
+            message="status inválido",
+            severity=IssueSeverity.WARNING,
+        )
+        issue_info = GovernanceIssue(
+            issue_type=IssueType.AMBIGUOUS_DESCRIPTION,
+            field_name="description_short",
+            message="descrição ambígua",
+            severity=IssueSeverity.INFO,
+        )
+
+        a1 = _make_assessment(
+            "MAT-001",
+            issues=(issue_blocking, issue_warning_1),
+        )
+        a2 = _make_assessment(
+            "MAT-002",
+            issues=(issue_warning_2, issue_info),
+        )
+        a3_clean = _make_assessment("MAT-003")
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-SEV",
+            assessments=(a1, a2, a3_clean),
+        )
+        expected = {
+            IssueSeverity.BLOCKING: 1,
+            IssueSeverity.WARNING: 2,
+            IssueSeverity.INFO: 1,
+        }
+        self.assertEqual(report.issues_by_severity, expected)
+
+    def test_issues_by_type_distribution(self) -> None:
+        issue_mcf_1 = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="description_short",
+            message="descrição ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        issue_mcf_2 = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="unit",
+            message="unidade ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        issue_unit = GovernanceIssue(
+            issue_type=IssueType.SUSPICIOUS_UNIT,
+            field_name="unit",
+            message="unidade suspeita",
+            severity=IssueSeverity.WARNING,
+        )
+        issue_desc = GovernanceIssue(
+            issue_type=IssueType.AMBIGUOUS_DESCRIPTION,
+            field_name="description_short",
+            message="descrição ambígua",
+            severity=IssueSeverity.INFO,
+        )
+
+        a1 = _make_assessment(
+            "MAT-001",
+            issues=(issue_mcf_1, issue_unit),
+        )
+        a2 = _make_assessment(
+            "MAT-002",
+            issues=(issue_mcf_2, issue_desc),
+        )
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-TYPE",
+            assessments=(a1, a2),
+        )
+        expected = {
+            IssueType.MISSING_CRITICAL_FIELD: 2,
+            IssueType.SUSPICIOUS_UNIT: 1,
+            IssueType.AMBIGUOUS_DESCRIPTION: 1,
+        }
+        self.assertEqual(report.issues_by_type, expected)
+
+    def test_distributions_are_read_only_mapping_proxies(self) -> None:
+        issue = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="description_short",
+            message="descrição ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        a1 = _make_assessment("MAT-001", issues=(issue,))
+        report = CatalogQualityReport(catalog_id="CAT-RO", assessments=(a1,))
+
+        by_severity = report.issues_by_severity
+        by_type = report.issues_by_type
+
+        self.assertIsInstance(by_severity, MappingProxyType)
+        self.assertIsInstance(by_type, MappingProxyType)
+
+        with self.assertRaises(TypeError):
+            by_severity[IssueSeverity.INFO] = 99  # type: ignore[index]
+
+        with self.assertRaises(TypeError):
+            by_type[IssueType.AMBIGUOUS_DESCRIPTION] = 99  # type: ignore[index]
 
 
 if __name__ == "__main__":

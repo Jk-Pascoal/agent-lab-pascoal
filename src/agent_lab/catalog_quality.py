@@ -1,8 +1,10 @@
 """Read-model de domínio para diagnóstico de qualidade de catálogo (Slice 1A)."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
-from .domain import GovernanceAssessment, IssueSeverity
+from .domain import GovernanceAssessment, IssueSeverity, IssueType
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,6 +144,22 @@ class CatalogQualityReport:
             len(assessment.issues)
             for assessment in self.assessments
         )
+
+    @property
+    def issues_by_severity(self) -> Mapping[IssueSeverity, int]:
+        counts: dict[IssueSeverity, int] = {}
+        for assessment in self.assessments:
+            for issue in assessment.issues:
+                counts[issue.severity] = counts.get(issue.severity, 0) + 1
+        return MappingProxyType(counts)
+
+    @property
+    def issues_by_type(self) -> Mapping[IssueType, int]:
+        counts: dict[IssueType, int] = {}
+        for assessment in self.assessments:
+            for issue in assessment.issues:
+                counts[issue.issue_type] = counts.get(issue.issue_type, 0) + 1
+        return MappingProxyType(counts)
 
     @property
     def duplicate_pairs(self) -> tuple[tuple[str, str], ...]:
