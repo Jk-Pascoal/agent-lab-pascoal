@@ -10,18 +10,21 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0149` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#149` |
 | **Título da Issue** | `Catalog Quality Diagnostic Pipeline v1` |
-| **Branch documental** | `docs/issue-149-catalog-quality-diagnostic-pipeline` |
+| **Branch documental** | `docs/issue-149-catalog-quality-diagnostic-pipeline-closeout` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-23` |
 | **Última atualização** | `2026-09-23` |
+| **Data de integração** | `2026-09-23` |
 | **Domínio** | Governança de materiais industriais PDM/BOM e Master Data |
 | **Camada arquitetural** | Domínio e Camada de Aplicação (`Domain Layer`, `Application Layer`) |
 | **Baseline de entrada** | `1102 testes aprovados` (100% GREEN) |
-| **Baseline final projetado** | A ser determinado via micro-TDD (100% GREEN) |
-| **PR documental** | A ser aberto contra `main` |
+| **Baseline final integrado** | `1173 testes aprovados` (100% GREEN) |
+| **PR documental de aprovação** | `#150` — merge commit `469122514b8b8bc1339295558fe043af5882cba5` |
+| **PR funcional integrada** | `#151` — merge commit `89b844e1097f36cbc7d17551bc7b7517fa9402d4` |
+| **PR documental de closeout** | `A ser aberto contra main` |
 | **Impacto SemVer** | `MINOR — novas capacidades públicas aditivas de diagnóstico em lote; release formal permanece v0.1.0` |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
@@ -462,11 +465,65 @@ A implementação futura será conduzida estritamente através de micro-TDD dist
 
 ## 10. Definition of Done (DoD)
 
-- [ ] **Fase Documental (Atual):** SPEC-0149 elaborada e aprovada em Pull Request documental na branch `docs/issue-149-catalog-quality-diagnostic-pipeline` sem código funcional.
-- [ ] **Fase de Implementação:** Branch funcional `feature/issue-149-catalog-quality-diagnostic-pipeline` criada a partir da `main` após aprovação documental.
-- [ ] **Micro-TDD:** Implementação dos 3 slices funcionais conduzida estritamente via micro-TDD RED $\rightarrow$ GREEN.
-- [ ] **Regressão e Baseline:** Suíte completa aprovada com 100% GREEN via `python -m unittest discover -s tests -v`, com baseline canônico incrementado além dos 1102 testes atuais.
-- [ ] **Qualidade de Código:** Conformidade estrita com `git diff --check`, zero trailing whitespace estrutural e revisão de diff.
-- [ ] **PR Funcional:** Pull Request funcional aberto referenciando a Issue #149, revisado e integrado na `main` com CI GREEN obrigatório.
-- [ ] **PR de Closeout Documental:** SPEC-0149 marcada como `IMPLEMENTED`, `PROJECT_COMPASS.md` reconciliado com o novo baseline e novas capacidades registradas.
+- [x] **Fase Documental:** SPEC-0149 elaborada e aprovada em Pull Request documental na branch `docs/issue-149-catalog-quality-diagnostic-pipeline` (PR #150, merge `469122514b8b8bc1339295558fe043af5882cba5`) sem código funcional.
+- [x] **Fase de Implementação:** Branch funcional `feature/issue-149-catalog-quality-diagnostic-pipeline` criada a partir da `main` após aprovação documental.
+- [x] **Micro-TDD:** Implementação dos 3 slices funcionais conduzida estritamente via micro-TDD RED $\rightarrow$ GREEN (+71 testes).
+- [x] **Regressão e Baseline:** Suíte completa aprovada com 100% GREEN via `python -m unittest discover -s tests -v`, com baseline canônico incrementado de 1102 para 1173 testes aprovados (1173/1173 GREEN).
+- [x] **Qualidade de Código:** Conformidade estrita com `git diff --check`, zero trailing whitespace estrutural e revisão de diff.
+- [x] **PR Funcional:** Pull Request funcional #151 revisado e integrado na `main` (merge `89b844e1097f36cbc7d17551bc7b7517fa9402d4`) com CI GREEN obrigatório.
+- [ ] **PR de Closeout Documental:** SPEC-0149 marcada como `IMPLEMENTED`, `PROJECT_COMPASS.md` reconciliado com o novo baseline e novas capacidades registradas (em andamento nesta branch documental).
 - [ ] **Fechamento e Higiene:** Issue #149 formalmente encerrada (`Issue #149 CLOSED / COMPLETED`) e todas as branches de trabalho excluídas no local e remoto.
+
+---
+
+## 11. Registro de Implementação e Fechamento Funcional
+
+### 11.1 Integração na main
+- **PR Funcional:** [#151](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/151) (*feat: add catalog quality diagnostic pipeline*)
+- **Merge Commit:** `89b844e1097f36cbc7d17551bc7b7517fa9402d4`
+- **Baseline de Entrada:** `1102/1102 GREEN`
+- **Incremento:** `+71 testes`
+  - `+58` em `tests/test_catalog_quality.py`
+  - `+13` em `tests/test_catalog_quality_use_case.py`
+- **Baseline Final Integrado:** `1173/1173 GREEN` (0 failures, 0 errors, 0 skips)
+
+### 11.2 Commits funcionais — Micro-TDD
+- `ddf3a7c` — `feat: add catalog quality report slice 1a`
+- `84ed6ea` — `feat: enforce catalog assessment identity invariants`
+- `99c9b6b` — `feat: enforce catalog duplicate relation invariants`
+- `766be59` — `feat: add catalog quality scalar metrics`
+- `f4abe65` — `feat: add catalog quality issue distributions`
+- `398385e` — `test: harden catalog quality read model metrics`
+- `e0fc4cd` — `feat: add catalog quality diagnostic pipeline`
+- `e6e6654` — `feat: add catalog quality diagnostic use case`
+
+### 11.3 Entregas e capacidades da v1
+A implementação da Issue #149 entrega formalmente:
+- **`CatalogQualityReport`:**
+  - Read-Model imutável (`frozen=True`, `slots=True`);
+  - Invariantes estruturais rigorosas de catálogo, assessments ordenados e integridade relacional simétrica de duplicidades;
+  - Métricas puramente derivadas sem recálculo mutável;
+  - Distribuições imutáveis (`MappingProxyType`) por severidade (`issues_by_severity`) e por tipo de issue (`issues_by_type`);
+  - Pares únicos de duplicidades (`duplicate_pairs`) e contagem deduplicada de pares (`duplicate_pairs_count`);
+  - Indicadores executivos escalares: taxa de registros limpos (`clean_records_ratio`) e completude média cadastral (`average_completeness`).
+- **`diagnose_catalog_quality`:**
+  - Pipeline puro em memória que processa uma coleção fechada de materiais (`Sequence[MaterialRecord]`);
+  - Ordenação canônica determinística por `material_id`;
+  - Análise simétrica de cada registro contra todos os demais registros do catálogo fechado, garantindo a detecção integral de candidatos a duplicidade;
+  - Preservação estrita do comportamento sequencial legado de `DeterministicGovernanceValidator.analyze_all()`.
+- **`CatalogDiagnosticPipeline`:**
+  - Protocolo estrutural de injeção tipado para interoperabilidade e extensibilidade de pipelines de diagnóstico.
+- **`DiagnoseCatalogQualityUseCase`:**
+  - Validação defensiva na borda da aplicação (rejeição de tipos não-`Sequence`, exclusão de `str`, `bytes` e `bytearray`, e validação de instâncias `MaterialRecord`);
+  - Canonicalização antecipada de `catalog_id` via `.strip()` antes da delegação ao pipeline;
+  - Suporte a pipeline injetável com default determinístico (`diagnose_catalog_quality`);
+  - Validação rigorosa na fronteira de confiança de saída (`trust boundary`), exigindo retorno de `CatalogQualityReport`, paridade de `catalog_id` e casamento exato das identidades dos assessments contra o catálogo de entrada;
+  - Propagação fail-closed de exceções do pipeline sem mascaramento ou interceptação.
+- **Exports Públicos Canônicos:**
+  - Os quatro símbolos exportados no pacote raiz `agent_lab` e declarados em `__all__`: `CatalogDiagnosticPipeline`, `CatalogQualityReport`, `DiagnoseCatalogQualityUseCase` e `diagnose_catalog_quality`.
+- **Pureza e Não-Regressão:**
+  - Zero I/O física (sem persistência em disco, sem banco de dados, sem rede);
+  - Zero dependências externas novas (zero pandas/polars/openpyxl);
+  - Zero alteração em componentes legados protegidos (`validator.py`, `rules.py`, `duplicates.py`, `evidence.py`, `baseline.py`, `data_io.py`).
+- **Avanço Estratégico:**
+  - Entrega do núcleo computacional puro de domínio e aplicação que viabiliza a frente prioritária de `PoC vendável de diagnóstico de qualidade cadastral`, sem extrapolar para ingestão física de arquivos, UIs ou integrações externas.
