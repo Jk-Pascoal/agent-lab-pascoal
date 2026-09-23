@@ -1,5 +1,13 @@
 """Núcleo do laboratório de agentes para governança PDM/BOM."""
 
+from .catalog_quality import (
+    CatalogQualityReport,
+    diagnose_catalog_quality,
+)
+from .catalog_quality_use_case import (
+    CatalogDiagnosticPipeline,
+    DiagnoseCatalogQualityUseCase,
+)
 from .decision_recommendation_benchmark_use_case import (
     DecisionRecommendationBenchmarkCase,
     RunDecisionRecommendationBenchmarkUseCase,
@@ -164,4 +172,8 @@ __all__ = [
     "decision_recommendation_ground_truth_from_record",
     "DecisionRecommendationBenchmarkCase",
     "RunDecisionRecommendationBenchmarkUseCase",
+    "CatalogDiagnosticPipeline",
+    "CatalogQualityReport",
+    "DiagnoseCatalogQualityUseCase",
+    "diagnose_catalog_quality",
 ]
