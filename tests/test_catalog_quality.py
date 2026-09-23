@@ -7,6 +7,9 @@ from agent_lab.catalog_quality import CatalogQualityReport
 from agent_lab.domain import (
     GovernanceAssessment,
     GovernanceDecision,
+    GovernanceIssue,
+    IssueSeverity,
+    IssueType,
 )
 
 
@@ -16,6 +19,7 @@ def _make_assessment(
     completeness: float = 1.0,
     confidence: float = 1.0,
     decision: GovernanceDecision = GovernanceDecision.APPROVE,
+    issues: tuple[GovernanceIssue, ...] = (),
     duplicate_candidates: tuple[str, ...] = (),
 ) -> GovernanceAssessment:
     return GovernanceAssessment(
@@ -23,6 +27,7 @@ def _make_assessment(
         completeness=completeness,
         confidence=confidence,
         decision=decision,
+        issues=issues,
         duplicate_candidates=duplicate_candidates,
     )
 
@@ -242,6 +247,111 @@ class CatalogQualityReportSlice1CTests(unittest.TestCase):
         a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
         report = CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
         self.assertEqual(report.duplicate_pairs, (("MAT-001", "MAT-002"),))
+        self.assertEqual(report.duplicate_pairs_count, 1)
+
+
+class CatalogQualityReportSlice1DATests(unittest.TestCase):
+    """Testes de contagens escalares derivadas (Slice 1D-A)."""
+
+    def test_empty_catalog_scalar_counts(self) -> None:
+        report = CatalogQualityReport(catalog_id="CAT-EMPTY", assessments=())
+        self.assertEqual(report.records_with_blocking_issues_count, 0)
+        self.assertEqual(report.records_with_non_blocking_issues_count, 0)
+        self.assertEqual(report.duplicate_candidate_records_count, 0)
+        self.assertEqual(report.total_issues_count, 0)
+
+    def test_blocking_issues_count_and_deduplication_per_record(self) -> None:
+        issue_blocking_1 = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="description_short",
+            message="descrição obrigatória ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        issue_blocking_2 = GovernanceIssue(
+            issue_type=IssueType.INVALID_UNIT,
+            field_name="unit",
+            message="unidade inválida",
+            severity=IssueSeverity.BLOCKING,
+        )
+        a1 = _make_assessment(
+            "MAT-001",
+            issues=(issue_blocking_1, issue_blocking_2),
+        )
+        report = CatalogQualityReport(catalog_id="CAT-01", assessments=(a1,))
+        self.assertEqual(report.records_with_blocking_issues_count, 1)
+        self.assertEqual(report.records_with_non_blocking_issues_count, 0)
+        self.assertEqual(report.total_issues_count, 2)
+
+    def test_non_blocking_issues_count_only_warning_and_info(self) -> None:
+        issue_warning = GovernanceIssue(
+            issue_type=IssueType.SUSPICIOUS_UNIT,
+            field_name="unit",
+            message="unidade suspeita",
+            severity=IssueSeverity.WARNING,
+        )
+        issue_info = GovernanceIssue(
+            issue_type=IssueType.AMBIGUOUS_DESCRIPTION,
+            field_name="description_short",
+            message="descrição curta",
+            severity=IssueSeverity.INFO,
+        )
+        a1 = _make_assessment(
+            "MAT-001",
+            issues=(issue_warning, issue_info),
+        )
+        report = CatalogQualityReport(catalog_id="CAT-01", assessments=(a1,))
+        self.assertEqual(report.records_with_blocking_issues_count, 0)
+        self.assertEqual(report.records_with_non_blocking_issues_count, 1)
+        self.assertEqual(report.total_issues_count, 2)
+
+    def test_mixed_severities_catalog_counts(self) -> None:
+        issue_blocking = GovernanceIssue(
+            issue_type=IssueType.MISSING_CRITICAL_FIELD,
+            field_name="description_short",
+            message="descrição ausente",
+            severity=IssueSeverity.BLOCKING,
+        )
+        issue_warning = GovernanceIssue(
+            issue_type=IssueType.SUSPICIOUS_UNIT,
+            field_name="unit",
+            message="unidade suspeita",
+            severity=IssueSeverity.WARNING,
+        )
+        issue_info = GovernanceIssue(
+            issue_type=IssueType.AMBIGUOUS_DESCRIPTION,
+            field_name="description_short",
+            message="descrição ambígua",
+            severity=IssueSeverity.INFO,
+        )
+
+        a1_clean = _make_assessment("MAT-001")
+        a2_blocking_and_warning = _make_assessment(
+            "MAT-002",
+            issues=(issue_blocking, issue_warning),
+        )
+        a3_non_blocking = _make_assessment(
+            "MAT-003",
+            issues=(issue_warning, issue_info),
+        )
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-MIXED",
+            assessments=(a1_clean, a2_blocking_and_warning, a3_non_blocking),
+        )
+        self.assertEqual(report.records_with_blocking_issues_count, 1)
+        self.assertEqual(report.records_with_non_blocking_issues_count, 1)
+        self.assertEqual(report.total_issues_count, 4)
+
+    def test_duplicate_candidate_records_count_counts_records_not_pairs(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-002",))
+        a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
+        a3_clean = _make_assessment("MAT-003")
+
+        report = CatalogQualityReport(
+            catalog_id="CAT-DUP",
+            assessments=(a1, a2, a3_clean),
+        )
+        self.assertEqual(report.duplicate_candidate_records_count, 2)
         self.assertEqual(report.duplicate_pairs_count, 1)
 
 

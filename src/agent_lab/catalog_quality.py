@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from .domain import GovernanceAssessment
+from .domain import GovernanceAssessment, IssueSeverity
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +104,44 @@ class CatalogQualityReport:
     @property
     def clean_records_count(self) -> int:
         return sum(1 for a in self.assessments if len(a.issues) == 0)
+
+    @property
+    def records_with_blocking_issues_count(self) -> int:
+        return sum(
+            1
+            for assessment in self.assessments
+            if any(
+                issue.severity is IssueSeverity.BLOCKING
+                for issue in assessment.issues
+            )
+        )
+
+    @property
+    def records_with_non_blocking_issues_count(self) -> int:
+        return sum(
+            1
+            for assessment in self.assessments
+            if assessment.issues
+            and not any(
+                issue.severity is IssueSeverity.BLOCKING
+                for issue in assessment.issues
+            )
+        )
+
+    @property
+    def duplicate_candidate_records_count(self) -> int:
+        return sum(
+            1
+            for assessment in self.assessments
+            if assessment.duplicate_candidates
+        )
+
+    @property
+    def total_issues_count(self) -> int:
+        return sum(
+            len(assessment.issues)
+            for assessment in self.assessments
+        )
 
     @property
     def duplicate_pairs(self) -> tuple[tuple[str, str], ...]:
