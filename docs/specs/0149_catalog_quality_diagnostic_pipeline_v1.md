@@ -24,7 +24,7 @@
 | **Baseline final integrado** | `1173 testes aprovados` (100% GREEN) |
 | **PR documental de aprovação** | `#150` — merge commit `469122514b8b8bc1339295558fe043af5882cba5` |
 | **PR funcional integrada** | `#151` — merge commit `89b844e1097f36cbc7d17551bc7b7517fa9402d4` |
-| **PR documental de closeout** | `A ser aberto contra main` |
+| **PR documental de closeout** | `#152` |
 | **Impacto SemVer** | `MINOR — novas capacidades públicas aditivas de diagnóstico em lote; release formal permanece v0.1.0` |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
 
