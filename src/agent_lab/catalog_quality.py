@@ -28,6 +28,23 @@ class CatalogQualityReport:
             if not isinstance(item, GovernanceAssessment):
                 raise TypeError("all items in assessments must be GovernanceAssessment instances")
 
+            material_id = item.material_id
+            if not isinstance(material_id, str) or isinstance(material_id, bool):
+                raise TypeError("assessment.material_id must be a str")
+
+            if not material_id.strip():
+                raise ValueError("assessment.material_id must not be empty or whitespace")
+
+            if material_id != material_id.strip():
+                raise ValueError("assessment.material_id must not contain outer whitespace")
+
+        material_ids = [a.material_id for a in self.assessments]
+        if material_ids != sorted(material_ids):
+            raise ValueError("assessments must be sorted in ascending order by material_id")
+
+        if len(material_ids) != len(set(material_ids)):
+            raise ValueError("assessments must contain unique material_ids")
+
     @property
     def total_records(self) -> int:
         return len(self.assessments)
