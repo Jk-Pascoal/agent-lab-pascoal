@@ -16,12 +16,14 @@ def _make_assessment(
     completeness: float = 1.0,
     confidence: float = 1.0,
     decision: GovernanceDecision = GovernanceDecision.APPROVE,
+    duplicate_candidates: tuple[str, ...] = (),
 ) -> GovernanceAssessment:
     return GovernanceAssessment(
         material_id=material_id,
         completeness=completeness,
         confidence=confidence,
         decision=decision,
+        duplicate_candidates=duplicate_candidates,
     )
 
 
@@ -170,6 +172,77 @@ class CatalogQualityReportSlice1BTests(unittest.TestCase):
         a2 = _make_assessment("MAT-001")
         with self.assertRaises(ValueError):
             CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+
+
+class CatalogQualityReportSlice1CTests(unittest.TestCase):
+    """Testes de integridade relacional de duplicate_candidates (Slice 1C)."""
+
+    # A. Estrutura de duplicate_candidates
+    def test_duplicate_candidates_must_be_tuple(self) -> None:
+        a1 = _make_assessment("MAT-001")
+        object.__setattr__(a1, "duplicate_candidates", ["MAT-002"])
+        a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
+        with self.assertRaises(TypeError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+
+    def test_duplicate_candidates_items_must_be_string(self) -> None:
+        a1 = _make_assessment("MAT-001")
+        object.__setattr__(a1, "duplicate_candidates", (123,))
+        a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
+        with self.assertRaises(TypeError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+
+    def test_duplicate_candidates_structure_of_target_validated_before_symmetry(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-002",))
+        a2 = _make_assessment("MAT-002")
+        object.__setattr__(a2, "duplicate_candidates", [])
+        with self.assertRaises(TypeError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+
+    def test_duplicate_candidates_elements_of_target_validated_before_symmetry(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-002",))
+        a2 = _make_assessment("MAT-002")
+        object.__setattr__(a2, "duplicate_candidates", (123,))
+        with self.assertRaises(TypeError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+
+    # B. Integridade relacional
+    def test_duplicate_candidates_rejects_self_reference(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-001",))
+        with self.assertRaises(ValueError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1,))
+
+    def test_duplicate_candidates_rejects_orphan_candidate(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-999",))
+        with self.assertRaises(ValueError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1,))
+
+    def test_duplicate_candidates_rejects_duplicates_internally(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-002", "MAT-002"))
+        a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
+        with self.assertRaises(ValueError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+
+    def test_duplicate_candidates_must_be_sorted_lexicographically(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-003", "MAT-002"))
+        a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
+        a3 = _make_assessment("MAT-003", duplicate_candidates=("MAT-001",))
+        with self.assertRaises(ValueError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2, a3))
+
+    def test_duplicate_candidates_rejects_asymmetric_relation(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-002",))
+        a2 = _make_assessment("MAT-002", duplicate_candidates=())
+        with self.assertRaises(ValueError):
+            CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+
+    # C. Caminho nominal relacional
+    def test_duplicate_candidates_nominal_symmetric_relation(self) -> None:
+        a1 = _make_assessment("MAT-001", duplicate_candidates=("MAT-002",))
+        a2 = _make_assessment("MAT-002", duplicate_candidates=("MAT-001",))
+        report = CatalogQualityReport(catalog_id="CAT-01", assessments=(a1, a2))
+        self.assertEqual(report.duplicate_pairs, (("MAT-001", "MAT-002"),))
+        self.assertEqual(report.duplicate_pairs_count, 1)
 
 
 if __name__ == "__main__":

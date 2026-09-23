@@ -45,6 +45,54 @@ class CatalogQualityReport:
         if len(material_ids) != len(set(material_ids)):
             raise ValueError("assessments must contain unique material_ids")
 
+        # Pass 1: Validação estrutural de duplicate_candidates em todos os assessments
+        for assessment in self.assessments:
+            candidates = assessment.duplicate_candidates
+            if not isinstance(candidates, tuple):
+                raise TypeError("duplicate_candidates must be a tuple")
+
+            for candidate_id in candidates:
+                if not isinstance(candidate_id, str) or isinstance(candidate_id, bool):
+                    raise TypeError("duplicate_candidates elements must be str")
+
+        # Pass 2: Invariantes locais de duplicate_candidates
+        assessment_by_id = {
+            assessment.material_id: assessment
+            for assessment in self.assessments
+        }
+
+        for assessment in self.assessments:
+            candidates = assessment.duplicate_candidates
+
+            for candidate_id in candidates:
+                if candidate_id == assessment.material_id:
+                    raise ValueError(
+                        f"self-referential duplicate candidate in assessment {assessment.material_id!r}"
+                    )
+                if candidate_id not in assessment_by_id:
+                    raise ValueError(
+                        f"orphan duplicate candidate {candidate_id!r} in assessment {assessment.material_id!r}"
+                    )
+
+            if len(candidates) != len(set(candidates)):
+                raise ValueError(
+                    f"duplicate entries in duplicate_candidates for assessment {assessment.material_id!r}"
+                )
+
+            if list(candidates) != sorted(candidates):
+                raise ValueError(
+                    f"duplicate_candidates not sorted in assessment {assessment.material_id!r}"
+                )
+
+        # Pass 3: Simetria relacional global (A -> B <=> B -> A)
+        for assessment in self.assessments:
+            for candidate_id in assessment.duplicate_candidates:
+                other_assessment = assessment_by_id[candidate_id]
+                if assessment.material_id not in other_assessment.duplicate_candidates:
+                    raise ValueError(
+                        f"asymmetric duplicate relation between {assessment.material_id!r} and {candidate_id!r}"
+                    )
+
     @property
     def total_records(self) -> int:
         return len(self.assessments)
