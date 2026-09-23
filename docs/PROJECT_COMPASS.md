@@ -12,13 +12,13 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-09-22
-- **Baseline integrado na main:** 1102 testes aprovados (100% GREEN)
-- **Última entrega funcional integrada na main:** Human Review Claim Release-Aware Read Path v1
-- **Última Issue funcional integrada na main:** #145
-- **Último PR funcional integrado na main:** #147
-- **Último merge funcional:** `6a24a20` — Merge pull request #147 from Jk-Pascoal/feature/issue-145-release-aware-read-path
-- **Última SPEC integrada na main:** `docs/specs/0145_human_review_claim_release_aware_read_path_v1.md`
+- **Estado registrado em:** 2026-09-23
+- **Baseline integrado na main:** 1173 testes aprovados (100% GREEN)
+- **Última entrega funcional integrada na main:** Catalog Quality Diagnostic Pipeline v1
+- **Última Issue funcional integrada na main:** #149
+- **Último PR funcional integrado na main:** #151
+- **Último merge funcional:** `89b844e` — Merge pull request #151 from Jk-Pascoal/feature/issue-149-catalog-quality-diagnostic-pipeline
+- **Última SPEC integrada na main:** `docs/specs/0149_catalog_quality_diagnostic_pipeline_v1.md`
 - **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
@@ -554,7 +554,7 @@ A versão atual integrada na `main` possui:
 - sem eleição de `latest revision`, `current revision` ou cabeça canônica; sem eleição por timestamp `revised_at`; sem reparo automático ou mutação em disco;
 - conexão de `MaterialRevision` ao pipeline de evidências e recomendações permanece fronteira futura;
 - aplicação automática das correções ao material (`CORRECTION_APPLIED`), mutação automática de `MaterialRecord` e reexecução automática de regras/LLM continuam fora do escopo;
-- sete boundaries de Application integrados:
+- oito boundaries de Application integrados:
   1. `RecordHumanDecisionUseCase` (boundary existente evoluído na Issue #145, com injeção obrigatória de `HumanReviewClaimRepository` e `HumanReviewClaimReleaseRepository`, executando targeted reads `claims → releases`, projeção via `project_release_aware_claim_state` e gate pré-write via `evaluate_release_aware_reviewer_claim_eligibility`; preserva `RecordHumanDecisionResult`, o fail-closed pré-write e a ordem `Audit → Lifecycle`)
   2. `ListPendingHumanReviewsUseCase`
   3. `RecordHumanReviewClaimUseCase`
@@ -562,8 +562,10 @@ A versão atual integrada na `main` possui:
   5. `ReleaseHumanReviewClaimUseCase` (coordena `release_human_review_claim(...) → HumanReviewClaimReleaseRepository.append(...) → return release`, validando exclusivamente tipos estruturais de borda e delegando regras de negócio ao domínio, com falhas de domínio ocorrendo antes de qualquer escrita e falhas de persistência propagadas sem mascaramento, retry, rollback ou compensação)
   6. `RunDecisionRecommendationBenchmarkUseCase` (coordena benchmark em memória de recomendações de governança contra Ground Truth: valida entradas e duplicatas de `evaluation_case_id`, executa pipeline determinístico padrão ou injetável, valida `prediction.material_id == case.material.material_id`, constrói mapeamento indexado por `evaluation_case_id` e delega a aferição metrológica a `evaluate_decision_recommendations`, retornando `DecisionRecommendationEvaluationReport` com zero-I/O e fail-closed)
   7. `ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase` (novo boundary de consulta release-aware combinando deterministicamente a fila pendente com o estado factual release-aware derivado de claims e releases em itens imutáveis `PendingHumanReviewWithReleaseAwareClaimStateItem`, com snapshot global único por repositório e zero N+1)
+  8. `DiagnoseCatalogQualityUseCase` (coordena o diagnóstico de qualidade de catálogo em memória sobre coleção fechada de materiais: valida defensivamente a entrada `Sequence[MaterialRecord]` excluindo `str`, `bytes` e `bytearray`, valida cada item como `MaterialRecord`, canonicaliza `catalog_id` via `.strip()` antes da delegação, executa o pipeline determinístico default `diagnose_catalog_quality` ou pipeline customizado injetável via protocolo tipado `CatalogDiagnosticPipeline`, valida rigorosamente a `trust boundary` de saída — retorno de `CatalogQualityReport`, paridade de `catalog_id` e casamento canônico exato das identidades dos assessments —, propaga falhas do pipeline em modo `fail-closed` sem mascaramento e opera com pureza em memória e zero I/O)
   uma projeção factual de claims integrada (`project_human_review_claim_state`), a composição factual da fila pendente com estado de claims integrada (`pending queue + factual claim state`), um módulo puro de política de governança normativa integrado (`Reviewer Claim Eligibility Policy v1` / `evaluate_reviewer_claim_eligibility`), enforcement de elegibilidade em tempo de execução no caso de uso `RecordHumanDecisionUseCase` (Issue #103), o contrato puro de domínio em memória para release voluntário de claims integrado (Issue #106: `HumanReviewClaimRelease` e `release_human_review_claim`), a persistência durável append-only em JSONL de release de claims com serialização versionada v1 integrada (Issue #109: `JsonlHumanReviewClaimReleaseRepository`), a coordenação de aplicação de release de claims integrada (Issue #112: `ReleaseHumanReviewClaimUseCase`), e o read path factual release-aware integrado (Issue #145: `project_release_aware_claim_state`, `ReleaseAwareClaimState`, `evaluate_release_aware_reviewer_claim_eligibility`, targeted reads no runtime enforcement gate e `ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase`), preservando que release é fato histórico, não determina active claim, não revoga nem elege ownership operacional, permite múltiplos release facts distintos para o mesmo `claim_id`, mantém unicidade estrita por `release_id` na persistência, não consulta histórico prévio ao liberar, não altera `WorkflowStatus`, preserva `GovernanceWorkflow` e `HumanReviewClaim` imutáveis e opera de forma estritamente sequencial e não-transacional;
 - contratos puros de domínio em memória para avaliação atômica de ground truth (`LabelProvenance`, `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth` e `DecisionRecommendationGroundTruth`) integrados na Issue #115 com proveniência explícita e auditável, contratos para datasets canônicos de avaliação (`MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset` e `DecisionRecommendationGroundTruthDataset`) integrados na Issue #119 agregando esses contratos com unicidade de `ground_truth_id`, unicidade de `evaluation_case_id` em v1, ordenação canônica determinística e validações fail-closed, camada pura de avaliação de recomendações de decisão (`DecisionRecommendationCaseEvaluation`, `DecisionRecommendationEvaluationReport`, `evaluate_decision_recommendation` e `evaluate_decision_recommendations`) integrada na Issue #124, camada pura de avaliação de regras cadastrais de materiais (`MaterialRulePrediction`, `MaterialRuleCaseEvaluation`, `MaterialRuleEvaluationReport`, `evaluate_material_rule` e `evaluate_material_rules`) integrada na Issue #129, camada pura de avaliação de pares duplicados (`DuplicatePairPrediction`, `DuplicatePairCaseEvaluation`, `DuplicatePairEvaluationReport`, `evaluate_duplicate_pair` e `evaluate_duplicate_pairs`) integrada na Issue #133, serialização atômica versionada pura em memória (`schema_version = 1`, zero-I/O, fail-closed, closed-schema) integrada na Issue #137 (`ground_truth_serialization.py`) para os três contratos atômicos de ground truth, e primeiro boundary de aplicação para orquestração de benchmark de recomendações de governança (`RunDecisionRecommendationBenchmarkUseCase` com `DecisionRecommendationBenchmarkCase`) integrado na Issue #141; benchmark runners para regras de materiais (`MaterialRuleGroundTruth`) ou duplicidades (`DuplicatePairGroundTruth`), persistência durável em disco (JSONL) de ground truth/datasets, repositórios de ground truth, loaders externos (CSV, JSONL, Parquet, SQLite), dispatchers polimórficos, métricas de benchmark multiclasses (Precision, Recall, F1), matriz de confusão, calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo;
+- diagnóstico determinístico de qualidade de catálogo integrado na Issue #149 com read-model imutável `CatalogQualityReport`, pipeline puro em memória `diagnose_catalog_quality` executando análise catalog-wide sobre coleção fechada de materiais com simetria completa de detecção de duplicidades sem alterar o comportamento sequencial legado de `DeterministicGovernanceValidator.analyze_all()`, protocolo estrutural de injeção `CatalogDiagnosticPipeline`, use case de coordenação `DiagnoseCatalogQualityUseCase` com validação defensiva de borda e trust boundary fail-closed de saída, e 4 exports canônicos no package root; complexidade deliberada de O(n²); ingestão de arquivos CSV/Excel/Parquet/JSONL/SQLite, interface UI, endpoints REST, nova CLI, integração ERP, persistência de relatórios em disco e novos modelos ML/LLM permanecem fora do escopo da v1 (a PoC vendável de diagnóstico de qualidade cadastral teve seu núcleo computacional puro de domínio e aplicação entregue, enquanto suas camadas de ingestão física e interface permanecem frentes futuras);
 - execução síncrona/monoprocesso;
 - permanecem estritamente fora do escopo (não implementados):
   - Active Claim Projection / Active Claim Policy;
@@ -584,7 +586,7 @@ A versão atual integrada na `main` possui:
 
 ### 4.4 Próxima âncora
 
-Último incremento funcional concluído: Issue #145 — Human Review Claim Release-Aware Read Path v1 integrada na main via PR #147 / merge `6a24a20`.
+Último incremento funcional concluído: Issue #149 — Catalog Quality Diagnostic Pipeline v1 integrada na main via PR #151 / merge `89b844e`.
 
 Incremento funcional atual: nenhum.
 
@@ -624,6 +626,8 @@ Contrato
   → Ground Truth Duplicate Pair Evaluator v1 (concluída na #133 via PR #135 / merge 8845ad4)
   → Ground Truth Atomic Serialization v1 (concluída na #137 via PR #139 / merge e8b2e41)
   → Ground Truth Decision Recommendation Benchmark Use Case v1 (concluída na #141 via PR #143 / merge c70e91c)
+  → Human Review Claim Release-Aware Read Path v1 (concluída na #145 via PR #147 / merge 6a24a20)
+  → Catalog Quality Diagnostic Pipeline v1 (concluída na #149 via PR #151 / merge 89b844e)
   → próxima âncora a definir após planejamento humano
 ```
 
@@ -1004,6 +1008,7 @@ src/agent_lab/human_review_claim_use_case.py
 src/agent_lab/pending_human_reviews_with_claim_state_use_case.py
 src/agent_lab/human_review_claim_release_use_case.py
 src/agent_lab/decision_recommendation_benchmark_use_case.py
+src/agent_lab/catalog_quality_use_case.py
 ```
 
 Contratos principais:
@@ -1017,7 +1022,9 @@ Contratos principais:
 - `ReleaseHumanReviewClaimUseCase`: caso de uso de aplicação responsável por coordenar a liberação voluntária de uma reivindicação de revisão humana por especialista verificado;
 - `PendingHumanReviewWithReleaseAwareClaimStateItem`: read-model imutável associando deterministicamente um workflow pendente ao seu estado factual release-aware (`ReleaseAwareClaimState`);
 - `ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase`: caso de uso de aplicação responsável por consultar a fila pendente combinada de forma somente-leitura com o estado factual release-aware de claims (`NO_CLAIM`, `SINGLE_CLAIM`, `MULTIPLE_CLAIMS`);
-- `RunDecisionRecommendationBenchmarkUseCase` / `DecisionRecommendationBenchmarkCase`: caso de uso de aplicação e contrato de caso experimental para orquestração em memória de benchmark de recomendações de governança contra Ground Truth.
+- `RunDecisionRecommendationBenchmarkUseCase` / `DecisionRecommendationBenchmarkCase`: caso de uso de aplicação e contrato de caso experimental para orquestração em memória de benchmark de recomendações de governança contra Ground Truth;
+- `CatalogDiagnosticPipeline`: protocolo estrutural tipado para injeção de pipelines de diagnóstico de qualidade de catálogo;
+- `DiagnoseCatalogQualityUseCase`: caso de uso de aplicação responsável por coordenar o diagnóstico de qualidade cadastral sobre coleções fechadas de materiais.
 
 Responsabilidades:
 
@@ -1061,7 +1068,42 @@ Responsabilidades:
   - retornar `tuple[PendingHumanReviewWithReleaseAwareClaimStateItem, ...]`, preservando a pending queue como driver set FIFO;
   - garantir a invariante relacional `workflow.workflow_id == claim_state.workflow_id`;
   - não aplicar policies operacionais de active claim, winner, assignment, lock ou SLA;
-  - propagar exceções de integridade e repositórios de forma *fail-closed*.
+  - propagar exceções de integridade e repositórios de forma *fail-closed*;
+- em `DiagnoseCatalogQualityUseCase`:
+  - coordenar o diagnóstico de qualidade cadastral sobre uma coleção fechada de materiais (`Sequence[MaterialRecord]`);
+  - validar defensivamente a borda de entrada rejeitando tipos não-Sequence, excluindo pseudo-sequences textuais (`str`, `bytes`, `bytearray`) e validando cada item como `MaterialRecord`;
+  - canonicalizar `catalog_id` via `.strip()` antes de repassar ao pipeline produtor;
+  - aceitar injeção opcional de pipeline via protocolo tipado `CatalogDiagnosticPipeline`, utilizando `diagnose_catalog_quality` como padrão determinístico;
+  - validar defensivamente a fronteira de confiança de saída (`trust boundary`), exigindo retorno de instância `CatalogQualityReport`, paridade estrita de `catalog_id` e casamento exato das identidades dos assessments contra o catálogo de entrada;
+  - propagar exceções do pipeline em modo *fail-closed* sem mascaramento ou interceptação;
+  - preservar o princípio arquitetural *Application coordena; Pipeline produz; Evaluator mede*;
+  - operar com pureza absoluta em memória e zero I/O.
+
+### 6.15 Diagnóstico de Qualidade de Catálogo
+
+Módulo:
+
+```text
+src/agent_lab/catalog_quality.py
+```
+
+Contratos principais:
+
+- `CatalogQualityReport`: read-model imutável (`frozen=True`, `slots=True`) representando o diagnóstico consolidado de qualidade cadastral de um catálogo fechado;
+- `diagnose_catalog_quality`: pipeline de domínio puro em memória para análise exaustiva e simétrica de qualidade e duplicidades.
+
+Responsabilidades:
+
+- representar relatório imutável e canônico de qualidade cadastral com identificador normalizado `catalog_id` e tupla ordenada de `assessments`;
+- derivar métricas executivas escalares e distribuições puramente a partir dos assessments sem retenção de estado redundante ou mutabilidade (`MappingProxyType`);
+- validar integridade estrutural fail-closed de `assessment.material_id` e relações simétricas compulsórias de `duplicate_candidates`;
+- executar diagnóstico determinístico de catálogo fechado recebendo `Sequence[MaterialRecord]`;
+- ordenar registros canonicamente por `material_id` antes da avaliação;
+- analisar cada material contra todos os demais registros do catálogo fechado reutilizando `DeterministicGovernanceValidator.analyze()`, garantindo simetria completa de detecção de duplicidades;
+- preservar ocorrências de `GovernanceIssue(IssueType.POSSIBLE_DUPLICATE)` e evidências correspondentes (`EvidenceSource.DUPLICATE`);
+- não reutilizar `DeterministicGovernanceValidator.analyze_all()` no novo fluxo de diagnóstico;
+- não alterar `validator.py`, `rules.py`, `duplicates.py`, `evidence.py`, `baseline.py` ou `data_io.py`;
+- operar puramente em memória com zero I/O física.
 
 ## 7. Comando canônico de testes e baseline
 
@@ -1074,7 +1116,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 1102 tests
+Ran 1173 tests
 OK
 ```
 
@@ -1144,6 +1186,10 @@ Histórico de baselines integrados:
   - `tests/test_pending_human_reviews_with_release_aware_claim_state_use_case_integration.py`: +1
   - `tests/test_pending_human_reviews_use_case_integration.py`: +0 novos testes, apenas adaptação mecânica de caller
 - Baseline integrado após a Issue #145: 1102 testes (100% GREEN)
+- Incremento da Issue #149: +71 testes sobre o baseline de entrada de 1102, distribuídos em:
+  - `tests/test_catalog_quality.py`: +58
+  - `tests/test_catalog_quality_use_case.py`: +13
+- Baseline integrado após a Issue #149: 1173 testes (100% GREEN)
 
 Não assumir `pytest`.
 
@@ -1344,7 +1390,7 @@ Não implementar uma decisão adiada incidentalmente dentro de outra Issue.
 
 Frentes oficiais de evolução:
 
-- PoC vendável de diagnóstico de qualidade cadastral;
+- PoC vendável de diagnóstico de qualidade cadastral — núcleo computacional puro de domínio e aplicação em memória integrado na Issue #149; ingestão física, interface e integrações externas permanecem etapas futuras;
 - Duplicate Intelligence;
 - prevenção de novos cadastros duplicados;
 - copiloto do analista PDM;
@@ -1407,11 +1453,11 @@ Distinção de governança:
 Merge fecha um incremento; release fecha uma versão coerente.
 
 MAIN INTEGRADA:
-- Baseline integrado na main: 1102 testes | unittest | Python 3.11.
-- Última entrega funcional integrada na main: Issue #145 | Human Review Claim Release-Aware Read Path v1 | PR #147 (merge 6a24a20).
-- Última SPEC integrada: docs/specs/0145_human_review_claim_release_aware_read_path_v1.md (Status: IMPLEMENTED).
-- Último PR funcional integrado: PR #147.
-- Último merge funcional: 6a24a20.
+- Baseline integrado na main: 1173 testes | unittest | Python 3.11.
+- Última entrega funcional integrada na main: Issue #149 | Catalog Quality Diagnostic Pipeline v1 | PR #151 (merge 89b844e).
+- Última SPEC integrada: docs/specs/0149_catalog_quality_diagnostic_pipeline_v1.md (Status: IMPLEMENTED).
+- Último PR funcional integrado: PR #151.
+- Último merge funcional: 89b844e.
 - Arquitetura integrada: Regras + LLM estruturada + evidências + recomendação + identidade verificável
   + decisão humana + workflow temporal + persistência append-only de WorkflowOpened (v1/v2) e WorkflowConcluded (v1)
   + projeção pura rehydrate_workflow (reconstruindo deterministicamente PENDING_HUMAN_REVIEW e REVIEWED após restarts com preservação de lineage causal)
@@ -1441,11 +1487,13 @@ MAIN INTEGRADA:
   + camada de avaliação pura de pares duplicados contra ground truth em memória (DuplicatePairPrediction, DuplicatePairCaseEvaluation, DuplicatePairEvaluationReport, evaluate_duplicate_pair e evaluate_duplicate_pairs) com pareamento estrito por evaluation_case_id, validação relacional fail-closed de material_id_a e material_id_b, exact-match categórico de duplicidade binária (accuracy), bloqueio de auto-pares e pares invertidos, linhagem compulsória por dataset_id, semântica de dataset vazio (accuracy=None), ordenação canônica determinística por (evaluation_case_id, ground_truth_id), imutabilidade (frozen/slots), zero I/O e exports públicos canônicos no package root.
   + camada de serialização atômica versionada pura em memória de ground truth (schema_version=1, RECORD_TYPE_MATERIAL_RULE_GROUND_TRUTH, RECORD_TYPE_DUPLICATE_PAIR_GROUND_TRUTH, RECORD_TYPE_DECISION_RECOMMENDATION_GROUND_TRUTH, material_rule_ground_truth_to_record / from_record, duplicate_pair_ground_truth_to_record / from_record, decision_recommendation_ground_truth_to_record / from_record) com round-trip semanticamente lossless, validações fail-closed e closed-schema, canonicalidade estrita de strings e issue types, ordenação relacional de pares, ISO 8601 timezone-aware, preservação de VerifiedSpecialistIdentity, zero-I/O, 9 exports públicos no package root e SCHEMA_VERSION_V1 deliberadamente module-scoped.
   + camada de aplicação com RunDecisionRecommendationBenchmarkUseCase e contrato de caso experimental DecisionRecommendationBenchmarkCase executando benchmark em memória (zero-I/O) de recomendações de governança contra Ground Truth: validação defensiva de tipos nominais, integridade relacional prediction.material_id == case.material.material_id, rejeição fail-closed de duplicatas de evaluation_case_id, pipeline determinístico padrão integrado (DeterministicGovernanceValidator + recommend_decision) ou pipeline injetável, montagem de predictions indexado por evaluation_case_id, delegação estrita da metrologia a evaluate_decision_recommendations e relatório imutável DecisionRecommendationEvaluationReport com exports públicos canônicos no package root.
-- Princípios: Repository preserva → Projection interpreta → Policy governa → Application coordena e aplica | Domain decide | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | HumanReviewClaim != HumanReview | HumanReviewClaimRelease ≠ HumanReviewClaim | CLAIMED != REVIEWED | Projection factual != Policy normativa | sole_claim != active claim | sole_claim != owner | sole_claim != assignment | sole_claim != winner | CorrectionRequest != MaterialRevision (intenção humana != estado factual) | release factual ≠ active claim semantics | release factual ≠ release repository | release factual ≠ release application use case | Ground Truth ≠ Prediction | Dataset ≠ Metric | Evaluation Contract ≠ Benchmark Result | Application coordena; Pipeline produz; Evaluator mede | evaluation_case_id e material_id são identidades semanticamente independentes (nenhuma identidade é derivada da outra, coincidência textual explícita é permitida) | GovernanceDecision ≠ HumanDecision | domain contract ≠ persistence | Serialization ≠ Repository | Atomic Ground Truth ≠ Ground Truth Dataset | Desserialização valida representação canônica; não repara representação não-canônica | new typed ground truth ≠ legacy baseline.
-- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro e aplica o gate de elegibilidade em tempo de execução sem reaprender regras do domínio e sem eleger claim ativo; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional; ListPendingHumanReviewsWithClaimStateUseCase coordena a composição de fila e claims factuais sem eleger active claim ou impor policy operacional; evaluate_reviewer_claim_eligibility governa a elegibilidade normativa pura em memória sem conceder garantias de identidade real, autenticação real, ownership ou exclusividade; RecordHumanDecisionUseCase aplica a política como gate pré-write obrigatório em tempo de execução; release_human_review_claim formaliza o release voluntário de claim em memória com validação relacional por stable principal sem alterar workflow/claim e sem introduzir semântica de active claim; JsonlHumanReviewClaimReleaseRepository preserva os fatos físicos de liberação na ordem de append sem eleger claim ativo; ReleaseHumanReviewClaimUseCase coordena a liberação voluntária de claims delegando as regras de negócio ao domínio e a persistência ao protocolo HumanReviewClaimReleaseRepository, sem consultar histórico, sem alterar workflow/claim e sem eleger active claim; os contratos atômicos de Ground Truth expressam formalmente expectativas de domínio sobre conformidade de regras, pares duplicados e recomendações de governança; os Ground Truth Datasets organizam essas referências em coleções canônicas de avaliação; os avaliadores de Ground Truth executam metrologia determinística pura em memória comparando predições e referências com validação relacional por material_id ou par (material_id_a, material_id_b) e pareamento por evaluation_case_id, sem persistência própria, sem loaders externos, sem métricas multiclasses agregadas e sem interferir no baseline legado; a serialização atômica versionada de Ground Truth fornece conversão pura em memória determinística e fail-closed para os três contratos atômicos sem persistência em disco ou repositórios; RunDecisionRecommendationBenchmarkUseCase coordena a execução ponta a ponta do benchmark de recomendações contra Ground Truth delegando a produção ao pipeline de governança e a medição metrológica ao avaliador oficial, preservando zero-I/O e fail-closed.
+  + diagnóstico determinístico de qualidade cadastral sobre catálogo fechado em memória (CatalogQualityReport, diagnose_catalog_quality) com análise exaustiva e simétrica de duplicidades sem alterar o comportamento sequencial legado de DeterministicGovernanceValidator.analyze_all(), preservação de evidências de duplicidade, métricas executivas escalares e distribuições imutáveis (MappingProxyType)
+  + boundary de aplicação para orquestração de diagnóstico de qualidade de catálogo (DiagnoseCatalogQualityUseCase e protocolo CatalogDiagnosticPipeline) coordenando validações defensivas de borda em Sequence[MaterialRecord], canonicalização de catalog_id, pipeline determinístico default ou injetável, trust boundary fail-closed de integridade e casamento de identidades dos assessments, com pureza em memória, zero I/O e exports públicos canônicos no package root.
+- Princípios: Repository preserva → Projection interpreta → Policy governa → Application coordena e aplica | Domain decide | Repository != Projection | WorkflowLifecycleEvent != AuditEvent | DecisionRecommendation != HumanReview | HumanReviewClaim != HumanReview | HumanReviewClaimRelease ≠ HumanReviewClaim | CLAIMED != REVIEWED | Projection factual != Policy normativa | sole_claim != active claim | sole_claim != owner | sole_claim != assignment | sole_claim != winner | CorrectionRequest != MaterialRevision (intenção humana != estado factual) | release factual ≠ active claim semantics | release factual ≠ release repository | release factual ≠ release application use case | Ground Truth ≠ Prediction | Dataset ≠ Metric | Evaluation Contract ≠ Benchmark Result | Application coordena; Pipeline produz; Evaluator mede | evaluation_case_id e material_id são identidades semanticamente independentes (nenhuma identidade é derivada da outra, coincidência textual explícita é permitida) | GovernanceDecision ≠ HumanDecision | domain contract ≠ persistence | Serialization ≠ Repository | Atomic Ground Truth ≠ Ground Truth Dataset | Desserialização valida representação canônica; não repara representação não-canônica | new typed ground truth ≠ legacy baseline | diagnose_catalog_quality avalia catálogo fechado com simetria completa de duplicidades != analyze_all sequencial legado | CatalogDiagnosticPipeline define protocolo de injeção | DiagnoseCatalogQualityUseCase coordena validação de borda e trust boundary sem persistência física | CatalogQualityReport expressa métricas derivadas imutáveis.
+- Autoridade: A IA recomenda; o humano decide; a auditoria preserva o percurso; o lifecycle preserva o estado operacional; MaterialRevision registra o fato cadastral revisionado; MaterialRevisionLineage interpreta deterministicamente o grafo de linhagem; RecordHumanDecisionUseCase coordena o registro e aplica o gate de elegibilidade em tempo de execução sem reaprender regras do domínio e sem eleger claim ativo; ListPendingHumanReviewsUseCase coordena a consulta sem duplicar filtragem; HumanReviewClaim formaliza a assunção em memória sem alterar o ciclo de governança; JsonlHumanReviewClaimRepository preserva os fatos físicos na ordem de append; RecordHumanReviewClaimUseCase coordena a gravação de claims sem eleger claim ativo; project_human_review_claim_state interpreta o estado factual dos claims sem criar autoridade operacional; ListPendingHumanReviewsWithClaimStateUseCase coordena a composição de fila e claims factuais sem eleger active claim ou impor policy operacional; evaluate_reviewer_claim_eligibility governa a elegibilidade normativa pura em memória sem conceder garantias de identidade real, autenticação real, ownership ou exclusividade; RecordHumanDecisionUseCase aplica a política como gate pré-write obrigatório em tempo de execução; release_human_review_claim formaliza o release voluntário de claim em memória com validação relacional por stable principal sem alterar workflow/claim e sem introduzir semântica de active claim; JsonlHumanReviewClaimReleaseRepository preserva os fatos físicos de liberação na ordem de append sem eleger claim ativo; ReleaseHumanReviewClaimUseCase coordena a liberação voluntária de claims delegando as regras de negócio ao domínio e a persistência ao protocolo HumanReviewClaimReleaseRepository, sem consultar histórico, sem alterar workflow/claim e sem eleger active claim; os contratos atômicos de Ground Truth expressam formalmente expectativas de domínio sobre conformidade de regras, pares duplicados e recomendações de governança; os Ground Truth Datasets organizam essas referências em coleções canônicas de avaliação; os avaliadores de Ground Truth executam metrologia determinística pura em memória comparando predições e referências com validação relacional por material_id ou par (material_id_a, material_id_b) e pareamento por evaluation_case_id, sem persistência própria, sem loaders externos, sem métricas multiclasses agregadas e sem interferir no baseline legado; a serialização atômica versionada de Ground Truth fornece conversão pura em memória determinística e fail-closed para os três contratos atômicos sem persistência em disco ou repositórios; RunDecisionRecommendationBenchmarkUseCase coordena a execução ponta a ponta do benchmark de recomendações contra Ground Truth delegando a produção ao pipeline de governança e a medição metrológica ao avaliador oficial, preservando zero-I/O e fail-closed; o diagnóstico determinístico de qualidade de catálogo afere a conformidade cadastral e identifica potenciais duplicidades sobre coleções fechadas de materiais com simetria completa e métricas executivas derivadas em memória; DiagnoseCatalogQualityUseCase orquestra o pipeline e aplica trust boundary estrita na camada de aplicação sem realizar I/O física, sem persistir relatórios e sem alterar os módulos legados.
 - Limites atuais: Dual-write AuditEvent/WorkflowConcluded continua não-atômico, com detecção/diagnóstico somente-leitura integrado na #55 e sem reconciliação/reparo automático;
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM;
-  sete boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase, ListPendingHumanReviewsWithClaimStateUseCase, ReleaseHumanReviewClaimUseCase, RunDecisionRecommendationBenchmarkUseCase e ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase), a projeção factual de claims histórica e release-aware (project_human_review_claim_state e project_release_aware_claim_state), os módulos de governança de política normativa pura (evaluate_reviewer_claim_eligibility e evaluate_release_aware_reviewer_claim_eligibility), o gate de elegibilidade release-aware em tempo de execução em RecordHumanDecisionUseCase via targeted reads claims → releases, o contrato puro de domínio em memória de release de claim (HumanReviewClaimRelease e release_human_review_claim) e a persistência durável append-only em JSONL de releases com serialização versionada v1 (JsonlHumanReviewClaimReleaseRepository) estão integrados; a composição factual da fila pendente histórica e release-aware com estado de claims está integrada (com snapshots globais e zero N+1); contratos de domínio de ground truth, datasets canônicos de avaliação, as camadas puras de avaliação de recomendações de governança, de regras cadastrais de materiais e de pares duplicados contra ground truth, a serialização atômica versionada pura em memória e o primeiro boundary de aplicação para orquestração de benchmark de recomendações de governança estão integrados; benchmark runners para regras de materiais e duplicidades, persistência durável em disco (JSONL) de ground truth/datasets, repositórios de ground truth, loaders externos, métricas multiclasses (Precision/Recall/F1), matriz de confusão, calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo; Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, First-Claim-Wins / Last-Claim-Wins, lock/checkout, force-release, transfer/reassignment, vigência/TTL/lease/expiry/SLA, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
+  oito boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase, ListPendingHumanReviewsWithClaimStateUseCase, ReleaseHumanReviewClaimUseCase, RunDecisionRecommendationBenchmarkUseCase, ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase e DiagnoseCatalogQualityUseCase), a projeção factual de claims histórica e release-aware (project_human_review_claim_state e project_release_aware_claim_state), os módulos de governança de política normativa pura (evaluate_reviewer_claim_eligibility e evaluate_release_aware_reviewer_claim_eligibility), o gate de elegibilidade release-aware em tempo de execução em RecordHumanDecisionUseCase via targeted reads claims → releases, o contrato puro de domínio em memória de release de claim (HumanReviewClaimRelease e release_human_review_claim) e a persistência durável append-only em JSONL de releases com serialização versionada v1 (JsonlHumanReviewClaimReleaseRepository) estão integrados; a composição factual da fila pendente histórica e release-aware com estado de claims está integrada (com snapshots globais e zero N+1); contratos de domínio de ground truth, datasets canônicos de avaliação, as camadas puras de avaliação de recomendações de governança, de regras cadastrais de materiais e de pares duplicados contra ground truth, a serialização atômica versionada pura em memória e o primeiro boundary de aplicação para orquestração de benchmark de recomendações de governança estão integrados; benchmark runners para regras de materiais e duplicidades, persistência durável em disco (JSONL) de ground truth/datasets, repositórios de ground truth, loaders externos, métricas multiclasses (Precision/Recall/F1), matriz de confusão, calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo; diagnóstico de qualidade de catálogo opera puramente em memória sobre Sequence[MaterialRecord] com complexidade O(n²); ingestão de arquivos CSV/Excel/Parquet/JSONL/SQLite, interface UI/Streamlit, endpoints REST, CLI, integração ERP, persistência de relatórios em disco e novos modelos ML/LLM permanecem fora de escopo (apenas o núcleo computacional de domínio e aplicação da PoC vendável foi entregue); Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, First-Claim-Wins / Last-Claim-Wins, lock/checkout, force-release, transfer/reassignment, vigência/TTL/lease/expiry/SLA, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
 INCREMENTO ATUAL:
 - Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano.
