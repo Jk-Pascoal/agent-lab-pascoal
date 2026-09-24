@@ -471,8 +471,8 @@ A implementação futura será conduzida estritamente através de micro-TDD dist
 - [x] **Regressão e Baseline:** Suíte completa aprovada com 100% GREEN via `python -m unittest discover -s tests -v`, com baseline canônico incrementado de 1102 para 1173 testes aprovados (1173/1173 GREEN).
 - [x] **Qualidade de Código:** Conformidade estrita com `git diff --check`, zero trailing whitespace estrutural e revisão de diff.
 - [x] **PR Funcional:** Pull Request funcional #151 revisado e integrado na `main` (merge `89b844e1097f36cbc7d17551bc7b7517fa9402d4`) com CI GREEN obrigatório.
-- [ ] **PR de Closeout Documental:** SPEC-0149 marcada como `IMPLEMENTED`, `PROJECT_COMPASS.md` reconciliado com o novo baseline e novas capacidades registradas (em andamento nesta branch documental).
-- [ ] **Fechamento e Higiene:** Issue #149 formalmente encerrada (`Issue #149 CLOSED / COMPLETED`) e todas as branches de trabalho excluídas no local e remoto.
+- [x] **PR de Closeout Documental:** SPEC-0149 marcada como `IMPLEMENTED`, `PROJECT_COMPASS.md` reconciliado com o novo baseline e novas capacidades registradas (concluído via PR #152).
+- [x] **Fechamento e Higiene:** Issue #149 formalmente encerrada (`Issue #149 CLOSED / COMPLETED`) e todas as branches de trabalho da issue excluídas no repositório remoto.
 
 ---
 
