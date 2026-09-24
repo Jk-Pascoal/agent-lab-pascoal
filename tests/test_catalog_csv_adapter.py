@@ -1,4 +1,4 @@
-"""Testes para o adaptador de ingestão de catálogo CSV (Slices 1 e 2)."""
+"""Testes para o adaptador de ingestão de catálogo CSV (Slices 1, 2 e 3)."""
 
 import csv
 import tempfile
@@ -6,7 +6,9 @@ import unittest
 from pathlib import Path
 
 from agent_lab.catalog_csv_adapter import load_catalog_materials
-from agent_lab.domain import MaterialRecord
+from agent_lab.catalog_quality import CatalogQualityReport
+from agent_lab.catalog_quality_use_case import DiagnoseCatalogQualityUseCase
+from agent_lab.domain import IssueType, MaterialRecord
 
 
 class CatalogCsvAdapterSlice1Tests(unittest.TestCase):
@@ -234,6 +236,93 @@ class CatalogCsvAdapterSlice2Tests(unittest.TestCase):
             self.assertEqual(len(records), 2)
             for r in records:
                 self.assertIsInstance(r, MaterialRecord)
+
+
+class CatalogCsvAdapterSlice3IntegrationTests(unittest.TestCase):
+    def test_loaded_catalog_integrates_with_diagnose_catalog_quality_use_case(
+        self,
+    ) -> None:
+        csv_content = (
+            "material_id,description_short,unit,manufacturer,manufacturer_part_number\n"
+            "MAT-002,ROLAMENTO INDUSTRIAL B,UN,SKF,6205-ZZ\n"
+            "MAT-001,ROLAMENTO INDUSTRIAL A,UN,SKF,6205-ZZ\n"
+            "MAT-003,PARAFUSO SEXTAVADO,INVALID_UNIT,FAB,1234\n"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = Path(temp_dir) / "operational_catalog.csv"
+            file_path.write_text(csv_content, encoding="utf-8")
+            catalog = load_catalog_materials(file_path)
+
+            self.assertEqual(
+                tuple(record.material_id for record in catalog),
+                ("MAT-002", "MAT-001", "MAT-003"),
+            )
+
+            use_case = DiagnoseCatalogQualityUseCase()
+            report = use_case.execute(catalog, catalog_id="cat-operational")
+
+            self.assertIsInstance(report, CatalogQualityReport)
+            self.assertEqual(report.catalog_id, "cat-operational")
+            self.assertEqual(report.total_records, 3)
+            self.assertEqual(
+                tuple(assessment.material_id for assessment in report.assessments),
+                ("MAT-001", "MAT-002", "MAT-003"),
+            )
+            self.assertEqual(
+                report.duplicate_pairs,
+                (("MAT-001", "MAT-002"),),
+            )
+            self.assertEqual(report.duplicate_pairs_count, 1)
+
+            mat3_assessment = next(
+                assessment
+                for assessment in report.assessments
+                if assessment.material_id == "MAT-003"
+            )
+            self.assertTrue(
+                any(
+                    issue.issue_type is IssueType.INVALID_UNIT
+                    for issue in mat3_assessment.issues
+                )
+            )
+
+    def test_loaded_catalog_preserves_outer_whitespace_until_use_case_rejects_it(
+        self,
+    ) -> None:
+        csv_content = "material_id,unit\n  MAT-001  ,UN\n"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = Path(temp_dir) / "whitespace_catalog.csv"
+            file_path.write_text(csv_content, encoding="utf-8")
+            catalog = load_catalog_materials(file_path)
+
+            self.assertEqual(catalog[0].material_id, "  MAT-001  ")
+
+            use_case = DiagnoseCatalogQualityUseCase()
+            with self.assertRaises(ValueError):
+                use_case.execute(catalog, catalog_id="cat-whitespace")
+
+    def test_loaded_catalog_preserves_duplicate_ids_until_use_case_rejects_them(
+        self,
+    ) -> None:
+        csv_content = (
+            "material_id,description_short\n"
+            "MAT-001,Desc 1\n"
+            "MAT-001,Desc 2\n"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = Path(temp_dir) / "duplicate_ids_catalog.csv"
+            file_path.write_text(csv_content, encoding="utf-8")
+            catalog = load_catalog_materials(file_path)
+
+            self.assertEqual(len(catalog), 2)
+            self.assertEqual(
+                tuple(record.material_id for record in catalog),
+                ("MAT-001", "MAT-001"),
+            )
+
+            use_case = DiagnoseCatalogQualityUseCase()
+            with self.assertRaises(ValueError):
+                use_case.execute(catalog, catalog_id="cat-duplicate-ids")
 
 
 if __name__ == "__main__":
