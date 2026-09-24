@@ -10,7 +10,7 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0154` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#154` |
 | **Título da Issue** | `[FEAT] Catalog CSV Ingestion Adapter v1: Operational Material Record Loader` |
 | **Branch documental** | `docs/issue-154-catalog-csv-ingestion-adapter` |
@@ -21,8 +21,8 @@
 | **Domínio** | Governança de materiais industriais PDM/BOM e Master Data |
 | **Camada arquitetural** | Infraestrutura / Adaptador de I/O de Entrada (`Input Adapter`) |
 | **Baseline de entrada** | `1173 testes aprovados` (100% GREEN) |
-| **Baseline final integrado** | `—` (a definir após execução de micro-TDD) |
-| **PR documental de aprovação** | `—` |
+| **Baseline final integrado** | `—` |
+| **PR documental de aprovação** | `#155` |
 | **PR funcional integrada** | `—` |
 | **PR documental de closeout** | `—` |
 | **Impacto SemVer** | `MINOR — nova capacidade pública aditiva de ingestão operacional de catálogo; release formal permanece v0.1.0` |
@@ -324,14 +324,14 @@ O desenvolvimento do adaptador será conduzido por ciclo estrito de Micro-TDD di
 
 ## 12. Definition of Done
 
-- [ ] Módulo `src/agent_lab/catalog_csv_adapter.py` criado contendo a função pública `load_catalog_materials`.
-- [ ] Implementação restrita à biblioteca padrão Python (`csv`, `pathlib`), com zero dependências externas.
-- [ ] Parsing CSV executado em modo estrito (`strict=True`).
-- [ ] Validação *fail-closed* do cabeçalho conforme $\mathcal{C}_{\text{canonical}}$, rejeitando colunas desconhecidas e duplicadas.
-- [ ] Preservação integral de dados brutos sem aplicação de `.strip()`.
-- [ ] Suíte de testes `tests/test_catalog_csv_adapter.py` implementando integralmente os testes das Slices 1, 2 e 3.
-- [ ] Preservação integral do baseline existente de 1173 testes (100% GREEN).
-- [ ] Conformidade estrutural do diff (`git diff --check` limpo).
+- [x] Módulo `src/agent_lab/catalog_csv_adapter.py` criado contendo a função pública `load_catalog_materials`.
+- [x] Implementação restrita à biblioteca padrão Python (`csv`, `pathlib`), com zero dependências externas.
+- [x] Parsing CSV executado em modo estrito (`strict=True`).
+- [x] Validação *fail-closed* do cabeçalho conforme $\mathcal{C}_{\text{canonical}}$, rejeitando colunas desconhecidas e duplicadas.
+- [x] Preservação integral de dados brutos sem aplicação de `.strip()`.
+- [x] Suíte de testes `tests/test_catalog_csv_adapter.py` implementando integralmente os testes das Slices 1, 2 e 3.
+- [x] Preservação integral do baseline existente de 1173 testes (100% GREEN).
+- [x] Conformidade estrutural do diff (`git diff --check` limpo).
 
 ---
 
@@ -374,3 +374,47 @@ $$\text{CSV Físico} \xrightarrow[\text{SPEC-0154}]{\text{load\_catalog\_materia
 | **Parsing permissivo de arquivos corrompidos** | Média | Utilização do parser CSV em modo estrito (`strict=True`) e verificação explícita de campos excedentes (`None in row`). |
 | **Duplicação de invariantes do domínio** | Baixa | O adaptador limita-se a mapear texto para `MaterialRecord`. Unicidade, integridade e regras de negócio permanecem exclusivamente no domínio. |
 | **Acoplamento com a trilha de Ground Truth** | Baixa | Criação de um módulo novo dedicado, sem reutilização de `LabeledMaterial` ou `data_io.py`. |
+
+---
+
+## 17. Evidências da Implementação
+
+### 17.1 Decomposição e Execução por Fatias
+A implementação foi conduzida em três fatias incrementais. Os Slices 1 e 2 seguiram ciclos explícitos RED → GREEN; o Slice 3 foi uma prova de integração adicionada após a implementação funcional e nasceu GREEN, demonstrando composição direta entre o adapter da Issue #154 e o pipeline da Issue #149 sem necessidade de nova lógica de produção.
+
+* **Slice 1 (I/O & Validação Estrutural de Header):**
+  * 8 testes;
+  * Cobertura: existência de arquivo, rejeição de diretório, arquivo vazio, cabeçalho ausente, ausência da coluna obrigatória `material_id`, rejeição de colunas desconhecidas (fail-closed) e rejeição de colunas duplicadas.
+* **Slice 2 (Raw Mapping, Strict Parsing & Edge Cases):**
+  * 10 testes;
+  * Cobertura: mapeamento para `MaterialRecord`, parsing com `strict=True`, preenchimento default com `restval=""`, rejeição de campos excedentes (`None in row`), preservação integral de whitespace externo e quebras de linha internas sem `.strip()`, e preservação da ordem física original das linhas.
+* **Slice 3 (Integração com Pipeline de Diagnóstico #149):**
+  * 3 testes de integração com `DiagnoseCatalogQualityUseCase`;
+  * Todos nasceram GREEN;
+  * Nenhuma alteração em `src/` foi necessária;
+  * Isso é evidência de composição arquitetural, não um RED artificial.
+
+* **Total específico da SPEC:** 21 testes (21/21 GREEN).
+
+### 17.2 Baseline e Regressão
+* **Baseline de entrada:** 1173 testes aprovados (100% GREEN)
+* **Baseline funcional pré-integração:** 1194 testes aprovados (100% GREEN)
+* **Runner oficial:** `python -m unittest discover -s tests -v`
+* **Resultado:** 1194/1194 GREEN
+* **Conformidade estrutural:** `git diff --check` limpo.
+
+### 17.3 Conclusão Arquitetural e Separação de Responsabilidades
+A integração ponta a ponta consolida a esteira operacional de ingestão e diagnóstico:
+$$\text{CSV Físico} \xrightarrow[\text{SPEC-0154}]{\text{load\_catalog\_materials}} \text{tuple[MaterialRecord, ...]} \xrightarrow[\text{SPEC-0149}]{\text{DiagnoseCatalogQualityUseCase}} \text{CatalogQualityReport}$$
+
+A fronteira de responsabilidades foi rigorosamente validada pelos testes:
+* **ADAPTER (`load_catalog_materials`):**
+  * parseia o CSV físico em modo estrito (`strict=True`);
+  * valida a estrutura do cabeçalho contra o esquema canônico;
+  * mapeia cada linha física para uma instância de `MaterialRecord`;
+  * preserva integralmente o dado bruto textual, sem normalização ou `.strip()`.
+* **DOMÍNIO / APLICAÇÃO (`DiagnoseCatalogQualityUseCase` & regras de qualidade):**
+  * rejeita `material_id` com *outer whitespace*;
+  * rejeita `material_id` duplicado em linhas distintas;
+  * executa regras de governança e integridade relacional;
+  * produz diagnóstico consolidado e métricas no `CatalogQualityReport`.
