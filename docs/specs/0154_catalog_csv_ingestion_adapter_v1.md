@@ -14,16 +14,17 @@
 | **Issue relacionada** | `#154` |
 | **Título da Issue** | `[FEAT] Catalog CSV Ingestion Adapter v1: Operational Material Record Loader` |
 | **Branch documental** | `docs/issue-154-catalog-csv-ingestion-adapter` |
+| **Branch de closeout** | `docs/issue-154-catalog-csv-ingestion-adapter-closeout` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-24` |
 | **Última atualização** | `2026-09-24` |
-| **Data de integração** | `—` |
+| **Data de integração** | `2026-09-24` |
 | **Domínio** | Governança de materiais industriais PDM/BOM e Master Data |
 | **Camada arquitetural** | Infraestrutura / Adaptador de I/O de Entrada (`Input Adapter`) |
 | **Baseline de entrada** | `1173 testes aprovados` (100% GREEN) |
-| **Baseline final integrado** | `—` |
-| **PR documental de aprovação** | `#155` |
-| **PR funcional integrada** | `—` |
+| **Baseline final integrado** | `1194 testes aprovados` (100% GREEN) |
+| **PR documental de aprovação** | `#155` — merge commit `1bd5b28e3d034f2833b7be68fcd374c4dddc255a` |
+| **PR funcional integrada** | `#156` — merge commit `2b8bc9401fe51500bfef82c7cee6ed6f506487f0` |
 | **PR documental de closeout** | `—` |
 | **Impacto SemVer** | `MINOR — nova capacidade pública aditiva de ingestão operacional de catálogo; release formal permanece v0.1.0` |
 | **Runner oficial** | `python -m unittest discover -s tests -v` (Python 3.11) |
