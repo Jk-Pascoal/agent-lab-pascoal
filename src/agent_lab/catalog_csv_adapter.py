@@ -28,13 +28,14 @@ def load_catalog_materials(
         raise IsADirectoryError(f"Path is a directory: {resolved_path}")
 
     with resolved_path.open(encoding="utf-8", newline="") as file:
-        reader = csv.reader(file)
-        try:
-            header = next(reader)
-        except StopIteration:
-            raise ValueError("CSV file is empty or missing header")
+        reader = csv.DictReader(
+            file,
+            restval="",
+            strict=True,
+        )
 
-        if not header or not any(header):
+        header = reader.fieldnames
+        if header is None or not header or not any(header):
             raise ValueError("CSV file is empty or missing header")
 
         if len(header) != len(set(header)):
@@ -57,9 +58,21 @@ def load_catalog_materials(
                 f"CSV header contains unrecognized column(s): {', '.join(unrecognized)}"
             )
 
-        try:
-            next(reader)
-        except StopIteration:
-            return ()
+        records: list[MaterialRecord] = []
+        for row in reader:
+            if None in row:
+                raise ValueError("CSV row contains more fields than header")
 
-        raise NotImplementedError("CSV record mapping is not implemented in Slice 1")
+            record = MaterialRecord(
+                material_id=row["material_id"],
+                description_short=row.get("description_short", ""),
+                long_description=row.get("long_description", ""),
+                unit=row.get("unit", ""),
+                manufacturer=row.get("manufacturer", ""),
+                manufacturer_part_number=row.get("manufacturer_part_number", ""),
+                material_group=row.get("material_group", ""),
+                status=row.get("status", ""),
+            )
+            records.append(record)
+
+        return tuple(records)
