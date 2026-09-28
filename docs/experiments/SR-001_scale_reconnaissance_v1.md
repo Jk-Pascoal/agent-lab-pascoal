@@ -10,13 +10,15 @@
 |---|---|
 | **Identificador** | `SR-001` |
 | **Documento** | `docs/experiments/SR-001_scale_reconnaissance_v1.md` |
-| **Status** | `PROPOSED` (Fase 1: Protocolo Experimental) |
+| **Status** | `IN PROGRESS` (Baseline A: Consolidado Documentalmente / Baseline B: Pendente) |
 | **Issue relacionada** | `#158` — `SR-001 — Scale Reconnaissance v1` |
 | **Natureza** | Investigação experimental / não funcional |
 | **Pressão arquitetural de origem** | `P-07` — *Industrial Load / Scale Validation* |
-| **Branch de trabalho** | `docs/issue-158-sr001-scale-reconnaissance` |
+| **Branch do protocolo original** | `docs/issue-158-sr001-scale-reconnaissance` |
+| **Branch de consolidação do Baseline A** | `docs/issue-158-sr001-baseline-a-consolidation` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-25` |
+| **Data de consolidação Baseline A** | `2026-09-28` |
 | **Baseline canônico de entrada** | `1194 testes aprovados` (100% GREEN via `unittest`) |
 | **Runner oficial do produto** | `python -m unittest discover -s tests -v` (Python 3.11) |
 | **Impacto funcional / SemVer** | `Nenhum — zero alteração em src/agent_lab/ ou contratos de produção` |
@@ -186,7 +188,106 @@ Tais dados **não constituem baseline oficial do Agent Lab Pascoal** e não deve
 
 ---
 
-## 9. Limites Arquiteturais e Fora de Escopo
+## 9. Evidência Experimental Canônica — Baseline A (Capacidade Computacional e Blocking Teórico)
+
+Em 27/09/2026, executou-se a rodada canônica do Baseline A da SR-001 por meio do harness experimental `experiments/sr001_scale_reconnaissance.py`, em estrita observância ao protocolo de medições limpas, medição de memória isolada e persistência de checkpoints H-034 por volume $N$.
+
+### 9.1 Escopo, Carga e Ambiente de Execução
+* **Data da execução:** `2026-09-27` (janela matinal BRT).
+* **Ambiente de execução:** Python 3.11.9 (CPython) em Windows 10 (10.0.19045), AMD64.
+* **Volumes de carga executados:** $N \in \{250, 500, 1000, 2000\}$.
+* **Regime de execução:** *Cold-N catalog-wide* determinístico utilizando gerador sintético no padrão *nested-prefix* sob semente controlada `SEED = 42`.
+* **Esquema de dados:** Ingestão via `load_catalog_materials` em `src/agent_lab/catalog_csv_adapter.py` a partir de arquivo físico CSV em UTF-8 com as 8 colunas canônicas (`material_id`, `description_short`, `long_description`, `unit`, `manufacturer`, `manufacturer_part_number`, `material_group`, `status`).
+* **Nota metodológica sobre carga sintética:** A carga sintética do Baseline A tem finalidade estritamente computacional (estresse volumétrico e cardinalidade estrutural) e **não equivale a Ground Truth representativo** da diversidade e sutilezas industriais reais (objeto do Baseline B).
+* **Checkpoints H-034 persistidos atomicamente por $N$:** Gravados em `experiments/checkpoints/` com os respectivos hashes SHA-256 dos CSVs materializados:
+  - `N = 250`: SHA-256 = `08ecf171276902755787864b10fca6cb0c9f33d349d4ecf48e2955251de30512`
+  - `N = 500`: SHA-256 = `1a02f26313b9ef7d65ea7e603192caef93675f93bd59f4bf351f5a460df5932e`
+  - `N = 1000`: SHA-256 = `d9b8acb372148f04e321b2e19000dee7af24d72a56d765c6494fe474987e7cb5`
+  - `N = 2000`: SHA-256 = `8fb2d7bdac3e8c83a1ee01cd241f6af9cd4da40f6b23523eed12d8d52b1358ab`
+
+### 9.2 Métricas de Timing Limpo
+As medições foram coletadas com `time.perf_counter()` em 3 repetições limpas independentes (sem profilers ou `tracemalloc` ativos). Todos os valores abaixo correspondem fielmente aos checkpoints materializados em disco:
+
+| $N$ | $T_{CSV\text{ min}}$ | $T_{CSV\text{ med}}$ | $T_{CSV\text{ max}}$ | $T_{diag\text{ min}}$ | $T_{diag\text{ med}}$ | $T_{diag\text{ max}}$ | $T_{total\text{ min}}$ | $T_{total\text{ med}}$ | $T_{total\text{ max}}$ | $N(N-1)$ (avaliações dirigidas) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **250** | 0.0016 s | 0.0018 s | 0.0023 s | 1.1137 s | 1.1653 s | 1.2211 s | 1.1160 s | 1.1669 s | 1.2229 s | 62.250 |
+| **500** | 0.0027 s | 0.0032 s | 0.0049 s | 4.6646 s | 5.0947 s | 5.2816 s | 4.6696 s | 5.0979 s | 5.2843 s | 249.500 |
+| **1000** | 0.0078 s | 0.0096 s | 0.0119 s | 25.8838 s | 26.1970 s | 27.6687 s | 25.8916 s | 26.2088 s | 27.6783 s | 999.000 |
+| **2000** | 0.0129 s | 0.0137 s | 0.0156 s | 95.2426 s | 99.8750 s | 107.0392 s | 95.2563 s | 99.8879 s | 107.0548 s | 3.998.000 |
+
+*Nota sobre $T_{total}$ e tempo bruto acumulado:* A métrica $T_{total}$ reflete a execução ponta a ponta $CSV \rightarrow \text{MaterialRecord} \rightarrow \text{Diagnóstico} \rightarrow \text{CatalogQualityReport}$ medida por iteração. O tempo bruto total acumulado nas 3 repetições por volume foi: $N=250$ (3.5059 s), $N=500$ (15.0518 s), $N=1000$ (79.7788 s) e $N=2000$ (302.1990 s).
+
+### 9.3 Complexidade Observada e Verificação de Predicados
+1. **Verificação de Predicados em $N=250$:**
+   - Realizada em rodada instrumentada separada com restauração garantida do predicado original via `verify_predicate_calls_instrumented`.
+   - Chamadas observadas ao predicado `is_possible_duplicate`: **62.250**.
+   - Chamadas teóricas: $250 \times (250 - 1) =$ **62.250**.
+   - Resultado: **PASS**.
+   - *Significado:* Demonstra empiricamente que a implementação existente percorre o caminho dirigido exaustivo de $N(N-1)$ comparações, sem podas preliminares no produto.
+2. **Ajuste Assintótico Empírico ($T_{diag}$):**
+   - Regressão linear por mínimos quadrados no espaço log-log ($\ln(N)$ vs. $\ln(T_{diag\text{ med}})$) sobre os volumes $N \in \{250, 500, 1000, 2000\}$:
+     $$p = 2.1626$$
+   - *Interpretação permitida:* O ajuste log-log observado produziu $p = 2.1626$, evidência compatível com a hipótese H1 de comportamento predominantemente quadrático no intervalo experimental $N \in \{250, 500, 1000, 2000\}$. O experimento mede estritamente o intervalo observado e não autoriza universalização assintótica além da evidência empírica disponível.
+
+### 9.4 Análise Estrutural de Candidate Blocks (Sem Implementar Blocking)
+Em conformidade com as Correções Conceituais A e B (Seção 6), computou-se a união deduplicada dos pares candidatos gerados pelas rotas lógicas do detector:
+- **Rota 1 ($P_1$):** `manufacturer_part_number` idêntico não-vazio e `manufacturer` idêntico não-vazio.
+- **Rota 2 ($P_2$):** mesmo `material_group`, mesmo `category_token` não-vazio e interseção lexical ($\ge 2$ números e $\ge 1$ palavra).
+- **Interseção ($P_{12}$):** pares que satisfazem simultaneamente a Rota 1 e a Rota 2.
+- **União deduplicada ($\text{Candidate Union}$):** $P_1 + P_2 - P_{12}$.
+
+| $N$ | $P_1$ | $P_2$ | $P_{12}$ | Candidate Union | Pares Não-Direcionados ($N(N-1)/2$) | Razão de Candidatos | Redução Estrutural Teórica | Maior Bloco F1 | Maior Bloco F2 |
+|---|---|---|---|---|---|---|---|---|---|
+| **250** | 3 | 279 | 0 | **282** | 31.125 | 0.0091 (0.009060) | **99.09%** | 2 | 6 |
+| **500** | 7 | 1088 | 0 | **1.095** | 124.750 | 0.0088 (0.008778) | **99.12%** | 2 | 12 |
+| **1000** | 34 | 4237 | 0 | **4.271** | 499.500 | 0.0086 (0.008551) | **99.14%** | 3 | 22 |
+| **2000** | 153 | 16734 | 0 | **16.887** | 1.999.000 | 0.0084 (0.008448) | **99.16%** | 3 | 31 |
+
+#### Top 3 Blocos de Candidatos Materializados nos Checkpoints:
+* **$N = 250$:**
+  - *Top F1 (PN, Fabricante):* `[("PN 4 20 MA 32", "SPIRAX SARCO"): 2]`, `[("PN 4MM 45", "WEG"): 2]`, `[("PN M16X50 6", "DANFOSS"): 2]`
+  - *Top F2 (Grupo, Categoria):* `[("FIXADORES", "CONTACTOR"): 6]`, `[("MOTORES", "CORREIA"): 6]`, `[("VALVULAS", "DISJUNTOR"): 6]`
+* **$N = 500$:**
+  - *Top F1 (PN, Fabricante):* `[("PN 4 20 MA 32", "SPIRAX SARCO"): 2]`, `[("PN 4MM 45", "WEG"): 2]`, `[("PN M16X50 6", "DANFOSS"): 2]`
+  - *Top F2 (Grupo, Categoria):* `[("INSTRUMENTACAO", "PARAFUSO"): 12]`, `[("ELETRICA", "CABO"): 10]`, `[("TRANSMISSAO", "PARAFUSO"): 10]`
+* **$N = 1000$:**
+  - *Top F1 (PN, Fabricante):* `[("PN 6205 22", "SIEMENS"): 3]`, `[("PN 6308 6", "PARKER"): 2]`, `[("PN ISO VG 68 23", "PARKER"): 2]`
+  - *Top F2 (Grupo, Categoria):* `[("ELETRICA", "CABO"): 22]`, `[("MOTORES", "ACOPLAMENTO"): 17]`, `[("INSTRUMENTACAO", "PARAFUSO"): 16]`
+* **$N = 2000$:**
+  - *Top F1 (PN, Fabricante):* `[("PN 6205 41", "SKF"): 3]`, `[("PN 220V 20", "WEG"): 3]`, `[("PN 6205 22", "SIEMENS"): 3]`
+  - *Top F2 (Grupo, Categoria):* `[("ELETRICA", "CABO"): 31]`, `[("MOTORES", "ACOPLAMENTO"): 27]`, `[("TRANSMISSAO", "CONTACTOR"): 27]`
+
+> [!WARNING] Ressalva Obrigatória de Preservação Semântica
+> $$\mathbf{Candidate\ space\ reduction \ne Semantic\ recall\ preservation}$$
+> A redução teórica aproximada de $99.09\%$ a $99.16\%$ do espaço de pares mensura estritamente a cardinalidade estrutural sob as regras sintáticas e léxicas atuais do detector determinístico. Esta métrica **NÃO demonstra e NÃO garante** que verdadeiros duplicados industriais seriam preservados por uma estratégia de blocking. Qualquer decisão sobre introdução de candidate blocking no produto depende do Baseline B.
+
+### 9.5 Consumo de Memória Rastreada
+* **Protocolo de medição:** Execução dedicada e isolada para o maior volume concluído ($N = 2000$) utilizando a biblioteca padrão `tracemalloc`.
+* **Resultado:**
+  - Volume medido: $N = 2000$
+  - `peak_traced_memory`: **2.65 MB**
+
+> [!NOTE] Ressalva Obrigatória sobre Medição de Memória
+> A ferramenta `tracemalloc` afere exclusivamente alocações em heap gerenciadas pelo interpretador Python no escopo do diagnóstico. Ela **NÃO equivale ao Resident Set Size (RSS)** do processo nem reflete o consumo total de memória do sistema operacional. Este resultado não autoriza alegações sobre baixo consumo global do processo.
+
+### 9.6 Classificação das Hipóteses da SR-001 Conforme o Protocolo
+* **H1 — Complexidade Assintótica:** **Suporte empírico no intervalo testado.** Os tempos observados com expoente $p = 2.1626$ e as $62.250$ chamadas exatas a predicados em $N=250$ são compatíveis com a hipótese de comportamento predominantemente quadrático no intervalo $N \in \{250, 500, 1000, 2000\}$. Não constitui prova assintótica universal.
+* **H2 — Custo Dominante:** **NÃO ISOLADA INTERNAMENTE nesta rodada experimental.** Embora as medições comprovem que $T_{diag}$ domina massivamente $T_{CSV}$ em tempo de relógio (ex.: em $N=2000$, $99.88\text{ s}$ vs. $0.014\text{ s}$), o custo relativo interno entre a detecção de duplicidades/renormalização per-par e a validação de regras de material não foi decomposto via instrumentação granular, a fim de preservar o isolamento de timing limpo.
+* **H3 — Qualidade Semântica e Não-Circularidade:** **PENDENTE.** Objeto exclusivo do Baseline B contra Ground Truth independente.
+* **H4 — Potencial Teórico de Blocking:** **Suporte estrutural observado.** A união deduplicada das famílias confirmou redução teórica de $99.09\%$ a $99.16\%$ do espaço de busca em relação ao detector atual, sob a ressalva mandatória de que redução estrutural de candidatos não equivale a recall semântico.
+* **H5 — Não-Equivalência com Workload Incremental: PRESERVADA COMO LIMITAÇÃO METODOLÓGICA.** Os resultados medidos pertencem exclusivamente ao diagnóstico cold-N catalog-wide. Nenhum workload incremental $B \times I + I(I-1)/2$ foi implementado ou medido; portanto, os resultados do Baseline A não podem ser transferidos para esse regime.
+
+### 9.7 Limites Arquiteturais e Metrológicos do Baseline A
+1. **Teto experimental:** O volume máximo executado foi $N = 2000$. Não houve execução para $N = 10.000$ ou $N = 100.000$ SKUs.
+2. **Proibição de extrapolação operacional:** É expressamente vedado utilizar o expoente $p=2.1626$ para projetar tempos operacionais de SLA para catálogos industriais de 100k itens.
+3. **Ausência de otimização de produto:** O experimento não implementou blocking, indexação invertida, poda por simetria, cache de normalização ou multiprocessamento no produto.
+4. **Ausência de claims semânticos:** O Baseline A não faz nenhuma alegação de precision, recall ou F1-score do detector de duplicidades.
+5. **Ausência de Ground Truth semântico:** Nenhum Ground Truth semântico foi utilizado nesta fase (dataset sintético operacional nested-prefix determinístico apenas para carga computacional). O Baseline B permanece indispensável antes de qualquer decisão sobre blocking ou poda.
+6. **Integridade absoluta do produto:** O código de produção em `src/agent_lab/` e os testes em `tests/` permaneceram 100% inalterados, preservando o baseline canônico de 1194 testes íntegros (GREEN).
+
+---
+
+## 10. Limites Arquiteturais e Fora de Escopo
 
 Durante toda a execução da SR-001, aplicam-se com rigor as seguintes proibições:
 
@@ -199,7 +300,7 @@ Durante toda a execução da SR-001, aplicam-se com rigor as seguintes proibiç�
 
 ---
 
-## 10. Critérios de Aceite da SR-001
+## 11. Critérios de Aceite da SR-001
 
 A investigação SR-001 será considerada concluída com sucesso quando:
 1. O protocolo experimental presente neste documento for aprovado pelo especialista humano;
@@ -211,6 +312,6 @@ A investigação SR-001 será considerada concluída com sucesso quando:
 
 ---
 
-## 11. Responsabilidade Humana
+## 12. Responsabilidade Humana
 
 A interpretação das evidências colhidas, o julgamento sobre a suficiência do baseline para as necessidades da PoC e qualquer decisão subsequente sobre a formalização de uma SPEC de otimização estrutural (como caching ou blocking) pertencem exclusivamente ao especialista humano de governança.
