@@ -593,9 +593,15 @@ A versão atual integrada na `main` possui:
 
 Último incremento funcional concluído: Issue #154 — Catalog CSV Ingestion Adapter v1 integrada na main via PR #156 / merge `2b8bc94`.
 
-Incremento funcional atual: nenhum.
+Incremento funcional atual: nenhum (PoC funcional estável com 1194 testes).
 
-Próxima âncora arquitetural: a definir após planejamento humano.
+Investigação experimental ativa: Issue #158 — SR-001 / Scale Reconnaissance v1, vinculada à pressão arquitetural P-07 (Industrial Load / Scale Validation).
+- Baseline A (Capacidade Computacional e Blocking Teórico): computacionalmente completo e documentalmente consolidado na main via PR #161 / merge `08a4047`.
+- Baseline B (Qualidade Semântica): pendente.
+- Status da Issue #158: OPEN.
+- Zero impacto funcional / zero alteração em `src/agent_lab/` e `tests/` (1194/1194 GREEN mantidos). A SR-001 não adiciona peso ao Roadmap nem altera o KPI da PoC.
+
+Próxima âncora: Planejamento metodológico do Baseline B da SR-001, com Ground Truth independente e não-circular, positivos + hard negatives e definição das métricas TP/FP/TN/FN, precision, recall e F1 por perturbação.
 
 Sequência evolutiva recomendada:
 
@@ -1122,7 +1128,7 @@ python -m unittest discover -s tests -v
 Baseline oficial integrado na `main`:
 
 ```text
-Ran 1173 tests
+Ran 1194 tests
 OK
 ```
 
@@ -1505,11 +1511,21 @@ MAIN INTEGRADA:
   correction follow-up causal persiste lineage mas não reconstrói grafo de predecessores; sem reabertura ou mutação do mesmo workflow; sem aplicação automática das correções (CORRECTION_APPLIED); sem eleição de latest/current revision ou canonical head; sem eleição por revised_at; sem conexão MaterialRevision -> Evidence/DecisionRecommendation; sem reexecução automática de regras/LLM;
   oito boundaries de Application (RecordHumanDecisionUseCase, ListPendingHumanReviewsUseCase, RecordHumanReviewClaimUseCase, ListPendingHumanReviewsWithClaimStateUseCase, ReleaseHumanReviewClaimUseCase, RunDecisionRecommendationBenchmarkUseCase, ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase e DiagnoseCatalogQualityUseCase), um boundary de infraestrutura / input adapter (load_catalog_materials), a projeção factual de claims histórica e release-aware (project_human_review_claim_state e project_release_aware_claim_state), os módulos de governança de política normativa pura (evaluate_reviewer_claim_eligibility e evaluate_release_aware_reviewer_claim_eligibility), o gate de elegibilidade release-aware em tempo de execução em RecordHumanDecisionUseCase via targeted reads claims → releases, o contrato puro de domínio em memória de release de claim (HumanReviewClaimRelease e release_human_review_claim) e a persistência durável append-only em JSONL de releases com serialização versionada v1 (JsonlHumanReviewClaimReleaseRepository) estão integrados; a composição factual da fila pendente histórica e release-aware com estado de claims está integrada (com snapshots globais e zero N+1); contratos de domínio de ground truth, datasets canônicos de avaliação, as camadas puras de avaliação de recomendações de governança, de regras cadastrais de materiais e de pares duplicados contra ground truth, a serialização atômica versionada pura em memória e o primeiro boundary de aplicação para orquestração de benchmark de recomendações de governança estão integrados; benchmark runners para regras de materiais e duplicidades, persistência durável em disco (JSONL) de ground truth/datasets, repositórios de ground truth, loaders externos de Ground Truth/datasets (CSV, JSONL, Parquet, SQLite) permanecem fora de escopo (distintos do adapter operacional de catálogo CSV integrado na Issue #154), métricas multiclasses (Precision/Recall/F1), matriz de confusão, calibração de thresholds, consenso/adjudicação e migração do baseline legado permanecem fora de escopo; diagnóstico de qualidade de catálogo opera puramente em memória sobre Sequence[MaterialRecord] com complexidade O(n²); ingestão de arquivos Excel/Parquet/JSONL operacional/SQLite, interface UI/Streamlit, endpoints REST, CLI operacional, integração ERP, persistência de relatórios em disco e novos modelos ML/LLM permanecem fora de escopo (o núcleo computacional de domínio e aplicação da PoC vendável foi entregue na #149 e o adaptador de entrada operacional de catálogo CSV foi entregue na #154, enquanto outras camadas físicas e interfaces permanecem frentes futuras); Active Claim Projection / Active Claim Policy, assignment/ownership operacional, winner, exclusividade, First-Claim-Wins / Last-Claim-Wins, lock/checkout, force-release, transfer/reassignment, vigência/TTL/lease/expiry/SLA, priorização operacional de fila, UI/Streamlit, APIs REST, CLI, processamento assíncrono, concorrência multiprocesso e otimizações P-07 permanecem fora de escopo; sem locking multiprocesso, RBAC real ou integração com ERP.
 
-INCREMENTO ATUAL:
-- Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano.
+INCREMENTO FUNCIONAL ATUAL:
+- Nenhum incremento funcional aberto — último incremento funcional concluído: Issue #154 (Catalog CSV Ingestion Adapter v1).
+
+INVESTIGAÇÃO EXPERIMENTAL ATIVA:
+- Issue #158 — SR-001 / Scale Reconnaissance v1 (pressão arquitetural P-07, sem peso adicional no Roadmap ou KPI da PoC).
+  * Baseline A (Capacidade Computacional e Blocking Teórico): COMPLETE e CONSOLIDADO documentalmente na main via PR #161 / merge `08a4047`.
+    - Fatos consolidados para reentrada: $N \in \{250, 500, 1000, 2000\}$; $T_{diag\text{ med}}$ de 1.1653s, 5.0947s, 26.1970s e 99.8750s; ajuste log-log $p = 2.1626$, compatível com comportamento predominantemente quadrático no intervalo observado; $N(N-1) = 62.250$ chamadas direcionadas confirmadas em $N=250$; redução estrutural teórica de candidate-space de ~99.09% a 99.16%; peak_traced_memory de 2.65 MB em $N=2000$;
+    - Ressalvas canônicas: candidate-space reduction $\ne$ semantic recall preservation; tracemalloc $\ne$ RSS; cold-N catalog-wide $\ne$ incremental workload; nenhuma extrapolação operacional para 100k SKUs; nenhuma otimização de produto implementada; zero alteração em `src/agent_lab/` e `tests/`; fonte canônica detalhada: `docs/experiments/SR-001_scale_reconnaissance_v1.md`.
+  * Baseline B (Qualidade Semântica): PENDING.
+  * Status da Issue #158: OPEN.
+  * Baseline do produto: 1194/1194 GREEN via `unittest`.
 
 PRÓXIMA ÂNCORA:
-- A definir após planejamento humano.
+- Planejamento metodológico do Baseline B da SR-001, com Ground Truth independente e não-circular, positivos + hard negatives e definição das métricas TP/FP/TN/FN, precision, recall e F1 por perturbação.
+- Princípio central: Ground Truth generation != Detector implementation.
 
 Comando oficial:
 python -m unittest discover -s tests -v
