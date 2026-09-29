@@ -597,11 +597,11 @@ Incremento funcional atual: nenhum (PoC funcional estável com 1194 testes).
 
 Investigação experimental ativa: Issue #158 — SR-001 / Scale Reconnaissance v1, vinculada à pressão arquitetural P-07 (Industrial Load / Scale Validation).
 - Baseline A (Capacidade Computacional e Blocking Teórico): computacionalmente completo e documentalmente consolidado na main via PR #161 / merge `08a4047`.
-- Baseline B (Qualidade Semântica): SPECIFIED (metodologia especificada formalmente via SPEC-0158 integrada na main via PR #163 / merge `c014866`; dataset piloto de 200 pares: NOT CREATED / PENDING; harness experimental: NOT IMPLEMENTED / PENDING; Issue #158 permanece OPEN).
+- Baseline B (Qualidade Semântica): SPECIFIED (metodologia especificada formalmente via SPEC-0158 integrada na main via PR #163 / merge `c014866`; Tranche 01 exploratória de 20 materiais e 10 pares [5P/5HN] auditada humanamente, congelada criptograficamente como DRAFT/FROZEN/NOT_YET_EVALUATED e integrada na main via PR #165 / merge `745af5a`; dataset global de 200 pares: PENDING; harness experimental: NOT IMPLEMENTED / PENDING; zero detector/blocking/métrica executado sobre a tranche; Issue #158 permanece OPEN).
 - Status da Issue #158: OPEN.
 - Zero impacto funcional / zero alteração em `src/agent_lab/` e `tests/` (1194/1194 GREEN mantidos). A SR-001 não adiciona peso ao Roadmap nem altera o KPI da PoC.
 
-Próxima âncora: Deliberação sobre os gates da SPEC-0158 e autorização humana para a fase de geração controlada do dataset piloto de 200 pares do Baseline B.
+Próxima âncora: Deliberação humana sobre a execução experimental e metrológica da Tranche 01 do Baseline B (SR-001).
 
 Sequência evolutiva recomendada:
 
@@ -1519,12 +1519,12 @@ INVESTIGAÇÃO EXPERIMENTAL ATIVA:
   * Baseline A (Capacidade Computacional e Blocking Teórico): COMPLETE e CONSOLIDADO documentalmente na main via PR #161 / merge `08a4047`.
     - Fatos consolidados para reentrada: $N \in \{250, 500, 1000, 2000\}$; $T_{diag\text{ med}}$ de 1.1653s, 5.0947s, 26.1970s e 99.8750s; ajuste log-log $p = 2.1626$, compatível com comportamento predominantemente quadrático no intervalo observado; $N(N-1) = 62.250$ chamadas direcionadas confirmadas em $N=250$; redução estrutural teórica de candidate-space de ~99.09% a 99.16%; peak_traced_memory de 2.65 MB em $N=2000$;
     - Ressalvas canônicas: candidate-space reduction $\ne$ semantic recall preservation; tracemalloc $\ne$ RSS; cold-N catalog-wide $\ne$ incremental workload; nenhuma extrapolação operacional para 100k SKUs; nenhuma otimização de produto implementada; zero alteração em `src/agent_lab/` e `tests/`; fonte canônica detalhada: `docs/experiments/SR-001_scale_reconnaissance_v1.md`.
-  * Baseline B (Qualidade Semântica): SPECIFIED (metodologia especificada formalmente via SPEC-0158 integrada na main via PR #163 / merge `c014866`; dataset piloto de 200 pares: NOT CREATED / PENDING; harness experimental: NOT IMPLEMENTED / PENDING; Issue #158 permanece OPEN).
+  * Baseline B (Qualidade Semântica): SPECIFIED (metodologia especificada formalmente via SPEC-0158 integrada na main via PR #163 / merge `c014866`; Tranche 01 exploratória de 20 materiais e 10 pares [5P/5HN] auditada humanamente, congelada criptograficamente como DRAFT/FROZEN/NOT_YET_EVALUATED e integrada na main via PR #165 / merge `745af5a`; dataset global de 200 pares: PENDING; harness experimental: NOT IMPLEMENTED / PENDING; zero detector/blocking/métrica executado sobre a tranche; Issue #158 permanece OPEN).
   * Status da Issue #158: OPEN.
   * Baseline do produto: 1194/1194 GREEN via `unittest`.
 
 PRÓXIMA ÂNCORA:
-- Deliberação sobre os gates da SPEC-0158 e autorização humana para a fase de geração controlada do dataset piloto de 200 pares do Baseline B.
+- Deliberação humana sobre a execução experimental e metrológica da Tranche 01 do Baseline B (SR-001).
 - Princípio central: Ground Truth generation != Detector implementation.
 
 Comando oficial:
