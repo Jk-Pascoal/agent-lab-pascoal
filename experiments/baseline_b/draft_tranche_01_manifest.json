@@ -1,0 +1,212 @@
+{
+  "control_metadata": {
+    "status": "DRAFT",
+    "freeze_state": "FROZEN",
+    "evaluation_state": "NOT_YET_EVALUATED",
+    "tranche": "01_EXPLORATORY_10_PAIRS",
+    "freeze_sha256": "8eb6758ddcf68f3e4cf48ead8ad4a24c8adcf526983c72db1460a21ebe5249ef",
+    "session_date": "2026-09-28"
+  },
+  "cases": [
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-001",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "P-ABBR",
+      "base_material_family": "DIN_933_STEEL",
+      "base_material_identity_id": "BASE-MAT-FASTENER-001",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "ABBREVIATION_STANDARD_DICT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "dimensions.length",
+        "material.standard",
+        "material.grade",
+        "coating.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física idêntica; variação exclusivamente sintática por abreviações técnicas padronizadas."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-002",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "HN-DIM",
+      "base_material_family": "DIN_933_STEEL",
+      "base_material_identity_id": "BASE-MAT-FASTENER-001",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PARAMETRIC_DIMENSION_SHIFT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "material.standard",
+        "material.grade",
+        "coating.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.length"
+      ],
+      "reviewer_notes": "Divergência nominal de comprimento (30 mm vs 40 mm). Fixadores com identidade cadastrável distinta."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-003",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "P-WORD-ORDER",
+      "base_material_family": "VALVE_BALL_FLANGED_3PC",
+      "base_material_identity_id": "BASE-MAT-VALVE-001",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "WORD_ORDER_PERMUTATION",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "dimensions.nominal_size",
+        "pressure.class",
+        "material.body",
+        "connection.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Mesma válvula esfera tripartida WCB flangeada classe 150 DN 50; permutação de ordem dos termos descritivos."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-004",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "HN-MAT",
+      "base_material_family": "VALVE_BALL_FLANGED",
+      "base_material_identity_id": "BASE-MAT-VALVE-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "METALLURGY_VARIATION",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "dimensions.nominal_size",
+        "pressure.class",
+        "connection.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [
+        "material.body"
+      ],
+      "reviewer_notes": "Diferença em metalurgia do corpo (WCB aço carbono vs CF8M aço inoxidável). Identidades cadastráveis distintas."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-005",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "P-PN-FORMAT",
+      "base_material_family": "BEARING_DGBB_SKF_6205",
+      "base_material_identity_id": "BASE-MAT-BEARING-001",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PN_PUNCTUATION_NORMALIZATION",
+      "identity_defining_attributes_preserved": [
+        "manufacturer.brand",
+        "manufacturer.part_number_canonical",
+        "dimensions.bore",
+        "dimensions.outer_diameter",
+        "dimensions.width",
+        "clearance.internal",
+        "seals.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Mesmo rolamento SKF 6205-2RSH/C3; part number grafado com hífen/barra versus espaços."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-006",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "HN-VAR",
+      "base_material_family": "BEARING_DGBB_SKF_6205",
+      "base_material_identity_id": "BASE-MAT-BEARING-001",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "SUFFIX_VARIANT_MUTATION",
+      "identity_defining_attributes_preserved": [
+        "manufacturer.brand",
+        "dimensions.bore",
+        "dimensions.outer_diameter",
+        "dimensions.width",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [
+        "seals.type",
+        "manufacturer.part_number_canonical"
+      ],
+      "reviewer_notes": "Variante de blindagem/vedação divergente: 2RS1 (elastômero com contato) vs 2Z (blindagem metálica sem contato)."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-007",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "P-UNIT-SYN",
+      "base_material_family": "CONTACTOR_WEG_CWM25",
+      "base_material_identity_id": "BASE-MAT-ELEC-001",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "UNIT_SYNONYM_REPLACE",
+      "identity_defining_attributes_preserved": [
+        "manufacturer.brand",
+        "manufacturer.part_number_canonical",
+        "electrical.current_ac3",
+        "electrical.coil_voltage",
+        "poles.count",
+        "contacts.auxiliary",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Mesmo contator WEG CWM25 220V 1NA+1NF; sinonímia de unidade comercial UN vs PC em contagem discreta."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-008",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "HN-PN",
+      "base_material_family": "SENSOR_OPTICAL_IFM_O5D",
+      "base_material_identity_id": "BASE-MAT-ELEC-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PN_MODEL_FAMILY_SHIFT",
+      "identity_defining_attributes_preserved": [
+        "manufacturer.brand",
+        "connection.connector",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [
+        "manufacturer.part_number_canonical",
+        "sensor.optical_principle",
+        "sensor.range",
+        "sensor.output_type"
+      ],
+      "reviewer_notes": "Modelos distintos da mesma linha: O5D100 (tempo de trânsito PNP/NPN) vs O5D150 (supressão de fundo 4-20mA)."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-009",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "P-NOISE",
+      "base_material_family": "OIL_SEAL_DIN_3760_SABO",
+      "base_material_identity_id": "BASE-MAT-GEN-001",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "TYPO_CHARACTER_DUPLICATION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.shaft_diameter",
+        "dimensions.bore_diameter",
+        "dimensions.width",
+        "material.elastomer",
+        "design.profile",
+        "standard.norm",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Mesmo retentor radial Sabo DIN 3760 50x72x8 NBR; única perturbação tipográfica leve na descrição curta (RETENTOR -> RETENTORR)."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T01-010",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "HN-UNT",
+      "base_material_family": "FILTER_ELEMENT_PARKER_HYDRAULIC",
+      "base_material_identity_id": "BASE-MAT-GEN-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PACKAGING_SCOPE_VARIATION",
+      "identity_defining_attributes_preserved": [
+        "manufacturer.brand",
+        "filtration.rating"
+      ],
+      "identity_defining_attributes_violated": [
+        "packaging.entity_type",
+        "packaging.unit_of_measure",
+        "manufacturer.part_number_canonical"
+      ],
+      "reviewer_notes": "Entidades materiais distintas: elemento filtrante avulso em UN versus Kit de manutenção em CJ contendo elemento e jogo de O-rings."
+    }
+  ]
+}
