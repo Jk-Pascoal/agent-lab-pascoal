@@ -597,11 +597,11 @@ Incremento funcional atual: nenhum (PoC funcional estável com 1194 testes).
 
 Investigação experimental ativa: Issue #158 — SR-001 / Scale Reconnaissance v1, vinculada à pressão arquitetural P-07 (Industrial Load / Scale Validation).
 - Baseline A (Capacidade Computacional e Blocking Teórico): computacionalmente completo e documentalmente consolidado na main via PR #161 / merge `08a4047`.
-- Baseline B (Qualidade Semântica): SPECIFIED (metodologia especificada formalmente via SPEC-0158 integrada na main via PR #163 / merge `c014866`; Tranche 01 exploratória de 20 materiais e 10 pares [5P/5HN] auditada humanamente, congelada criptograficamente como DRAFT/FROZEN/NOT_YET_EVALUATED e integrada na main via PR #165 / merge `745af5a`; dataset global de 200 pares: PENDING; harness experimental: NOT IMPLEMENTED / PENDING; zero detector/blocking/métrica executado sobre a tranche; Issue #158 permanece OPEN).
+- Baseline B (Qualidade Semântica): Tranche 01 exploratória (20 materiais, 10 pares [5P/5HN], artefatos de entrada FROZEN) avaliada e preservada como primeira observação observed-as-run via PR #167 / merge `ee6cccb` (harness integrado em `experiments/sr001_baseline_b_tranche_01.py`, evidência integrada em `experiments/evidence/sr001_baseline_b_tranche_01_first_observation.json` e documento de custódia em `docs/experiments/SR-001_baseline_b_tranche_01_first_observation.md`). Resultados observados: Candidate Blocking reteve 5/5 positivos e 9/10 challenge pairs; detector heurístico com TP=5, FP=4, TN=1, FN=0, Precision=5/9 ≈ 55.6%, Recall=5/5=100%, F1=0.7143. Interpretação canônica: H3 não foi confirmada quanto a recall; blocking estrutural não está validado; sem generalização para 100k SKUs ou população industrial; vulnerabilidade exploratória severa de precision/discriminação registrada (4/5 hard negatives como falsos positivos); Process Deviation preservado; zero reexecução retroativa; primeira observação observed-as-run permanece histórica e imutável; dataset global de 200 pares permanece PENDING; Issue #158 permanece OPEN.
 - Status da Issue #158: OPEN.
-- Zero impacto funcional / zero alteração em `src/agent_lab/` e `tests/` (1194/1194 GREEN mantidos). A SR-001 não adiciona peso ao Roadmap nem altera o KPI da PoC.
+- Zero impacto funcional / zero alteração em `src/agent_lab/` e `tests/` (1194/1194 GREEN mantidos). A SR-001 permanece experimental / non-functional / weight=0 (não adiciona peso ao Roadmap nem altera o KPI da PoC).
 
-Próxima âncora: Deliberação humana sobre a execução experimental e metrológica da Tranche 01 do Baseline B (SR-001).
+Próxima âncora: Deliberação humana sobre a interpretação das evidências da Tranche 01 e definição do próximo passo experimental da Issue #158, incluindo decisão entre expansão segregada do Baseline B, versão sucessora do harness ou encerramento/pausa da SR-001. Nenhuma Tranche 02, otimização de detector/blocking ou mudança funcional está automaticamente autorizada.
 
 Sequência evolutiva recomendada:
 
@@ -1515,16 +1515,18 @@ INCREMENTO FUNCIONAL ATUAL:
 - Nenhum incremento funcional aberto — último incremento funcional concluído: Issue #154 (Catalog CSV Ingestion Adapter v1).
 
 INVESTIGAÇÃO EXPERIMENTAL ATIVA:
-- Issue #158 — SR-001 / Scale Reconnaissance v1 (pressão arquitetural P-07, sem peso adicional no Roadmap ou KPI da PoC).
+- Issue #158 — SR-001 / Scale Reconnaissance v1 (pressão arquitetural P-07, experimental / non-functional / weight=0, sem peso adicional no Roadmap ou KPI da PoC).
   * Baseline A (Capacidade Computacional e Blocking Teórico): COMPLETE e CONSOLIDADO documentalmente na main via PR #161 / merge `08a4047`.
     - Fatos consolidados para reentrada: $N \in \{250, 500, 1000, 2000\}$; $T_{diag\text{ med}}$ de 1.1653s, 5.0947s, 26.1970s e 99.8750s; ajuste log-log $p = 2.1626$, compatível com comportamento predominantemente quadrático no intervalo observado; $N(N-1) = 62.250$ chamadas direcionadas confirmadas em $N=250$; redução estrutural teórica de candidate-space de ~99.09% a 99.16%; peak_traced_memory de 2.65 MB em $N=2000$;
     - Ressalvas canônicas: candidate-space reduction $\ne$ semantic recall preservation; tracemalloc $\ne$ RSS; cold-N catalog-wide $\ne$ incremental workload; nenhuma extrapolação operacional para 100k SKUs; nenhuma otimização de produto implementada; zero alteração em `src/agent_lab/` e `tests/`; fonte canônica detalhada: `docs/experiments/SR-001_scale_reconnaissance_v1.md`.
-  * Baseline B (Qualidade Semântica): SPECIFIED (metodologia especificada formalmente via SPEC-0158 integrada na main via PR #163 / merge `c014866`; Tranche 01 exploratória de 20 materiais e 10 pares [5P/5HN] auditada humanamente, congelada criptograficamente como DRAFT/FROZEN/NOT_YET_EVALUATED e integrada na main via PR #165 / merge `745af5a`; dataset global de 200 pares: PENDING; harness experimental: NOT IMPLEMENTED / PENDING; zero detector/blocking/métrica executado sobre a tranche; Issue #158 permanece OPEN).
+  * Baseline B (Qualidade Semântica): Tranche 01 exploratória (20 materiais, 10 pares [5P/5HN], artefatos de entrada FROZEN) avaliada e preservada como primeira observação observed-as-run via PR #167 / merge `ee6cccb` (harness integrado em `experiments/sr001_baseline_b_tranche_01.py`, evidência integrada em `experiments/evidence/sr001_baseline_b_tranche_01_first_observation.json` e documento de custódia em `docs/experiments/SR-001_baseline_b_tranche_01_first_observation.md`).
+    - Fatos consolidados da primeira observação: Candidate Blocking reteve 5/5 positivos (recall de candidatos 100%) e 9/10 challenge pairs; detector heurístico com TP=5, FP=4, TN=1, FN=0, Precision=5/9 ≈ 55.6%, Recall=5/5=100%, F1=0.7143.
+    - Interpretação obrigatória: H3 não foi confirmada quanto a recall; blocking estrutural não está validado; sem generalização para 100k SKUs ou população industrial; vulnerabilidade exploratória severa de precision/discriminação registrada (4/5 hard negatives como falsos positivos); Process Deviation preservado; zero reexecução retroativa; primeira observação observed-as-run permanece histórica e imutável; dataset global de 200 pares permanece PENDING; Issue #158 permanece OPEN.
   * Status da Issue #158: OPEN.
-  * Baseline do produto: 1194/1194 GREEN via `unittest`.
+  * Baseline do produto: 1194/1194 GREEN via `unittest` (zero alteração em `src/` e `tests/`).
 
 PRÓXIMA ÂNCORA:
-- Deliberação humana sobre a execução experimental e metrológica da Tranche 01 do Baseline B (SR-001).
+- Deliberação humana sobre a interpretação das evidências da Tranche 01 e definição do próximo passo experimental da Issue #158, incluindo decisão entre expansão segregada do Baseline B, versão sucessora do harness ou encerramento/pausa da SR-001. Nenhuma Tranche 02, otimização de detector/blocking ou mudança funcional está automaticamente autorizada.
 - Princípio central: Ground Truth generation != Detector implementation.
 
 Comando oficial:
