@@ -10,15 +10,15 @@
 | Campo | Valor |
 |---|---|
 | **Identificador** | `SPEC-0158-HARNESS-V2` |
-| **Status** | `PROPOSED` |
+| **Status** | `IMPLEMENTED` |
 | **Issue relacionada** | `#158` |
 | **Título da Issue** | `SR-001 — Scale Reconnaissance v1` |
 | **Investigação experimental** | `SR-001 / Scale Reconnaissance v1` |
 | **Pressão arquitetural** | `P-07 (Industrial Load / Scale Validation)` |
-| **Branch documental** | `docs/issue-158-baseline-b-harness-v2-spec` |
+| **Branch documental** | `docs/issue-158-harness-v2-implementation-closeout` |
 | **Responsável** | `Jk-Pascoal` |
 | **Data de criação** | `2026-09-30` |
-| **Última atualização** | `2026-09-30` |
+| **Última atualização** | `2026-10-01` |
 | **Domínio** | Metrologia Experimental / Governança de Catálogo PDM/BOM |
 | **Camada arquitetural** | Metrologia Experimental e Harness Desacoplado |
 | **Baseline de entrada** | `1194 testes aprovados` (100% GREEN via `unittest`) |
@@ -345,10 +345,21 @@ Permanecem ativas e inegociáveis as seguintes proibições epistemológicas:
 
 Nenhuma linha de código experimental será acionada sem o cumprimento cumulativo dos seguintes gates de governança:
 
-- [ ] **Gate 1:** Revisão e aprovação formal desta especificação (`SPEC-0158-HARNESS-V2`) via PR documental integrada na `main`;
-- [ ] **Gate 2:** Implementação do script segregado `experiments/sr001_baseline_b_harness_v2.py` em conformidade estrita com esta SPEC;
-- [ ] **Gate 3:** Validação de formatação e baseline canônico via `git diff --check` e `python -m unittest discover -s tests -v` (1194/1194 GREEN);
-- [ ] **Gate 4:** Emissão de decisão humana formal (*HUMAN GO*) em sessão dedicada para acionamento do runner experimental.
+- [x] **Gate 1:** Revisão e aprovação formal desta especificação (`SPEC-0158-HARNESS-V2`) via PR documental integrada na `main` (concluído via PR #169 / merge `c51644c`);
+- [x] **Gate 2:** Implementação do script segregado `experiments/sr001_baseline_b_harness_v2.py` em conformidade estrita com esta SPEC (concluído via PR #171 / merge `6a1761623b0d5a72d9910ba5cd724e5e4d8f71e6`);
+- [x] **Gate 3:** Validação de formatação e baseline canônico via `git diff --check`, `python -m unittest discover -s experiments/tests -v` (28/28 GREEN) e `python -m unittest discover -s tests -v` (1194/1194 GREEN) (concluído via PR #171);
+- [ ] **Gate 4:** Emissão de decisão humana formal (*HUMAN GO*) em sessão dedicada para acionamento do runner experimental (PERMANECE PENDENTE / BLOQUEADO).
+
+### 13.1 Registro de Implementação Instrumental (PR #171)
+
+A implementação instrumental do Harness v2 foi concluída e integrada à `main` em 01/10/2026:
+- **Pull Request de Implementação:** [#171](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/171) — *experiment: implement SR-001 Baseline B harness v2*;
+- **Merge SHA:** `6a1761623b0d5a72d9910ba5cd724e5e4d8f71e6`;
+- **Módulo de Instrumentação:** `experiments/sr001_baseline_b_harness_v2.py`;
+- **Suíte de Testes Segregada:** `experiments/tests/test_sr001_baseline_b_harness_v2.py`;
+- **Resultados de Verificação:** 28/28 testes experimentais GREEN; 1194/1194 testes canônicos de produto GREEN; `git diff --check` CLEAN;
+- **Status dos Gates:** Gate 1, Gate 2 e Gate 3 satisfeitos; Gate 4 permanece rigorosamente **PENDENTE / BLOQUEADO**, requerendo autorização humana (*HUMAN GO*) separada para qualquer execução experimental futura;
+- **Preservação Observacional e Metrológica:** Nenhuma *Successor-Harness Comparative Characterization* foi executada; nenhuma nova evidência experimental foi produzida; a primeira observação histórica da Tranche 01 permanece preservada *observed-as-run* e imutável.
 
 ---
 
