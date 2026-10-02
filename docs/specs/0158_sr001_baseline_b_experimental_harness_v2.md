@@ -348,7 +348,7 @@ Nenhuma linha de código experimental será acionada sem o cumprimento cumulativ
 - [x] **Gate 1:** Revisão e aprovação formal desta especificação (`SPEC-0158-HARNESS-V2`) via PR documental integrada na `main` (concluído via PR #169 / merge `c51644c`);
 - [x] **Gate 2:** Implementação do script segregado `experiments/sr001_baseline_b_harness_v2.py` em conformidade estrita com esta SPEC (concluído via PR #171 / merge `6a1761623b0d5a72d9910ba5cd724e5e4d8f71e6`);
 - [x] **Gate 3:** Validação de formatação e baseline canônico via `git diff --check`, `python -m unittest discover -s experiments/tests -v` (28/28 GREEN) e `python -m unittest discover -s tests -v` (1194/1194 GREEN) (concluído via PR #171);
-- [ ] **Gate 4:** Emissão de decisão humana formal (*HUMAN GO*) em sessão dedicada para acionamento do runner experimental (PERMANECE PENDENTE / BLOQUEADO).
+- [x] **Gate 4:** Emissão de decisão humana formal (*HUMAN GO*) em sessão dedicada para acionamento experimental do Harness v2 sobre a Tranche 01 congelada (concluído/consumido exclusivamente para a caracterização específica de 02/10/2026 via invocação modular efêmera; qualquer nova execução experimental permanece bloqueada e requer novo HUMAN GO).
 
 ### 13.1 Registro de Implementação Instrumental (PR #171)
 
@@ -358,8 +358,24 @@ A implementação instrumental do Harness v2 foi concluída e integrada à `main
 - **Módulo de Instrumentação:** `experiments/sr001_baseline_b_harness_v2.py`;
 - **Suíte de Testes Segregada:** `experiments/tests/test_sr001_baseline_b_harness_v2.py`;
 - **Resultados de Verificação:** 28/28 testes experimentais GREEN; 1194/1194 testes canônicos de produto GREEN; `git diff --check` CLEAN;
-- **Status dos Gates:** Gate 1, Gate 2 e Gate 3 satisfeitos; Gate 4 permanece rigorosamente **PENDENTE / BLOQUEADO**, requerendo autorização humana (*HUMAN GO*) separada para qualquer execução experimental futura;
-- **Preservação Observacional e Metrológica:** Nenhuma *Successor-Harness Comparative Characterization* foi executada; nenhuma nova evidência experimental foi produzida; a primeira observação histórica da Tranche 01 permanece preservada *observed-as-run* e imutável.
+- **Status dos Gates:** Gate 1, Gate 2 e Gate 3 satisfeitos; Gate 4 permaneceu pendente até sessão dedicada em 02/10/2026;
+- **Preservação Observacional e Metrológica:** A primeira observação histórica da Tranche 01 permaneceu preservada *observed-as-run* e imutável.
+
+### 13.2 Registro de Execução da Successor-Harness Comparative Characterization (02/10/2026)
+
+Em 02/10/2026, executou-se a primeira Successor-Harness Comparative Characterization da Tranche 01:
+- **Autorização:** Gate 4 formalmente autorizado com escopo estrito via HUMAN GO em 02/10/2026 (concluído/consumido exclusivamente para esta caracterização; qualquer nova execução experimental permanece bloqueada e requer novo HUMAN GO);
+- **Mecanismo de Execução:** Invocação modular efêmera via stdin (`python -`), garantindo zero edits em código de produção, zero alteração em `experiments/sr001_baseline_b_harness_v2.py` e zero modificação dos artefatos FROZEN;
+- **Run ID:** `RUN-T01-20261002T121501Z-36C8BA8A`;
+- **Timestamp UTC:** `2026-10-02T12:15:01.992095+00:00`;
+- **Integridade Criptográfica dos Inputs (LF):** Catálogo (`ba82fce...`), Ground Truth (`8eb6758...`), Manifesto (`686e983...`);
+- **Hash do Harness v2 (LF):** `cfcee60f0049d7d3709d5c5a6c1d34c2a28dcfc75c1d5d6801a57a445dc18f9f`;
+- **Checkpoint H-034:** `experiments/checkpoints/sr001_baseline_b_eval_01_RUN-T01-20261002T121501Z-36C8BA8A.json`;
+- **Evidência Versionada:** `experiments/evidence/sr001_baseline_b_tranche_01_successor_harness_v2_characterization.json` (SHA-256 LF `f77d5f542c6e1bfd213142075d9fb8c4320ac345de995531a142d57c01c0ef29`, 20.050 bytes, cópia byte-a-byte idêntica);
+- **Documento de Custódia:** `docs/experiments/SR-001_baseline_b_tranche_01_successor_harness_v2_characterization.md`;
+- **Resultados Observados:** Candidate Selection reteve 5/5 positivos (Candidate Pair Recall observado = 100% [5/5 positivos; não generalizável]) e 9/10 pares do challenge set; detector downstream com TP=5, FP=4, TN=0 (avaliado sobre retidos) / TN=1 (incondicional), FN=0, Precision=5/9 ≈ 55.6%, Recall observado na Tranche 01 = 100% (5/5 positivos; não generalizável), F1=0.7143; ponto bidimensional (0.1000, 1.0000);
+- **Preservação Histórica:** A primeira observação v1 permanece preservada *observed-as-run* e imutável;
+- **Decisão Humana Pós-Execução:** `PLAN T02` (planejamento futuro de nova tranche independente de 30 a 40 pares; zero criação ou início de Tranche 02 nesta etapa).
 
 ---
 
