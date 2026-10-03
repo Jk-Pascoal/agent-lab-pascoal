@@ -1,0 +1,795 @@
+{
+  "control_metadata": {
+    "status": "DRAFT",
+    "freeze_state": "FROZEN",
+    "evaluation_status": "NOT_YET_EVALUATED",
+    "tranche": "02_EXPANDED_40_PAIRS",
+    "freeze_sha256": "052bd6fec3f165cea9cdbf686cb961af4eccf962f4689d938a00fdc459b92008",
+    "session_date": "2026-10-03",
+    "evaluation_state": "NOT_YET_EVALUATED",
+    "frozen_at": "2026-10-03T12:29:39.517039+00:00"
+  },
+  "cases": [
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-001",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "P-SEPARATOR",
+      "base_material_family": "DIN_912_STEEL_12_9",
+      "base_material_identity_id": "BASE-MAT-FASTENER-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "DELIMITER_REMOVAL",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "dimensions.length",
+        "dimensions.pitch",
+        "material.standard",
+        "material.grade",
+        "coating.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; remoção de delimitadores hifen e barra sem alteração semântica."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-002",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "P-MFG-MISSING",
+      "base_material_family": "ASTM_A193_B7_STUD",
+      "base_material_identity_id": "BASE-MAT-FASTENER-003",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "OMIT_STRUCTURED_MANUFACTURER",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "dimensions.length",
+        "material.standard",
+        "material.grade",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica de prisioneiro ASTM A193 B7 3/4x150 mm; registro B omitiu campos estruturados de fabricante e part number sem agregação de componentes adicionais."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-003",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "P-ABBR",
+      "base_material_family": "DIN_934_NUT_CL8",
+      "base_material_identity_id": "BASE-MAT-FASTENER-004",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "ABBREVIATION_STANDARD_DICT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "dimensions.pitch",
+        "material.standard",
+        "material.grade",
+        "coating.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física idêntica; variações textuais comuns de almoxarifado preservando parâmetros de engenharia."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-004",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "P-CROSS-GRP",
+      "base_material_family": "NORD_LOCK_NL12",
+      "base_material_identity_id": "BASE-MAT-FASTENER-005",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "CROSS_GROUP_MISCLASSIFICATION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.bolt_size",
+        "dimensions.hole_diameter",
+        "manufacturer.name",
+        "manufacturer.part_number",
+        "material.type",
+        "coating.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica (Nord-Lock NL12 M12 Delta Protekt); a divergência reside exclusivamente na alocação de grupo contábil de compras no ERP."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-005",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "HN-DIM",
+      "base_material_family": "DIN_931_STEEL_8_8",
+      "base_material_identity_id": "BASE-MAT-FASTENER-006",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PARAMETRIC_DIMENSION_SHIFT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "material.standard",
+        "material.grade",
+        "coating.type",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.length"
+      ],
+      "reviewer_notes": "Divergência dimensional crítica de comprimento (60 vs 70 mm); itens não intercambiáveis em montagem de precisão."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-006",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "HN-MAT",
+      "base_material_family": "DIN_933_BOLT",
+      "base_material_identity_id": "BASE-MAT-FASTENER-007",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "METALLURGY_SUBSTITUTION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "dimensions.length",
+        "material.standard",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [
+        "material.alloy_grade",
+        "coating.type"
+      ],
+      "reviewer_notes": "Divergência metalúrgica fundamental (aço carbono vs inox 316); resistência à corrosão e mecânica distintas."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-007",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "HN-VAR",
+      "base_material_family": "THREADED_ROD_M20",
+      "base_material_identity_id": "BASE-MAT-FASTENER-008",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "THREAD_PITCH_VARIANT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.thread_diameter",
+        "dimensions.length",
+        "material.grade",
+        "packaging.entity_type"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.pitch",
+        "material.standard"
+      ],
+      "reviewer_notes": "Variante de passo de rosca incompatível (2.5 vs 1.5 mm); impossibilidade de montagem com porcas padrão."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-008",
+      "stratum": "FASTENERS",
+      "challenge_taxonomy_class": "HN-DISTINCT",
+      "base_material_family": "POP_RIVET_48",
+      "base_material_identity_id": "BASE-MAT-FASTENER-009",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "HEAD_PROFILE_FUNCTIONAL_DISTINCTION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.diameter",
+        "dimensions.length",
+        "material.body",
+        "material.mandrel"
+      ],
+      "identity_defining_attributes_violated": [
+        "head.geometry",
+        "material.standard"
+      ],
+      "reviewer_notes": "Itens funcionalmente distintos: cabeça abaulada ISO 15977 não substitui cabeça escareada ISO 15978."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-009",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "P-PN-STRUCTURAL",
+      "base_material_family": "LIFT_CHECK_VALVE_CL800",
+      "base_material_identity_id": "BASE-MAT-VALVE-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PREFIX_DISTRIBUTOR_PN",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "dimensions.nominal_size",
+        "connections.type",
+        "ratings.pressure_class",
+        "material.body",
+        "material.trim"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; part number oficial recebeu prefixo da marca no cadastro B."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-010",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "P-SEPARATOR",
+      "base_material_family": "GLOBE_VALVE_CL150_WCB",
+      "base_material_identity_id": "BASE-MAT-VALVE-003",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "DELIMITER_REMOVAL",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "dimensions.nominal_size",
+        "connections.flange_type",
+        "ratings.pressure_class",
+        "material.body",
+        "material.trim"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; supressão de delimitadores alfanuméricos em PN de catálogo."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-011",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "P-ABBR",
+      "base_material_family": "BUTTERFLY_WAFER_VALVE_DN100",
+      "base_material_identity_id": "BASE-MAT-VALVE-004",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "ABBREVIATION_STANDARD_DICT",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "dimensions.nominal_size",
+        "connections.wafer",
+        "ratings.pressure_class",
+        "material.body",
+        "material.disc",
+        "material.seat"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; abreviações técnicas usuais de tubulação industrial."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-012",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "P-CROSS-GRP",
+      "base_material_family": "SAFETY_RELIEF_VALVE_BRONZE",
+      "base_material_identity_id": "BASE-MAT-VALVE-005",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "CROSS_GROUP_MISCLASSIFICATION",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "dimensions.inlet_size",
+        "dimensions.outlet_size",
+        "ratings.set_pressure",
+        "material.body",
+        "manufacturer.name",
+        "manufacturer.part_number"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; divergência de taxonomia interna de ERP entre tubulação e utilidades."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-013",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "HN-DIM",
+      "base_material_family": "GATE_VALVE_CL150_WCB",
+      "base_material_identity_id": "BASE-MAT-VALVE-006",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PARAMETRIC_DIMENSION_SHIFT",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "connections.flange_type",
+        "ratings.pressure_class",
+        "material.body",
+        "material.trim"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.nominal_size"
+      ],
+      "reviewer_notes": "Divergência dimensional nominal crítica (3 vs 4 pol); itens fisicamente inalteráveis e não intercambiáveis."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-014",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "HN-MAT",
+      "base_material_family": "Y_STRAINER_CL150_DN50",
+      "base_material_identity_id": "BASE-MAT-VALVE-007",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "METALLURGY_SUBSTITUTION",
+      "identity_defining_attributes_preserved": [
+        "type.strainer_type",
+        "dimensions.nominal_size",
+        "connections.flange_type",
+        "screen.mesh_size"
+      ],
+      "identity_defining_attributes_violated": [
+        "material.body",
+        "ratings.pressure_temperature_limit"
+      ],
+      "reviewer_notes": "Divergência metalúrgica fundamental (ferro cinzento vs aço carbono fundido); limites operacionais incompatíveis."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-015",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "HN-VAR",
+      "base_material_family": "BALL_VALVE_CL150_DN50",
+      "base_material_identity_id": "BASE-MAT-VALVE-008",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "BORE_GEOMETRY_VARIANT",
+      "identity_defining_attributes_preserved": [
+        "type.valve_type",
+        "dimensions.nominal_size",
+        "connections.flange_type",
+        "ratings.pressure_class",
+        "material.body",
+        "material.ball"
+      ],
+      "identity_defining_attributes_violated": [
+        "hydraulics.bore_type",
+        "hydraulics.flow_coefficient_kv"
+      ],
+      "reviewer_notes": "Variante hidráulica crítica (Full Bore vs Reduced Bore); impacto direto no dimensionamento de processo."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-016",
+      "stratum": "VALVES",
+      "challenge_taxonomy_class": "HN-DISTINCT",
+      "base_material_family": "STEAM_TRAP_15MM",
+      "base_material_identity_id": "BASE-MAT-VALVE-009",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "OPERATING_PRINCIPLE_DISTINCTION",
+      "identity_defining_attributes_preserved": [
+        "application.steam_drainage",
+        "dimensions.connection_size",
+        "connections.type",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [
+        "physics.operating_principle",
+        "material.body",
+        "ratings.max_pressure"
+      ],
+      "reviewer_notes": "Equipamentos com princípios físicos distintos (disco termodinâmico vs boia mecânica contínua)."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-017",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "P-PN-STRUCTURAL",
+      "base_material_family": "SPHERICAL_ROLLER_BEARING_22212",
+      "base_material_identity_id": "BASE-MAT-BEARING-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "BRAND_SLASH_PN_VARIATION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.bore",
+        "dimensions.outer_diameter",
+        "dimensions.width",
+        "bearing.type",
+        "bearing.clearance",
+        "bearing.cage_material",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; part number no registro B contém prefixo da marca e barra."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-018",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "P-SEPARATOR",
+      "base_material_family": "TAPERED_ROLLER_BEARING_32008X",
+      "base_material_identity_id": "BASE-MAT-BEARING-003",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "DELIMITER_REMOVAL",
+      "identity_defining_attributes_preserved": [
+        "dimensions.bore",
+        "dimensions.outer_diameter",
+        "dimensions.width",
+        "bearing.type",
+        "material.standard",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; remoção de hífen intermediário no part number Timken."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-019",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "P-MFG-MISSING",
+      "base_material_family": "ANGULAR_CONTACT_BEARING_7206",
+      "base_material_identity_id": "BASE-MAT-BEARING-004",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "OMIT_STRUCTURED_MANUFACTURER",
+      "identity_defining_attributes_preserved": [
+        "dimensions.bore",
+        "dimensions.outer_diameter",
+        "dimensions.width",
+        "bearing.type",
+        "bearing.contact_angle",
+        "bearing.cage_material",
+        "bearing.designation"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita comprovada pelo modelo específico SKF 7206 BEP e cotas completas; o registro B omitiu os campos estruturados de fabricante e PN no ERP."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-020",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "P-TRUNCATED",
+      "base_material_family": "PLUMMER_BLOCK_SNL511",
+      "base_material_identity_id": "BASE-MAT-BEARING-005",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "TRUNCATION_AT_40_CHARS",
+      "identity_defining_attributes_preserved": [
+        "housing.series",
+        "dimensions.shaft_diameter",
+        "material.body",
+        "manufacturer.name",
+        "manufacturer.part_number"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; truncamento de descrição curta respeitando limite histórico de caracteres."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-021",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "HN-DIM",
+      "base_material_family": "DEEP_GROOVE_BALL_BEARING_6300",
+      "base_material_identity_id": "BASE-MAT-BEARING-006",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PARAMETRIC_DIMENSION_SHIFT",
+      "identity_defining_attributes_preserved": [
+        "bearing.type",
+        "bearing.series",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.bore",
+        "dimensions.outer_diameter",
+        "dimensions.width"
+      ],
+      "reviewer_notes": "Divergência dimensional geométrica total (furo 25 vs 30 mm); itens inalteráveis e não montáveis reciprocamente."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-022",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "HN-MAT",
+      "base_material_family": "LINEAR_BEARING_BLOCK_20MM",
+      "base_material_identity_id": "BASE-MAT-BEARING-007",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "METALLURGY_SUBSTITUTION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.shaft_diameter",
+        "bearing.type",
+        "housing.material"
+      ],
+      "identity_defining_attributes_violated": [
+        "material.balls_and_raceway",
+        "application.corrosion_resistance"
+      ],
+      "reviewer_notes": "Divergência metalúrgica de esferas/pistas (SAE 52100 vs AISI 440C); aplicações em ambientes corrosivos distintas."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-023",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "HN-VAR",
+      "base_material_family": "SPHERICAL_ROLLER_BEARING_22214",
+      "base_material_identity_id": "BASE-MAT-BEARING-008",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "BORE_TAPER_VARIANT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.outer_diameter",
+        "dimensions.width",
+        "bearing.type",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.bore_geometry",
+        "mounting.method"
+      ],
+      "reviewer_notes": "Variante geométrica crítica de furo (cilíndrico vs cônico 1:12); montagem mecânica totalmente incompatível."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-024",
+      "stratum": "BEARINGS",
+      "challenge_taxonomy_class": "HN-DISTINCT",
+      "base_material_family": "BEARING_SLEEVE_50MM",
+      "base_material_identity_id": "BASE-MAT-BEARING-009",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "MECHANICAL_FUNCTION_DISTINCTION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.shaft_diameter",
+        "dimensions.taper_ratio",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [
+        "mechanical.function",
+        "mounting.assembly_type"
+      ],
+      "reviewer_notes": "Itens de engenharia com propósitos funcionais opostos (bucha de fixação vs bucha de extração)."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-025",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "P-PN-STRUCTURAL",
+      "base_material_family": "MOTOR_CIRCUIT_BREAKER_S00",
+      "base_material_identity_id": "BASE-MAT-ELEC-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PREFIX_BRAND_PN_VARIATION",
+      "identity_defining_attributes_preserved": [
+        "electrical.thermal_range",
+        "electrical.breaking_capacity",
+        "electrical.poles",
+        "manufacturer.name",
+        "manufacturer.part_number"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; part number oficial recebeu prefixo da marca no cadastro B."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-026",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "P-SEPARATOR",
+      "base_material_family": "THERMAL_OVERLOAD_RELAY_LRD",
+      "base_material_identity_id": "BASE-MAT-ELEC-003",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "DELIMITER_REMOVAL",
+      "identity_defining_attributes_preserved": [
+        "electrical.thermal_range",
+        "electrical.trip_class",
+        "electrical.poles",
+        "manufacturer.name",
+        "manufacturer.part_number"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; supressão de delimitador alfanumérico no part number Schneider."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-027",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "P-MFG-MISSING",
+      "base_material_family": "INDUCTIVE_SENSOR_M18",
+      "base_material_identity_id": "BASE-MAT-ELEC-004",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "OMIT_STRUCTURED_MANUFACTURER",
+      "identity_defining_attributes_preserved": [
+        "sensor.technology",
+        "dimensions.thread_diameter",
+        "sensor.sensing_distance",
+        "sensor.output_type",
+        "electrical.voltage_range"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; registro B omitiu campos estruturados mantendo especificação no texto."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-028",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "P-TRUNCATED",
+      "base_material_family": "FREQUENCY_INVERTER_CFW500",
+      "base_material_identity_id": "BASE-MAT-ELEC-005",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "TRUNCATION_AT_40_CHARS",
+      "identity_defining_attributes_preserved": [
+        "electrical.power_rating",
+        "electrical.current_rating",
+        "electrical.voltage_rating",
+        "manufacturer.name",
+        "manufacturer.part_number"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; truncamento de descrição curta respeitando limite histórico de caracteres."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-029",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "HN-DIM",
+      "base_material_family": "POWER_CABLE_HEPR_1KV",
+      "base_material_identity_id": "BASE-MAT-ELEC-006",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PARAMETRIC_DIMENSION_SHIFT",
+      "identity_defining_attributes_preserved": [
+        "electrical.conductor_material",
+        "electrical.insulation_type",
+        "electrical.voltage_rating",
+        "cable.color"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.cross_section"
+      ],
+      "reviewer_notes": "Divergência dimensional elétrica de seção condutora (16 vs 25 mm²); capacidades de corrente incompatíveis."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-030",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "HN-MAT",
+      "base_material_family": "CONDUIT_RIGID_NBR5597",
+      "base_material_identity_id": "BASE-MAT-ELEC-007",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "METALLURGY_SUBSTITUTION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.nominal_size",
+        "dimensions.length",
+        "connections.thread_standard",
+        "material.standard"
+      ],
+      "identity_defining_attributes_violated": [
+        "material.alloy_type",
+        "coating.type",
+        "application.hazardous_area"
+      ],
+      "reviewer_notes": "Divergência metalúrgica fundamental (aço galvanizado vs alumínio isento de cobre); aplicações de área classificada distintas."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-031",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "HN-VAR",
+      "base_material_family": "POWER_SUPPLY_DIN_24V_120W",
+      "base_material_identity_id": "BASE-MAT-ELEC-008",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "ENVIRONMENTAL_PROTECTION_VARIANT",
+      "identity_defining_attributes_preserved": [
+        "electrical.input_voltage",
+        "electrical.output_voltage",
+        "electrical.output_current",
+        "electrical.power_rating",
+        "mounting.type"
+      ],
+      "identity_defining_attributes_violated": [
+        "protection.conformal_coating",
+        "certification.atex_zone_2"
+      ],
+      "reviewer_notes": "Variante crítica de certificação explosiva e verniz protetivo; exigência mandatória em áreas industriais agressivas."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-032",
+      "stratum": "ELECTRICAL",
+      "challenge_taxonomy_class": "HN-DISTINCT",
+      "base_material_family": "PRESSURE_TRANSMITTER_MBS3000",
+      "base_material_identity_id": "BASE-MAT-ELEC-009",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "CALIBRATION_SPAN_DISTINCTION",
+      "identity_defining_attributes_preserved": [
+        "sensor.output_signal",
+        "connections.process_connection",
+        "sensor.technology",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [
+        "sensor.pressure_range_span",
+        "manufacturer.part_number"
+      ],
+      "reviewer_notes": "Instrumentos com faixas de medição inalteráveis (0-10 vs 0-25 bar); substituição causaria erro grave de controle de malha."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-033",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "P-MFG-MISSING",
+      "base_material_family": "TIMING_BELT_GT3_8M",
+      "base_material_identity_id": "BASE-MAT-GEN-002",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "OMIT_STRUCTURED_MANUFACTURER",
+      "identity_defining_attributes_preserved": [
+        "belt.pitch",
+        "dimensions.width",
+        "dimensions.pitch_length",
+        "belt.teeth_count",
+        "belt.profile"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; omissão de campos estruturados de fabricante no cadastro legado."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-034",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "P-ABBR",
+      "base_material_family": "O_RING_AS568_222_VITON",
+      "base_material_identity_id": "BASE-MAT-GEN-003",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "ABBREVIATION_STANDARD_DICT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.inner_diameter",
+        "dimensions.cross_section",
+        "material.elastomer",
+        "material.hardness",
+        "material.standard"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; contrações usuais de vedações e elastômeros."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-035",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "P-CROSS-GRP",
+      "base_material_family": "HYDRAULIC_HOSE_R2AT_38",
+      "base_material_identity_id": "BASE-MAT-GEN-004",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "CROSS_GROUP_MISCLASSIFICATION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.inner_diameter",
+        "hose.standard",
+        "hose.reinforcement",
+        "ratings.working_pressure",
+        "manufacturer.name",
+        "manufacturer.part_number"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; divergência de classificação de grupo de material no ERP."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-036",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "P-TRUNCATED",
+      "base_material_family": "SPIRAL_WOUND_GASKET_2IN_300",
+      "base_material_identity_id": "BASE-MAT-GEN-005",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "TRUNCATION_AT_40_CHARS",
+      "identity_defining_attributes_preserved": [
+        "dimensions.nominal_size",
+        "ratings.pressure_class",
+        "material.standard",
+        "gasket.style",
+        "material.windings",
+        "material.filler"
+      ],
+      "identity_defining_attributes_violated": [],
+      "reviewer_notes": "Identidade física estrita idêntica; truncamento de descrição curta respeitando limite histórico de caracteres."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-037",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "HN-DIM",
+      "base_material_family": "V_BELT_PROFILE_B",
+      "base_material_identity_id": "BASE-MAT-GEN-006",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "PARAMETRIC_DIMENSION_SHIFT",
+      "identity_defining_attributes_preserved": [
+        "belt.profile",
+        "dimensions.top_width",
+        "dimensions.height",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [
+        "dimensions.length_pitch"
+      ],
+      "reviewer_notes": "Divergência dimensional de comprimento (60 vs 62 pol); impossibilidade de ajuste em entre-eixos fixo de polias."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-038",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "HN-MAT",
+      "base_material_family": "WIPER_SEAL_DKB_40MM",
+      "base_material_identity_id": "BASE-MAT-GEN-007",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "ELASTOMER_SUBSTITUTION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.rod_diameter",
+        "dimensions.groove_diameter",
+        "dimensions.width",
+        "seal.profile"
+      ],
+      "identity_defining_attributes_violated": [
+        "material.polymer_type",
+        "material.hardness",
+        "application.abrasion_resistance"
+      ],
+      "reviewer_notes": "Divergência de polímero elastomérico (NBR vs Poliuretano); resistências mecânica e a fluidos distintas."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-039",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "HN-VAR",
+      "base_material_family": "SPIRAL_WOUND_GASKET_3IN_150",
+      "base_material_identity_id": "BASE-MAT-GEN-008",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "GASKET_INNER_RING_VARIANT",
+      "identity_defining_attributes_preserved": [
+        "dimensions.nominal_size",
+        "ratings.pressure_class",
+        "material.standard",
+        "material.windings",
+        "material.filler"
+      ],
+      "identity_defining_attributes_violated": [
+        "gasket.style",
+        "construction.inner_ring"
+      ],
+      "reviewer_notes": "Variante construtiva de segurança crítica (CG sem anel interno vs CGI com anel interno contra colapso da espiral)."
+    },
+    {
+      "evaluation_case_id": "CASE-SR001-B-T02-040",
+      "stratum": "GENERAL",
+      "challenge_taxonomy_class": "HN-DISTINCT",
+      "base_material_family": "INDUSTRIAL_HOSE_2IN",
+      "base_material_identity_id": "BASE-MAT-GEN-009",
+      "challenge_case_provenance": "SYNTHETIC_SPECIFIED",
+      "generation_method": "CHEMICAL_APPLICATION_DISTINCTION",
+      "identity_defining_attributes_preserved": [
+        "dimensions.inner_diameter",
+        "hose.reinforcement_wire",
+        "manufacturer.name"
+      ],
+      "identity_defining_attributes_violated": [
+        "tube.chemical_compatibility",
+        "ratings.working_pressure",
+        "electrical.antistatic_wire"
+      ],
+      "reviewer_notes": "Mangueiras para fluidos incompativeis (água/lama vs hidrocarbonetos condutivos anti-estáticos)."
+    }
+  ]
+}
