@@ -1,0 +1,1796 @@
+{
+  "metadata": {
+    "harness_identifier": "SR001-BASELINE-B-HARNESS-V2",
+    "harness_sha256": "cfcee60f0049d7d3709d5c5a6c1d34c2a28dcfc75c1d5d6801a57a445dc18f9f",
+    "catalog_sha256": "74e1389f66fd14155dba1b3be9b16ef2ef9fe79b04e16232d2c2fb142e1c218b",
+    "ground_truth_sha256": "052bd6fec3f165cea9cdbf686cb961af4eccf962f4689d938a00fdc459b92008",
+    "manifest_sha256": "cab0732e83594111522e5edfd8c4bc1ff310c4be2df0b1d4c282b40a4f48a88b",
+    "run_id": "RUN-T02-20261003T130713Z-5D78EB04",
+    "evaluated_at": "2026-10-03T13:07:13.536135+00:00",
+    "git_head": "973eadb019289fb002aa4022a494663a24edd243"
+  },
+  "scientific_payload": {
+    "summary": {
+      "tranche_id": "02_EXPANDED_40_PAIRS",
+      "candidate_selection_metrics": {
+        "positive_count": 20,
+        "positive_retained": 19,
+        "positive_dropped": 1,
+        "negative_retained": 20,
+        "negative_dropped": 0,
+        "candidate_pair_recall": 0.95,
+        "candidate_pair_miss_rate": 0.050000000000000044,
+        "challenge_total_pairs": 40,
+        "challenge_retained_pairs": 39,
+        "challenge_retention_rate": 0.975,
+        "challenge_reduction_ratio": 0.025000000000000022
+      },
+      "unconditioned_detector_metrics": {
+        "tp": 19,
+        "fp": 17,
+        "tn": 3,
+        "fn": 1,
+        "precision": 0.5277777777777778,
+        "recall": 0.95,
+        "f1": 0.6785714285714285
+      },
+      "conditioned_detector_metrics": {
+        "evaluated_pairs_count": 39,
+        "tp": 19,
+        "fp": 17,
+        "tn": 3,
+        "fn": 0,
+        "precision": 0.5277777777777778,
+        "recall": 1.0,
+        "f1": 0.6909090909090909
+      },
+      "end_to_end_pipeline_metrics": {
+        "recall_block": 0.95,
+        "recall_detector_conditioned": 1.0,
+        "overall_pipeline_recall": 0.95,
+        "challenge_reduction_ratio": 0.025000000000000022,
+        "bidimensional_point": [
+          0.025000000000000022,
+          0.95
+        ]
+      },
+      "breakdown_by_class": {
+        "HN-DIM": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "FASTENERS",
+            "GENERAL",
+            "VALVES"
+          ],
+          "total_cases": 5,
+          "positive_count": 0,
+          "negative_count": 5,
+          "candidate_retained_count": 5,
+          "candidate_dropped_count": 0,
+          "tp": 0,
+          "fp": 4,
+          "tn": 1,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-005",
+            "CASE-SR001-B-T02-013",
+            "CASE-SR001-B-T02-021",
+            "CASE-SR001-B-T02-029",
+            "CASE-SR001-B-T02-037"
+          ]
+        },
+        "HN-DISTINCT": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "FASTENERS",
+            "GENERAL",
+            "VALVES"
+          ],
+          "total_cases": 5,
+          "positive_count": 0,
+          "negative_count": 5,
+          "candidate_retained_count": 5,
+          "candidate_dropped_count": 0,
+          "tp": 0,
+          "fp": 4,
+          "tn": 1,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-008",
+            "CASE-SR001-B-T02-016",
+            "CASE-SR001-B-T02-024",
+            "CASE-SR001-B-T02-032",
+            "CASE-SR001-B-T02-040"
+          ]
+        },
+        "HN-MAT": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "FASTENERS",
+            "GENERAL",
+            "VALVES"
+          ],
+          "total_cases": 5,
+          "positive_count": 0,
+          "negative_count": 5,
+          "candidate_retained_count": 5,
+          "candidate_dropped_count": 0,
+          "tp": 0,
+          "fp": 4,
+          "tn": 1,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-006",
+            "CASE-SR001-B-T02-014",
+            "CASE-SR001-B-T02-022",
+            "CASE-SR001-B-T02-030",
+            "CASE-SR001-B-T02-038"
+          ]
+        },
+        "HN-VAR": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "FASTENERS",
+            "GENERAL",
+            "VALVES"
+          ],
+          "total_cases": 5,
+          "positive_count": 0,
+          "negative_count": 5,
+          "candidate_retained_count": 5,
+          "candidate_dropped_count": 0,
+          "tp": 0,
+          "fp": 5,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-007",
+            "CASE-SR001-B-T02-015",
+            "CASE-SR001-B-T02-023",
+            "CASE-SR001-B-T02-031",
+            "CASE-SR001-B-T02-039"
+          ]
+        },
+        "P-ABBR": {
+          "strata": [
+            "FASTENERS",
+            "GENERAL",
+            "VALVES"
+          ],
+          "total_cases": 3,
+          "positive_count": 3,
+          "negative_count": 0,
+          "candidate_retained_count": 3,
+          "candidate_dropped_count": 0,
+          "tp": 3,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-003",
+            "CASE-SR001-B-T02-011",
+            "CASE-SR001-B-T02-034"
+          ]
+        },
+        "P-CROSS-GRP": {
+          "strata": [
+            "FASTENERS",
+            "GENERAL",
+            "VALVES"
+          ],
+          "total_cases": 3,
+          "positive_count": 3,
+          "negative_count": 0,
+          "candidate_retained_count": 3,
+          "candidate_dropped_count": 0,
+          "tp": 3,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-004",
+            "CASE-SR001-B-T02-012",
+            "CASE-SR001-B-T02-035"
+          ]
+        },
+        "P-MFG-MISSING": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "FASTENERS",
+            "GENERAL"
+          ],
+          "total_cases": 4,
+          "positive_count": 4,
+          "negative_count": 0,
+          "candidate_retained_count": 3,
+          "candidate_dropped_count": 1,
+          "tp": 3,
+          "fp": 0,
+          "tn": 0,
+          "fn": 1,
+          "case_ids": [
+            "CASE-SR001-B-T02-002",
+            "CASE-SR001-B-T02-019",
+            "CASE-SR001-B-T02-027",
+            "CASE-SR001-B-T02-033"
+          ]
+        },
+        "P-PN-STRUCTURAL": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "VALVES"
+          ],
+          "total_cases": 3,
+          "positive_count": 3,
+          "negative_count": 0,
+          "candidate_retained_count": 3,
+          "candidate_dropped_count": 0,
+          "tp": 3,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-009",
+            "CASE-SR001-B-T02-017",
+            "CASE-SR001-B-T02-025"
+          ]
+        },
+        "P-SEPARATOR": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "FASTENERS",
+            "VALVES"
+          ],
+          "total_cases": 4,
+          "positive_count": 4,
+          "negative_count": 0,
+          "candidate_retained_count": 4,
+          "candidate_dropped_count": 0,
+          "tp": 4,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-001",
+            "CASE-SR001-B-T02-010",
+            "CASE-SR001-B-T02-018",
+            "CASE-SR001-B-T02-026"
+          ]
+        },
+        "P-TRUNCATED": {
+          "strata": [
+            "BEARINGS",
+            "ELECTRICAL",
+            "GENERAL"
+          ],
+          "total_cases": 3,
+          "positive_count": 3,
+          "negative_count": 0,
+          "candidate_retained_count": 3,
+          "candidate_dropped_count": 0,
+          "tp": 3,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-020",
+            "CASE-SR001-B-T02-028",
+            "CASE-SR001-B-T02-036"
+          ]
+        }
+      },
+      "breakdown_by_stratum": {
+        "BEARINGS": {
+          "total_cases": 8,
+          "positive_count": 4,
+          "negative_count": 4,
+          "candidate_retained_count": 8,
+          "candidate_dropped_count": 0,
+          "tp": 4,
+          "fp": 2,
+          "tn": 2,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-017",
+            "CASE-SR001-B-T02-018",
+            "CASE-SR001-B-T02-019",
+            "CASE-SR001-B-T02-020",
+            "CASE-SR001-B-T02-021",
+            "CASE-SR001-B-T02-022",
+            "CASE-SR001-B-T02-023",
+            "CASE-SR001-B-T02-024"
+          ]
+        },
+        "ELECTRICAL": {
+          "total_cases": 8,
+          "positive_count": 4,
+          "negative_count": 4,
+          "candidate_retained_count": 8,
+          "candidate_dropped_count": 0,
+          "tp": 4,
+          "fp": 4,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-025",
+            "CASE-SR001-B-T02-026",
+            "CASE-SR001-B-T02-027",
+            "CASE-SR001-B-T02-028",
+            "CASE-SR001-B-T02-029",
+            "CASE-SR001-B-T02-030",
+            "CASE-SR001-B-T02-031",
+            "CASE-SR001-B-T02-032"
+          ]
+        },
+        "FASTENERS": {
+          "total_cases": 8,
+          "positive_count": 4,
+          "negative_count": 4,
+          "candidate_retained_count": 7,
+          "candidate_dropped_count": 1,
+          "tp": 3,
+          "fp": 4,
+          "tn": 0,
+          "fn": 1,
+          "case_ids": [
+            "CASE-SR001-B-T02-001",
+            "CASE-SR001-B-T02-002",
+            "CASE-SR001-B-T02-003",
+            "CASE-SR001-B-T02-004",
+            "CASE-SR001-B-T02-005",
+            "CASE-SR001-B-T02-006",
+            "CASE-SR001-B-T02-007",
+            "CASE-SR001-B-T02-008"
+          ]
+        },
+        "GENERAL": {
+          "total_cases": 8,
+          "positive_count": 4,
+          "negative_count": 4,
+          "candidate_retained_count": 8,
+          "candidate_dropped_count": 0,
+          "tp": 4,
+          "fp": 3,
+          "tn": 1,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-033",
+            "CASE-SR001-B-T02-034",
+            "CASE-SR001-B-T02-035",
+            "CASE-SR001-B-T02-036",
+            "CASE-SR001-B-T02-037",
+            "CASE-SR001-B-T02-038",
+            "CASE-SR001-B-T02-039",
+            "CASE-SR001-B-T02-040"
+          ]
+        },
+        "VALVES": {
+          "total_cases": 8,
+          "positive_count": 4,
+          "negative_count": 4,
+          "candidate_retained_count": 8,
+          "candidate_dropped_count": 0,
+          "tp": 4,
+          "fp": 4,
+          "tn": 0,
+          "fn": 0,
+          "case_ids": [
+            "CASE-SR001-B-T02-009",
+            "CASE-SR001-B-T02-010",
+            "CASE-SR001-B-T02-011",
+            "CASE-SR001-B-T02-012",
+            "CASE-SR001-B-T02-013",
+            "CASE-SR001-B-T02-014",
+            "CASE-SR001-B-T02-015",
+            "CASE-SR001-B-T02-016"
+          ]
+        }
+      },
+      "critical_inventory": [
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-002",
+          "stratum": "FASTENERS",
+          "challenge_class": "P-MFG-MISSING",
+          "material_id_a": "MAT-SR001-B-T02-002A",
+          "material_id_b": "MAT-SR001-B-T02-002B",
+          "ground_truth_is_duplicate": true,
+          "selection_decision": {
+            "is_candidate": false,
+            "matched_families": [],
+            "family_1_key": null,
+            "family_2_key": null
+          },
+          "selection_outcome": "POSITIVE_DROPPED",
+          "unconditioned_detector_prediction": false,
+          "unconditioned_detector_outcome": "FN",
+          "conditioned_detector_prediction": null,
+          "conditioned_detector_outcome": null
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-005",
+          "stratum": "FASTENERS",
+          "challenge_class": "HN-DIM",
+          "material_id_a": "MAT-SR001-B-T02-005A",
+          "material_id_b": "MAT-SR001-B-T02-005B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "FIXADORES",
+              "PARAFUSO"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-006",
+          "stratum": "FASTENERS",
+          "challenge_class": "HN-MAT",
+          "material_id_a": "MAT-SR001-B-T02-006A",
+          "material_id_b": "MAT-SR001-B-T02-006B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "FIXADORES",
+              "PARAFUSO"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-007",
+          "stratum": "FASTENERS",
+          "challenge_class": "HN-VAR",
+          "material_id_a": "MAT-SR001-B-T02-007A",
+          "material_id_b": "MAT-SR001-B-T02-007B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "FIXADORES",
+              "BARRA"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-008",
+          "stratum": "FASTENERS",
+          "challenge_class": "HN-DISTINCT",
+          "material_id_a": "MAT-SR001-B-T02-008A",
+          "material_id_b": "MAT-SR001-B-T02-008B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "FIXADORES",
+              "REBITE"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-013",
+          "stratum": "VALVES",
+          "challenge_class": "HN-DIM",
+          "material_id_a": "MAT-SR001-B-T02-013A",
+          "material_id_b": "MAT-SR001-B-T02-013B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "TUBULACAO VALVULAS",
+              "VALVULA"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-014",
+          "stratum": "VALVES",
+          "challenge_class": "HN-MAT",
+          "material_id_a": "MAT-SR001-B-T02-014A",
+          "material_id_b": "MAT-SR001-B-T02-014B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "TUBULACAO VALVULAS",
+              "FILTRO"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-015",
+          "stratum": "VALVES",
+          "challenge_class": "HN-VAR",
+          "material_id_a": "MAT-SR001-B-T02-015A",
+          "material_id_b": "MAT-SR001-B-T02-015B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "TUBULACAO VALVULAS",
+              "VALVULA"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-016",
+          "stratum": "VALVES",
+          "challenge_class": "HN-DISTINCT",
+          "material_id_a": "MAT-SR001-B-T02-016A",
+          "material_id_b": "MAT-SR001-B-T02-016B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "TUBULACAO VALVULAS",
+              "PURGADOR"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-023",
+          "stratum": "BEARINGS",
+          "challenge_class": "HN-VAR",
+          "material_id_a": "MAT-SR001-B-T02-023A",
+          "material_id_b": "MAT-SR001-B-T02-023B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "ROLAMENTOS MANCAIS",
+              "ROLAMENTO"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-024",
+          "stratum": "BEARINGS",
+          "challenge_class": "HN-DISTINCT",
+          "material_id_a": "MAT-SR001-B-T02-024A",
+          "material_id_b": "MAT-SR001-B-T02-024B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "ROLAMENTOS MANCAIS",
+              "BUCHA"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-029",
+          "stratum": "ELECTRICAL",
+          "challenge_class": "HN-DIM",
+          "material_id_a": "MAT-SR001-B-T02-029A",
+          "material_id_b": "MAT-SR001-B-T02-029B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "ELETRICA INSTRUMENTACAO",
+              "CABO"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-030",
+          "stratum": "ELECTRICAL",
+          "challenge_class": "HN-MAT",
+          "material_id_a": "MAT-SR001-B-T02-030A",
+          "material_id_b": "MAT-SR001-B-T02-030B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "ELETRICA INSTRUMENTACAO",
+              "ELETRODUTO"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-031",
+          "stratum": "ELECTRICAL",
+          "challenge_class": "HN-VAR",
+          "material_id_a": "MAT-SR001-B-T02-031A",
+          "material_id_b": "MAT-SR001-B-T02-031B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "ELETRICA INSTRUMENTACAO",
+              "FONTE"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-032",
+          "stratum": "ELECTRICAL",
+          "challenge_class": "HN-DISTINCT",
+          "material_id_a": "MAT-SR001-B-T02-032A",
+          "material_id_b": "MAT-SR001-B-T02-032B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "ELETRICA INSTRUMENTACAO",
+              "TRANSMISSOR"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-037",
+          "stratum": "GENERAL",
+          "challenge_class": "HN-DIM",
+          "material_id_a": "MAT-SR001-B-T02-037A",
+          "material_id_b": "MAT-SR001-B-T02-037B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "DIVERSOS CONSUMIVEIS",
+              "CORREIA"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-038",
+          "stratum": "GENERAL",
+          "challenge_class": "HN-MAT",
+          "material_id_a": "MAT-SR001-B-T02-038A",
+          "material_id_b": "MAT-SR001-B-T02-038B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "DIVERSOS CONSUMIVEIS",
+              "ANEL"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        },
+        {
+          "evaluation_case_id": "CASE-SR001-B-T02-039",
+          "stratum": "GENERAL",
+          "challenge_class": "HN-VAR",
+          "material_id_a": "MAT-SR001-B-T02-039A",
+          "material_id_b": "MAT-SR001-B-T02-039B",
+          "ground_truth_is_duplicate": false,
+          "selection_decision": {
+            "is_candidate": true,
+            "matched_families": [
+              "FAMILY_2"
+            ],
+            "family_1_key": null,
+            "family_2_key": [
+              "DIVERSOS CONSUMIVEIS",
+              "JUNTA"
+            ]
+          },
+          "selection_outcome": "NEGATIVE_RETAINED",
+          "unconditioned_detector_prediction": true,
+          "unconditioned_detector_outcome": "FP",
+          "conditioned_detector_prediction": true,
+          "conditioned_detector_outcome": "FP"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-001",
+        "stratum": "FASTENERS",
+        "challenge_class": "P-SEPARATOR",
+        "material_id_a": "MAT-SR001-B-T02-001A",
+        "material_id_b": "MAT-SR001-B-T02-001B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "FIXADORES",
+            "PARAFUSO"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-002",
+        "stratum": "FASTENERS",
+        "challenge_class": "P-MFG-MISSING",
+        "material_id_a": "MAT-SR001-B-T02-002A",
+        "material_id_b": "MAT-SR001-B-T02-002B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": false,
+          "matched_families": [],
+          "family_1_key": null,
+          "family_2_key": null
+        },
+        "selection_outcome": "POSITIVE_DROPPED",
+        "unconditioned_detector_prediction": false,
+        "unconditioned_detector_outcome": "FN",
+        "conditioned_detector_prediction": null,
+        "conditioned_detector_outcome": null
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-003",
+        "stratum": "FASTENERS",
+        "challenge_class": "P-ABBR",
+        "material_id_a": "MAT-SR001-B-T02-003A",
+        "material_id_b": "MAT-SR001-B-T02-003B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1"
+          ],
+          "family_1_key": [
+            "934 M16 8 BC",
+            "METALTORK"
+          ],
+          "family_2_key": null
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-004",
+        "stratum": "FASTENERS",
+        "challenge_class": "P-CROSS-GRP",
+        "material_id_a": "MAT-SR001-B-T02-004A",
+        "material_id_b": "MAT-SR001-B-T02-004B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1"
+          ],
+          "family_1_key": [
+            "NL12",
+            "NORD LOCK"
+          ],
+          "family_2_key": null
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-005",
+        "stratum": "FASTENERS",
+        "challenge_class": "HN-DIM",
+        "material_id_a": "MAT-SR001-B-T02-005A",
+        "material_id_b": "MAT-SR001-B-T02-005B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "FIXADORES",
+            "PARAFUSO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-006",
+        "stratum": "FASTENERS",
+        "challenge_class": "HN-MAT",
+        "material_id_a": "MAT-SR001-B-T02-006A",
+        "material_id_b": "MAT-SR001-B-T02-006B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "FIXADORES",
+            "PARAFUSO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-007",
+        "stratum": "FASTENERS",
+        "challenge_class": "HN-VAR",
+        "material_id_a": "MAT-SR001-B-T02-007A",
+        "material_id_b": "MAT-SR001-B-T02-007B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "FIXADORES",
+            "BARRA"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-008",
+        "stratum": "FASTENERS",
+        "challenge_class": "HN-DISTINCT",
+        "material_id_a": "MAT-SR001-B-T02-008A",
+        "material_id_b": "MAT-SR001-B-T02-008B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "FIXADORES",
+            "REBITE"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-009",
+        "stratum": "VALVES",
+        "challenge_class": "P-PN-STRUCTURAL",
+        "material_id_a": "MAT-SR001-B-T02-009A",
+        "material_id_b": "MAT-SR001-B-T02-009B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "TUBULACAO VALVULAS",
+            "VALVULA"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-010",
+        "stratum": "VALVES",
+        "challenge_class": "P-SEPARATOR",
+        "material_id_a": "MAT-SR001-B-T02-010A",
+        "material_id_b": "MAT-SR001-B-T02-010B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "TUBULACAO VALVULAS",
+            "VALVULA"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-011",
+        "stratum": "VALVES",
+        "challenge_class": "P-ABBR",
+        "material_id_a": "MAT-SR001-B-T02-011A",
+        "material_id_b": "MAT-SR001-B-T02-011B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1"
+          ],
+          "family_1_key": [
+            "W B100 EPDM AL",
+            "WORCESTER"
+          ],
+          "family_2_key": null
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-012",
+        "stratum": "VALVES",
+        "challenge_class": "P-CROSS-GRP",
+        "material_id_a": "MAT-SR001-B-T02-012A",
+        "material_id_b": "MAT-SR001-B-T02-012B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1"
+          ],
+          "family_1_key": [
+            "JLT JOS 15 8B",
+            "CROSBY"
+          ],
+          "family_2_key": null
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-013",
+        "stratum": "VALVES",
+        "challenge_class": "HN-DIM",
+        "material_id_a": "MAT-SR001-B-T02-013A",
+        "material_id_b": "MAT-SR001-B-T02-013B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "TUBULACAO VALVULAS",
+            "VALVULA"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-014",
+        "stratum": "VALVES",
+        "challenge_class": "HN-MAT",
+        "material_id_a": "MAT-SR001-B-T02-014A",
+        "material_id_b": "MAT-SR001-B-T02-014B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "TUBULACAO VALVULAS",
+            "FILTRO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-015",
+        "stratum": "VALVES",
+        "challenge_class": "HN-VAR",
+        "material_id_a": "MAT-SR001-B-T02-015A",
+        "material_id_b": "MAT-SR001-B-T02-015B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "TUBULACAO VALVULAS",
+            "VALVULA"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-016",
+        "stratum": "VALVES",
+        "challenge_class": "HN-DISTINCT",
+        "material_id_a": "MAT-SR001-B-T02-016A",
+        "material_id_b": "MAT-SR001-B-T02-016B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "TUBULACAO VALVULAS",
+            "PURGADOR"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-017",
+        "stratum": "BEARINGS",
+        "challenge_class": "P-PN-STRUCTURAL",
+        "material_id_a": "MAT-SR001-B-T02-017A",
+        "material_id_b": "MAT-SR001-B-T02-017B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "ROLAMENTO"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-018",
+        "stratum": "BEARINGS",
+        "challenge_class": "P-SEPARATOR",
+        "material_id_a": "MAT-SR001-B-T02-018A",
+        "material_id_b": "MAT-SR001-B-T02-018B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "ROLAMENTO"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-019",
+        "stratum": "BEARINGS",
+        "challenge_class": "P-MFG-MISSING",
+        "material_id_a": "MAT-SR001-B-T02-019A",
+        "material_id_b": "MAT-SR001-B-T02-019B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "ROLAMENTO"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-020",
+        "stratum": "BEARINGS",
+        "challenge_class": "P-TRUNCATED",
+        "material_id_a": "MAT-SR001-B-T02-020A",
+        "material_id_b": "MAT-SR001-B-T02-020B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1",
+            "FAMILY_2"
+          ],
+          "family_1_key": [
+            "SNL 511 609",
+            "SKF"
+          ],
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "CAIXA"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-021",
+        "stratum": "BEARINGS",
+        "challenge_class": "HN-DIM",
+        "material_id_a": "MAT-SR001-B-T02-021A",
+        "material_id_b": "MAT-SR001-B-T02-021B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "ROLAMENTO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": false,
+        "unconditioned_detector_outcome": "TN",
+        "conditioned_detector_prediction": false,
+        "conditioned_detector_outcome": "TN"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-022",
+        "stratum": "BEARINGS",
+        "challenge_class": "HN-MAT",
+        "material_id_a": "MAT-SR001-B-T02-022A",
+        "material_id_b": "MAT-SR001-B-T02-022B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "ROLAMENTO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": false,
+        "unconditioned_detector_outcome": "TN",
+        "conditioned_detector_prediction": false,
+        "conditioned_detector_outcome": "TN"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-023",
+        "stratum": "BEARINGS",
+        "challenge_class": "HN-VAR",
+        "material_id_a": "MAT-SR001-B-T02-023A",
+        "material_id_b": "MAT-SR001-B-T02-023B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "ROLAMENTO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-024",
+        "stratum": "BEARINGS",
+        "challenge_class": "HN-DISTINCT",
+        "material_id_a": "MAT-SR001-B-T02-024A",
+        "material_id_b": "MAT-SR001-B-T02-024B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ROLAMENTOS MANCAIS",
+            "BUCHA"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-025",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "P-PN-STRUCTURAL",
+        "material_id_a": "MAT-SR001-B-T02-025A",
+        "material_id_b": "MAT-SR001-B-T02-025B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "DISJUNTOR"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-026",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "P-SEPARATOR",
+        "material_id_a": "MAT-SR001-B-T02-026A",
+        "material_id_b": "MAT-SR001-B-T02-026B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "RELE"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-027",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "P-MFG-MISSING",
+        "material_id_a": "MAT-SR001-B-T02-027A",
+        "material_id_b": "MAT-SR001-B-T02-027B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "SENSOR"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-028",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "P-TRUNCATED",
+        "material_id_a": "MAT-SR001-B-T02-028A",
+        "material_id_b": "MAT-SR001-B-T02-028B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1",
+            "FAMILY_2"
+          ],
+          "family_1_key": [
+            "CFW500B10P0T4DB20",
+            "WEG"
+          ],
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "INVERSOR"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-029",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "HN-DIM",
+        "material_id_a": "MAT-SR001-B-T02-029A",
+        "material_id_b": "MAT-SR001-B-T02-029B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "CABO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-030",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "HN-MAT",
+        "material_id_a": "MAT-SR001-B-T02-030A",
+        "material_id_b": "MAT-SR001-B-T02-030B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "ELETRODUTO"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-031",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "HN-VAR",
+        "material_id_a": "MAT-SR001-B-T02-031A",
+        "material_id_b": "MAT-SR001-B-T02-031B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "FONTE"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-032",
+        "stratum": "ELECTRICAL",
+        "challenge_class": "HN-DISTINCT",
+        "material_id_a": "MAT-SR001-B-T02-032A",
+        "material_id_b": "MAT-SR001-B-T02-032B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "ELETRICA INSTRUMENTACAO",
+            "TRANSMISSOR"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-033",
+        "stratum": "GENERAL",
+        "challenge_class": "P-MFG-MISSING",
+        "material_id_a": "MAT-SR001-B-T02-033A",
+        "material_id_b": "MAT-SR001-B-T02-033B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "DIVERSOS CONSUMIVEIS",
+            "CORREIA"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-034",
+        "stratum": "GENERAL",
+        "challenge_class": "P-ABBR",
+        "material_id_a": "MAT-SR001-B-T02-034A",
+        "material_id_b": "MAT-SR001-B-T02-034B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1"
+          ],
+          "family_1_key": [
+            "2 222 V0747",
+            "PARKER"
+          ],
+          "family_2_key": null
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-035",
+        "stratum": "GENERAL",
+        "challenge_class": "P-CROSS-GRP",
+        "material_id_a": "MAT-SR001-B-T02-035A",
+        "material_id_b": "MAT-SR001-B-T02-035B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1"
+          ],
+          "family_1_key": [
+            "G2 06 R2AT",
+            "GATES"
+          ],
+          "family_2_key": null
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-036",
+        "stratum": "GENERAL",
+        "challenge_class": "P-TRUNCATED",
+        "material_id_a": "MAT-SR001-B-T02-036A",
+        "material_id_b": "MAT-SR001-B-T02-036B",
+        "ground_truth_is_duplicate": true,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_1",
+            "FAMILY_2"
+          ],
+          "family_1_key": [
+            "913 CG 2 300",
+            "TEADIT"
+          ],
+          "family_2_key": [
+            "DIVERSOS CONSUMIVEIS",
+            "JUNTA"
+          ]
+        },
+        "selection_outcome": "POSITIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "TP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "TP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-037",
+        "stratum": "GENERAL",
+        "challenge_class": "HN-DIM",
+        "material_id_a": "MAT-SR001-B-T02-037A",
+        "material_id_b": "MAT-SR001-B-T02-037B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "DIVERSOS CONSUMIVEIS",
+            "CORREIA"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-038",
+        "stratum": "GENERAL",
+        "challenge_class": "HN-MAT",
+        "material_id_a": "MAT-SR001-B-T02-038A",
+        "material_id_b": "MAT-SR001-B-T02-038B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "DIVERSOS CONSUMIVEIS",
+            "ANEL"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-039",
+        "stratum": "GENERAL",
+        "challenge_class": "HN-VAR",
+        "material_id_a": "MAT-SR001-B-T02-039A",
+        "material_id_b": "MAT-SR001-B-T02-039B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "DIVERSOS CONSUMIVEIS",
+            "JUNTA"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": true,
+        "unconditioned_detector_outcome": "FP",
+        "conditioned_detector_prediction": true,
+        "conditioned_detector_outcome": "FP"
+      },
+      {
+        "evaluation_case_id": "CASE-SR001-B-T02-040",
+        "stratum": "GENERAL",
+        "challenge_class": "HN-DISTINCT",
+        "material_id_a": "MAT-SR001-B-T02-040A",
+        "material_id_b": "MAT-SR001-B-T02-040B",
+        "ground_truth_is_duplicate": false,
+        "selection_decision": {
+          "is_candidate": true,
+          "matched_families": [
+            "FAMILY_2"
+          ],
+          "family_1_key": null,
+          "family_2_key": [
+            "DIVERSOS CONSUMIVEIS",
+            "MANGUEIRA"
+          ]
+        },
+        "selection_outcome": "NEGATIVE_RETAINED",
+        "unconditioned_detector_prediction": false,
+        "unconditioned_detector_outcome": "TN",
+        "conditioned_detector_prediction": false,
+        "conditioned_detector_outcome": "TN"
+      }
+    ]
+  }
+}
