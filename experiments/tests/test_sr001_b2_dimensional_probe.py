@@ -78,8 +78,20 @@ class B2DimensionalContractTests(unittest.TestCase):
     def test_route_one_preservation(self):
         a = record("A", "CABO SECAO 16 MM2", "SAME")
         b = record("B", "CABO SECAO 25 MM2", "SAME")
-        # Without matching manufacturer, R1 does not apply; nonpositive baseline
-        self.assertFalse(evaluate_b2_pair(a, b)[1] if not evaluate_b2_pair(a, b)[0] else False)
+        # Explicitly establish matching manufacturer + PN: Rota 1 takes precedence.
+        a = MaterialRecord(
+            material_id="A", description_short="CABO SECAO 16 MM2",
+            long_description="", unit="UN", manufacturer="SAME", manufacturer_part_number="SAME",
+            material_group="TEST")
+        b = MaterialRecord(
+            material_id="B", description_short="CABO SECAO 25 MM2",
+            long_description="", unit="UN", manufacturer="SAME", manufacturer_part_number="SAME",
+            material_group="TEST")
+        original, proposed, route, signal, _, _ = evaluate_b2_pair(a, b)
+        self.assertTrue(original)
+        self.assertTrue(proposed)
+        self.assertEqual(route.value, "ROUTE_1")
+        self.assertEqual(signal, DimensionalSignal.DISAGREEMENT)
 
     def test_frozen_t02_gate_and_all_four_quadrants(self):
         result = evaluate_frozen_t02()
