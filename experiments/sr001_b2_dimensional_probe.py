@@ -43,7 +43,7 @@ _GRAMMAR = (
 # limited length extractor: the middle dimension is pitch, NOT length.
 # Fail closed instead of accidentally interpreting the pitch as length.
 _THREADED_TRIPLET = re.compile(
-    r"\\bM\\s*\\d+\\s*[X-]\\s*\\d+(?:[.,]\\d+)?\\s*[X-]\\s*\\d+\\b", re.I
+    r"\bM\s*\d+\s*[X-]\s*\d+(?:[.,]\d+)?\s*[X-]\s*\d+\b", re.I
 )
 
 # Valve pattern deliberately handles plain 'DN 3 POL' only, without DN100 -> inch
