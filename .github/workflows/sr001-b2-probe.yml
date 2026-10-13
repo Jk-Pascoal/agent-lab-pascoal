@@ -1,0 +1,24 @@
+name: SR-001 B2 isolated probe
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'experiments/sr001_b2_dimensional_probe.py'
+      - 'experiments/tests/test_sr001_b2_dimensional_probe.py'
+      - '.github/workflows/sr001-b2-probe.yml'
+permissions:
+  contents: read
+jobs:
+  b2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e .
+      - name: B2 tests and frozen T02 safety gates
+        run: python -m unittest experiments.tests.test_sr001_b2_dimensional_probe -v
+      - name: Emit complete machine-readable observation to CI log
+        run: python -m experiments.sr001_b2_dimensional_probe
