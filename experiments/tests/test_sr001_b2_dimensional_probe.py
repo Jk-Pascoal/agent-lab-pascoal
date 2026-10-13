@@ -93,6 +93,39 @@ class B2DimensionalContractTests(unittest.TestCase):
         self.assertEqual(route.value, "ROUTE_1")
         self.assertEqual(signal, DimensionalSignal.DISAGREEMENT)
 
+    def test_thread_pitch_triplet_does_not_get_parsed_as_length(self):
+        signal, a, b = dimensional_signal(
+            record("A", "PARAFUSO SEXTAVADO M10X1.25X40"),
+            record("B", "PARAFUSO SEXTAVADO M10X1.5X40"))
+        self.assertEqual(signal, DimensionalSignal.UNKNOWN)
+        self.assertIsNone(a)
+        self.assertIsNone(b)
+
+    def test_thread_pitch_missing_on_other_side_is_unknown(self):
+        signal, a, b = dimensional_signal(
+            record("A", "PARAFUSO SEXTAVADO M10X1.25X40"),
+            record("B", "PARAFUSO SEXTAVADO M10X40"))
+        self.assertEqual(signal, DimensionalSignal.UNKNOWN)
+        self.assertIsNone(a)
+        self.assertEqual(b, ("fastener_length_mm", 40))
+
+    def test_thread_pitch_with_decimal_comma_is_unknown(self):
+        signal, _, _ = dimensional_signal(
+            record("A", "PARAFUSO SEXTAVADO M10X1,25X40"),
+            record("B", "PARAFUSO SEXTAVADO M10X40"))
+        self.assertEqual(signal, DimensionalSignal.UNKNOWN)
+
+    def test_thread_pitch_with_separated_x_is_unknown(self):
+        signal, _, _ = dimensional_signal(
+            record("A", "PARAFUSO M10 X 1.25 X 40"),
+            record("B", "PARAFUSO M10X40"))
+        self.assertEqual(signal, DimensionalSignal.UNKNOWN)
+
+    def test_thread_triplet_is_symmetric(self):
+        a = record("A", "PARAFUSO M10X1.25X40")
+        b = record("B", "PARAFUSO M10X40")
+        self.assertEqual(dimensional_signal(a, b)[0], dimensional_signal(b, a)[0])
+
     def test_frozen_t02_gate_and_all_four_quadrants(self):
         result = evaluate_frozen_t02()
         b0, b2 = result["b0_unconditioned"], result["b2_unconditioned"]

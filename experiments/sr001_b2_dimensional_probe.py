@@ -9,7 +9,6 @@ import json
 import re
 from dataclasses import asdict
 from enum import Enum
-from pathlib import Path
 
 from agent_lab.duplicates import is_possible_duplicate
 from experiments.sr001_b1_pn_conflict_probe import (
@@ -34,12 +33,17 @@ class DimensionalSignal(str, Enum):
 _GRAMMAR = (
     ("fastener_length_mm", re.compile(
         r"\bPARAFUSO\b.*?\bM\s*\d+\s*[X-]\s*(\d+)\b", re.I)),
-    ("valve_nominal_inch", re.compile(
-        r"\bVALVULA\b.*?\bDN\s*\d+\s+POL\b|\bVALVULA\b.*?\bDN\s*(\d+)\s*POL\b", re.I)),
     ("cable_section_mm2", re.compile(
         r"\bCABO\b.*?\bSECAO\s+(\d+)\s*MM\s*2\b", re.I)),
     ("belt_length_inch", re.compile(
         r"\bCORREIA\b.*?\bCOMPRIMENTO\s+(\d+)\s*POL\b", re.I)),
+)
+
+# A metric thread triplet M10X1.25X40 is ambiguous for this deliberately
+# limited length extractor: the middle dimension is pitch, NOT length.
+# Fail closed instead of accidentally interpreting the pitch as length.
+_THREADED_TRIPLET = re.compile(
+    r"\bM\s*\d+\s*[X-]\s*\d+(?:[.,]\d+)?\s*[X-]\s*\d+\b", re.I
 )
 
 # Valve pattern deliberately handles plain 'DN 3 POL' only, without DN100 -> inch
@@ -50,14 +54,14 @@ _VALVE_INCH = re.compile(r"\bDN\s+(\d+)\s+POL\b", re.I)
 def extract_typed_dimension(record):
     """Return (physical_role, integer_value), or None for ambiguous/unsupported."""
     text = record.description_short.upper()
-    # Avoid picking up numbers when a short description is truncation-prone.
+    # This extractor is intentionally narrow: do not infer missing/ambiguous roles.
+    if "PARAFUSO" in text and _THREADED_TRIPLET.search(text):
+        return None
     if text.startswith("VALVULA ") and "DN " in text:
         match = _VALVE_INCH.search(text)
         if match:
             return ("valve_nominal_inch", int(match.group(1)))
     for role, pattern in _GRAMMAR:
-        if role == "valve_nominal_inch":
-            continue
         match = pattern.search(text)
         if match:
             return (role, int(match.group(1)))
