@@ -4,6 +4,8 @@
 >
 > Leia este documento antes de propor uma nova Issue, SPEC ou alteração de código.
 
+> **ATUALIZAÇÃO CANÔNICA 14/10/2026:** as passagens históricas abaixo referentes a B2 como `NOT YET EXECUTED` descrevem checkpoints anteriores a 13/10, e **não** o estado corrente. B2 foi executada experimentalmente na PR #188, e a salvaguarda conservadora de passo de rosca foi integrada na PR #189 (`66a4f03`). Para o estado operacional vigente, consultar a seção **PRÓXIMA ÂNCORA — 14/10/2026** ao final deste documento. Nenhum status de produção é inferido desta reconciliação.
+
 ## 1. Identidade do projeto
 
 - **Projeto:** Agent Lab Pascoal
@@ -12,7 +14,7 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-10-06
+- **Estado registrado em:** 2026-10-14 (reconciliação documental B2/FM-1)
 - **Baseline integrado na main:** 1194 testes aprovados (100% GREEN)
 - **Última entrega funcional integrada na main:** Catalog CSV Ingestion Adapter v1
 - **Última Issue funcional integrada na main:** #154
@@ -1532,16 +1534,16 @@ INVESTIGAÇÃO EXPERIMENTAL ATIVA:
   * Baseline do produto: 1194/1194 GREEN via `unittest` (zero alteração em `src/` e `tests/`).
   * Instrumental experimental: 40/40 GREEN via `experiments/tests/`.
 
-PRÓXIMA ÂNCORA (EXECUÇÃO ISOLADA DE B2 SUJEITA A NOVO HUMAN GO — NÃO EXECUTAR):
-- "HUMAN GO REQUIRED FOR B2 EXECUTION."
-- Decisão humana registrada: B2 — DIMENSIONAL DISAGREEMENT / FM-1 selecionado como próxima intervenção experimental isolada da Dimensão B.
-- Confirmação explícita: B2 NÃO foi executado nesta sessão (DECISION RECORD != EXPERIMENT EXECUTION).
-- B2–B5: B2 SELECIONADO COMO PRÓXIMO PROBE ISOLADO (PROPOSED / NOT YET EXECUTED); B3–B5 permanecem PROPOSED / NOT YET EXECUTED.
-- A1 permanece: PROPOSED / NOT YET EXECUTED.
-- Tranche 03 (T03) NÃO iniciada e NÃO é próximo passo imediato.
-- Próxima âncora: execução isolada de B2, estritamente sujeita a novo HUMAN GO explícito.
-- Vedações mantidas: NÃO implementar nem executar B2 nesta sessão; NÃO implementar/executar A1; NÃO implementar/executar B3, B4 ou B5; NÃO combinar B1+B2; NÃO alterar src/agent_lab/; NÃO alterar tests/ de produto; NÃO modificar T02 FROZEN, Ground Truth ou manifesto; NÃO reexecutar a observação histórica T02; NÃO avançar para T03; NÃO realizar composição cumulativa; NÃO realizar tuning; NÃO emitir qualquer claim de produção ou generalização.
-- Princípio central: Ground Truth generation != Detector implementation | Original T02 Observation != Intervention Experiment | Decision Record != Experiment Execution.
+PRÓXIMA ÂNCORA — 14/10/2026 (PÓS-B2, SEM PROMOÇÃO A PRODUÇÃO):
+- **Estado auditado:** Issue #158 continua OPEN, investigação experimental, weight=0 e progress contribution=0. B2/FM-1 foi executada com HUMAN GO em 13/10/2026, segregada de `src/agent_lab/` e `tests/`, via PR #188 (MERGED). A PR #189 (MERGED; merge `66a4f03`) integrou correção conservadora de interpretação de rosca métrica, após revisão externa.
+- **B0/T02 FROZEN (referência histórica):** TP=19, FP=17, TN=3, FN=1, precision≈52,78%, recall=95%, F1≈0,6786.
+- **B2 observada na T02 (post-hoc; resultado experimental, não validação independente):** TP=19, FP=13, TN=7, FN=1, precision=59,375%, recall=95%, F1≈0,73077; 4 FP suprimidos e 0 TP sacrificados **neste conjunto**, sem inferência de generalização. Preservar os artefatos e evidências originais observed-as-run; a errata é separada.
+- **Falha semântica capturada externamente e corrigida:** `M10X1.25X40` é uma rosca métrica com diâmetro, passo e comprimento, não um vetor de três comprimentos. A salvaguarda experimental pós-PR #189 trata ambiguidade como `UNKNOWN` (fail-closed) e acrescenta cinco testes adversariais, sem promover regra ao detector de produção. A interpretação técnica deve diferenciar `dimensional disagreement` de mera divergência entre números.
+- **Baselines conservados:** 1194 testes de produto e 40 testes experimentais legados são referências de seus respectivos conjuntos, não contagem de novos testes B2. CI principal #288 e CI B2 experimental #5 foram reportadas SUCCESS na PR #189; esta linha não declara reexecução local em 14/10.
+- **Validação independente PENDENTE:** os mesmos 40 pares da T02 foram utilizados para descoberta, desenho e observação pós-hoc de B2; desempenho de generalização, estabilidade fora da T02 e elegibilidade de produção continuam não demonstrados.
+- **Próxima ação protegida:** revisão crítica de evidências e planejamento de validação independente (nova amostra cega, contrato/GT definidos antes do teste, sem ajuste por resultado). Exige decisão humana específica antes de executar nova coleta ou experimento. **Não abrir T03 nem executar A1/B3–B5 por inferência.**
+- **Vedações:** não modificar T02 FROZEN, GT, manifestos ou observações históricas; não alterar código de produção `src/agent_lab/` nem suíte canônica `tests/`; não combinar intervenções, não aplicar tuning retroativo, não ampliar peso/KPI da PoC, não alegar prontidão industrial.
+- **Princípios:** observed-as-run != errata != validation; dimensional token != physical quantity; post-hoc safety on T02 != out-of-sample safety.
 
 Comando oficial:
 python -m unittest discover -s tests -v
