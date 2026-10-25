@@ -14,7 +14,7 @@
 | `docs/planning/POC_D01_D02_decision_package_20261022.md` | D-01 e D-02 expressamente PROPOSED / PENDING; nenhum aceite humano constatado nesta revisão | Desenho decisório, sem autorização funcional |
 | `docs/specs/poc_audit_report_contract_v0_proposed_20261020.md` | Contrato de `poc_audit_report.v0` e gates R1–R10 propostos; sem implementação comprovada | SPEC proposta |
 | `docs/planning/POC_readiness_checkpoint_20261023.md` | Fixture, exportador e replay ainda sem prova; deadline 25/10 AT RISK | Checkpoint histórico de 23/10 |
-| `docs/planning/POC_report_milestone_disposition_preflight_20261024.md` | Critérios ENTREGE/PARCIAL/BLOQUEADO/INDETERMINADO pré-registrados; proibição de rebaseline silencioso | Protocolo de classificação, não execução |
+| `docs/planning/POC_report_milestone_disposition_preflight_20261024.md` | Critérios ENTREGUE/PARCIAL/BLOQUEADO/INDETERMINADO pré-registrados; proibição de rebaseline silencioso | Protocolo de classificação, não execução |
 | PR #191 | DRAFT/OPEN, pré-registro de validação independente pós-B2 | Não aprova coleta nem validação fora da T02 |
 | Issue #158 | OPEN, experimental / non-functional; sem promoção para produto | Não entrega reporting |
 | PR #201 | MERGED, mudança somente documental; CI #311 e #312 SUCCESS | Prova de integração/CI da documentação; **não** prova de exportador ou R1–R10 |
