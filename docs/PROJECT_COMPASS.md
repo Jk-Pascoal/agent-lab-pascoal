@@ -6,6 +6,8 @@
 
 > **ATUALIZAÇÃO CANÔNICA 14/10/2026:** as passagens históricas abaixo referentes a B2 como `NOT YET EXECUTED` descrevem checkpoints anteriores a 13/10, e **não** o estado corrente. B2 foi executada experimentalmente na PR #188, e a salvaguarda conservadora de passo de rosca foi integrada na PR #189 (`66a4f03`). Para o estado operacional vigente, consultar a seção **PRÓXIMA ÂNCORA — 14/10/2026** ao final deste documento. Nenhum status de produção é inferido desta reconciliação.
 
+> **REENTRADA DE GOVERNANÇA — 26/10/2026 (PoC / reporting):** o marco `report`, com `planned_end=2026-10-25`, encontra-se **vencido e com entrega não demonstrada nas fontes inspecionadas**, conforme [disposição pós-prazo](planning/POC_reporting_milestone_postdeadline_disposition_20261026.md). O aceite humano D-01/D-02 permanece pendente; a SPEC `poc_audit_report.v0` e os gates R1–R10 **não são prova de exportador executável**. Nova previsão exige decisão D-03/D-04 e campo separado, preservando o prazo histórico e o alvo PoC 20/11 sem revalidação. **Próxima âncora operacional de produto: decisão humana explícita D-01/D-02; âncora experimental B2 pós-14/10 permanece segregada, sem promoção a produção.** Esta nota registra mudança real de status temporal do marco, não novo baseline/testes/KPI.
+
 ## 1. Identidade do projeto
 
 - **Projeto:** Agent Lab Pascoal
@@ -14,7 +16,7 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-10-14 (reconciliação documental B2/FM-1)
+- **Estado registrado em:** 2026-10-26 (governança de prazo PoC; histórico B2/FM-1 conciliado em 14/10)
 - **Baseline integrado na main:** 1194 testes aprovados (100% GREEN)
 - **Última entrega funcional integrada na main:** Catalog CSV Ingestion Adapter v1
 - **Última Issue funcional integrada na main:** #154
