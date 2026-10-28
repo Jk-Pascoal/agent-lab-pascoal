@@ -1,0 +1,39 @@
+name: PoC 204 - Synthetic CSV Audit Demo
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/agent_lab/poc_audit_*"
+      - "tests/test_poc_audit_*"
+      - "tests/fixtures/poc_204_catalog_synthetic_v1.csv"
+      - "scripts/poc_204_demo.py"
+      - ".github/workflows/poc-204-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  physical-demo:
+    name: Python 3.11 - physical replay and manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -e .
+      - name: Run PoC-specific unittest gates
+        run: python -m unittest discover -s tests -p 'test_poc_audit*.py' -v
+      - name: Run two physical CSV CLI replays
+        run: python scripts/poc_204_demo.py --output-dir poc-204-artifacts
+      - name: Upload evidence, two reports and their manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: poc-204-synthetic-replay
+          path: poc-204-artifacts/
+          if-no-files-found: error
+          retention-days: 30
