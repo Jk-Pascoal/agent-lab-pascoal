@@ -1,6 +1,8 @@
 """Deterministic structural PoC report; no human action is inferred."""
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from .catalog_quality import CatalogQualityReport
@@ -165,17 +167,44 @@ def build_report_manifest(payload_bytes: bytes) -> dict:
 
 
 def write_poc_audit_report(report: CatalogQualityReport, output_path: str | Path) -> tuple[Path, Path]:
-    """Write validated report and separate manifest; never overwrite existing artifacts."""
+    """Publish validated report and manifest without overwriting existing files.
+
+    Stage and fsync both files before publication. On a handled publishing
+    failure, roll back our own links. Two sibling files cannot be crash-atomic;
+    callers must verify the manifest digest before accepting the report.
+    """
     payload = project_poc_audit_report(report)
     encoded = canonical_report_bytes(payload)
+    manifest_bytes = (
+        json.dumps(build_report_manifest(encoded), sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
     out = Path(output_path)
     manifest = out.with_name(out.name + ".manifest.json")
     if out.exists() or manifest.exists():
         raise FileExistsError("refusing to overwrite report or manifest")
     out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("xb") as f:
-        f.write(encoded)
-    manifest_bytes = (json.dumps(build_report_manifest(encoded), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-    with manifest.open("xb") as f:
-        f.write(manifest_bytes)
-    return out, manifest
+
+    staged: list[Path] = []
+    published: list[Path] = []
+    try:
+        for content in (encoded, manifest_bytes):
+            fd, staged_name = tempfile.mkstemp(prefix=f".{out.name}.", suffix=".stage", dir=out.parent)
+            stage = Path(staged_name)
+            staged.append(stage)
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+
+        # Hard links guarantee EEXIST rather than silently replacing artifacts.
+        for stage, destination in zip(staged, (out, manifest)):
+            os.link(stage, destination)
+            published.append(destination)
+        return out, manifest
+    except Exception:
+        for destination in reversed(published):
+            destination.unlink()
+        raise
+    finally:
+        for stage in staged:
+            stage.unlink(missing_ok=True)
