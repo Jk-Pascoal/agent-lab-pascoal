@@ -38,6 +38,13 @@ def main(argv=None) -> int:
             str(FIXTURE), str(target), "--catalog-id", "POC-204-SYNTHETIC",
         ]
         subprocess.run(cmd, check=True, cwd=ROOT)
+        # Independent fail-closed consumer: never trust a partial/mixed pair.
+        verified = subprocess.run(
+            [sys.executable, "-m", "agent_lab.poc_audit_verify", str(target)],
+            check=True, cwd=ROOT, capture_output=True, text=True,
+        )
+        if json.loads(verified.stdout)["status"] != "REPORT_AND_MANIFEST_VALIDATED":
+            raise ValueError("independent verifier did not accept report/manifest pair")
         content = target.read_bytes()
         manifest = (directory / "report.json.manifest.json").read_bytes()
         parsed_manifest = json.loads(manifest)
