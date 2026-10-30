@@ -8,6 +8,8 @@
 
 > **REENTRADA DE GOVERNANÇA — 26/10/2026 (PoC / reporting):** o marco `report`, com `planned_end=2026-10-25`, encontra-se **vencido e com entrega não demonstrada nas fontes inspecionadas**, conforme [disposição pós-prazo](planning/POC_reporting_milestone_postdeadline_disposition_20261026.md). O aceite humano D-01/D-02 permanece pendente; a SPEC `poc_audit_report.v0` e os gates R1–R10 **não são prova de exportador executável**. Nova previsão exige decisão D-03/D-04 e campo separado, preservando o prazo histórico e o alvo PoC 20/11 sem revalidação. **Próxima âncora operacional de produto: decisão humana explícita D-01/D-02; âncora experimental B2 pós-14/10 permanece segregada, sem promoção a produção.** Esta nota registra mudança real de status temporal do marco, não novo baseline/testes/KPI.
 
+> **ÂNCORA FUNCIONAL — 30/10/2026 (PÓS-PR #205):** as notas de 26/10 e a seção histórica de 1.194 testes descrevem seus próprios checkpoints, não o estado corrente após a PR #205. **D-01/D-02 foram aprovadas em 27/10.** A PR #205 foi integrada por **merge normal** em `332faaca5b081c955eab34fcc3dc82a163d689a1`, sem squash/rebase, preservando os commits originais de 28 e 29/10. CI da `main` em 30/10 [run 41125867676](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/41125867676): **1.233/1.233 GREEN**. A entrega é exclusivamente um **MVP CSV sintético estrutural**: CLI CSV → diagnóstico → relatório JSON v0 + manifesto SHA-256 → verificador fail-closed → triagem CSV, duas execuções idênticas demonstradas. **R4 apenas fallback `UNAVAILABLE` comprovado, custódia CSV original não verificada. R7 apenas integridade de consumo comprovada, atomicidade/durabilidade em power-loss não garantida. R9 HITL-E2E fora de escopo.** A revisão técnica foi assistida, não parecer independente de terceiro. D-03/D-04 (pesos/previsões) ainda requerem decisão humana; marco `report` com deadline histórico 25/10 permanece vencido e 20/11 sem revalidação. A Issue #204 permanece com pendências de expansão, ainda que o incremento v0 tenha sido integrado. **Nenhuma prontidão industrial, 100k SKUs, GT validado ou release nova.** O calendário de contribuições do GitHub pode demorar para atualizar; merge não prova exibição instantânea dos quadradinhos.
+
 ## 1. Identidade do projeto
 
 - **Projeto:** Agent Lab Pascoal
@@ -16,14 +18,14 @@
 - **Linguagem:** Python 3.11
 - **Runner oficial de testes:** `unittest`
 - **Branch protegida:** `main`
-- **Estado registrado em:** 2026-10-26 (governança de prazo PoC; histórico B2/FM-1 conciliado em 14/10)
-- **Baseline integrado na main:** 1194 testes aprovados (100% GREEN)
-- **Última entrega funcional integrada na main:** Catalog CSV Ingestion Adapter v1
-- **Última Issue funcional integrada na main:** #154
-- **Último PR funcional integrado na main:** #156
-- **Último merge funcional:** `2b8bc94` — Merge pull request #156 from Jk-Pascoal/feature/issue-154-catalog-csv-ingestion-adapter
+- **Estado registrado em:** 2026-10-30 (MVP CSV sintético integrado; histórico B2/FM-1 preservado)
+- **Baseline integrado na main:** 1233 testes aprovados (100% GREEN; CI 41125867676 pós-merge #205)
+- **Última entrega funcional integrada na main:** relatório auditável PoC CSV sintético v0 + manifesto/verificador/triagem e demo reprodutível (não industrial)
+- **Última Issue funcional integrada na main:** #204 (incremento MVP restrito; issue permanece aberta para lacunas residuais)
+- **Último PR funcional integrado na main:** #205
+- **Último merge funcional:** `332faaca5b081c955eab34fcc3dc82a163d689a1` — Merge PR #205 (normal, preserva histórico de 28/29/10)
 - **Última SPEC integrada na main:** `docs/specs/0154_catalog_csv_ingestion_adapter_v1.md`
-- **Incremento funcional atual:** Nenhum incremento funcional aberto — próxima âncora a definir após planejamento humano
+- **Incremento funcional atual:** MVP CSV sintético #204 integrado; pendências de custódia física, durabilidade, D-03/D-04 e aceite de macrofrente permanecem abertas
 - **Release formal atual:** `v0.1.0` — Governed Agent Workflow Baseline
 - **Status da release:** publicada / Latest
 - **Tag:** `v0.1.0`
