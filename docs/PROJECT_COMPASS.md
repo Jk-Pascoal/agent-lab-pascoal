@@ -1338,6 +1338,18 @@ Toda Issue deve conter, conforme aplicável:
 - critérios de aceite;
 - estratégia de validação.
 
+### Passo 7 — Verificação de contribuição GitHub no encerramento diário (Issue #206, 30/10/2026)
+
+O fechamento de atividade exige **dois fatos separados**: (A) evidência de trabalho real e CI; (B) evento elegível e conferência da contribuição no perfil. `git push` em uma branch isolada **não** equivale a quadradinho verde.
+
+- Conferir login/autoria e um evento elegível: commit alcançando `main` ou `gh-pages`, ou Issue/PR/review elegível criada pela conta, conforme critérios oficiais do GitHub.
+- Se uma PR funcional permanece DRAFT/UNMERGED por gates ou aceite pendente, **nunca** antecipar seu merge para obter contribuição; apenas registrar uma entrega documental independente **necessária e verdadeira** em PR segregada, mediante testes/revisão aplicáveis.
+- Registrar `PROFILE_CONFIRMED`, `EVENT_ELIGIBLE_PROFILE_PENDING` ou `NOT_CONFIRMED`. O GitHub pode levar até 24 horas para atualizar o calendário.
+- Não alterar datas de autoria, inventar atividades ou considerar a atividade retroativamente registrada por simples documentação posterior.
+- No RD/PMP/CRONO, separar `commits_da_feature`, `main_merge` e `status_do_calendario`. **Nunca marcar verde sem evidência visível**.
+
+Justificativa/evidências: [Issue #206](https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/206), [checkpoint 30/10](daily-logs/2026-10-30-contribution-accounting.md), [regras oficiais do GitHub](https://docs.github.com/en/account-and-profile/reference/profile-contributions-reference).
+
 ## 11. Fluxo de engenharia
 
 Fluxo padrão:
