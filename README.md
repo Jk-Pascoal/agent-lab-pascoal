@@ -1,5 +1,23 @@
 # Agent Lab Pascoal
 
+> **Estado conferido em 30/10/2026:** `main` com **1.233/1.233 testes GREEN**, MVP estrutural CSV sintético integrado via PR #205. Este não é um software industrial validado nem uma interface completa para especialista.
+>
+> **Retomada em novos chats/agentes:** leia [AGENTS.md](AGENTS.md), [SESSION_HANDOFF.json](docs/operations/SESSION_HANDOFF.json) e [PROJECT_COMPASS.md](docs/PROJECT_COMPASS.md), **depois revalide a `main` e o CI**. O handoff é snapshot histórico; não substitui observação do GitHub.
+>
+> **Próxima entrega funcional:** [Issue #210 — primeira jornada operacional local](https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210). Prioridade: interface executável sobre o pipeline real e testes; evitar novos incrementos somente documentais.
+
+## Executar a PoC sintética em três comandos
+
+Com Python 3.11+, a partir da raiz do repositório:
+
+```powershell
+python -m pip install -e .
+python scripts/poc_204_demo.py --output-dir poc-204-demo-local
+python -m agent_lab.poc_audit_triage poc-204-demo-local/run-1/report.json --actionable-only
+```
+
+O demo gera `run-1`/`run-2` com `report.json`, `report.json.manifest.json`, `triage.csv` e `evidence.json` na pasta indicada; use **um diretório novo** a cada execução. A triagem somente-leitura contém recomendações algorítmicas, **não** decisões humanas. `source_row/source_sha256` são `UNAVAILABLE`; custódia física do CSV e durabilidade power-loss não estão validadas. Ver [contrato de escopo](docs/planning/POC_204_scoped_technical_acceptance_20261030.md).
+
 Laboratório progressivo de engenharia de agentes de IA aplicado à governança de materiais PDM e estruturas BOM.
 
 ## Objetivo
@@ -322,7 +340,7 @@ O projeto conta com:
 - SPECs versionadas e detalhadas em `docs/specs/`;
 - desenvolvimento orientado por testes (TDD);
 - GitHub Actions com Python 3.11;
-- **1173 testes automatizados (100% GREEN)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência e release de claims, casos de uso de aplicação, projeções de claims históricas e release-aware, composição factual de fila pendente com claims históricos e release-aware, políticas puras de elegibilidade de revisores, enforcement de elegibilidade em tempo de execução (gate pré-write release-aware em `RecordHumanDecisionUseCase`), contratos puros de ground truth, datasets canônicos de avaliação, avaliadores determinísticos de recomendações, regras e duplicidades, serialização atômica de ground truth, caso de uso de benchmark de recomendações, diagnóstico de qualidade de catálogo e integração vertical JSONL pós-restart;
+- **1233 testes automatizados (100% GREEN; checkpoint 30/10/2026)** na branch `main` cobrindo domínio, serialização, persistência append-only, consistência cruzada, proveniência, contratos de claim, persistência e release de claims, casos de uso de aplicação, projeções de claims históricas e release-aware, composição factual de fila pendente com claims históricos e release-aware, políticas puras de elegibilidade de revisores, enforcement de elegibilidade em tempo de execução (gate pré-write release-aware em `RecordHumanDecisionUseCase`), contratos puros de ground truth, datasets canônicos de avaliação, avaliadores determinísticos de recomendações, regras e duplicidades, serialização atômica de ground truth, caso de uso de benchmark de recomendações, diagnóstico de qualidade de catálogo e integração vertical JSONL pós-restart;
 - baseline fundacional da release **v0.1.0** preservado (206 testes);
 - proteção de branch com status check de CI obrigatório antes de qualquer merge;
 - política estrita de Versionamento Semântico e registro de mudanças em `CHANGELOG.md`;
@@ -435,7 +453,7 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 - controle de concorrência multiprocesso, múltiplos escritores simultâneos ou locking distribuído;
 - projeção de claims ativos (Active Claim Projection / Active Claim Policy), atribuição gerencial (assignment), ownership operacional, estados de atendimento, locking / checkout, exclusividade, desempate / Last-Claim-Wins e controle concorrente de itens na fila de revisão (a composição factual da fila pendente com estado de claims foi entregue na Issue #97, a política pura normativa de elegibilidade de revisores foi entregue na Issue #100, o enforcement de elegibilidade em tempo de execução no `RecordHumanDecisionUseCase` foi entregue na Issue #103, a liberação voluntária de claims foi entregue nas Issues #106, #109 e #112 e o read path factual release-aware foi entregue na Issue #145; a política de claim ativo, ownership operacional, winner, locking, lease e mecanismos de assignment permanecem estritamente fora do escopo atual);
 - gestão de SLAs, prazos e priorização operacional de atendimento;
-- interface operacional (UI/Web/CLI) para o especialista de governança;
+- interface operacional integrada (UI/Web) para o especialista de governança; a CLI sintética da PoC #204 já existe, mas não é uma UI de especialista;
 - validação de carga e escala industrial (pressão arquitetural P-07: throughput, memória sob grandes volumes);
 - linhagem de sucessão e substituição de materiais (pressão arquitetural P-08: `MaterialRevision != MaterialReplacement`);
 - integração ou injeção direta em sistemas ERP/MDM legados;
@@ -446,7 +464,7 @@ Para manter a documentação tecnicamente honesta, o laboratório ainda **não**
 
 ## Próximas frentes
 
-Próxima âncora arquitetural: a definir após planejamento humano (zero Issues funcionais abertas).
+Próxima âncora funcional: Issue #210 — jornada operacional local da PoC; estado consolidado e protocolo de execução em `docs/operations/SESSION_HANDOFF.json`.
 
 A esteira de **Ground Truth & Benchmark** encontra-se em execução, tendo consolidado a sequência conceitual:
 `Ground Truth Contracts → Canonical Datasets → Decision Recommendation Evaluator → Material Rule Evaluator → Duplicate Pair Evaluator → Ground Truth Serialization → Decision Recommendation Benchmark Use Case → próximos incrementos sujeitos ao Architectural Alignment Gate`.
@@ -486,12 +504,12 @@ A decisão final permanece humana.
 
 ## Estado do laboratório
 
-*(Estado registrado em 24/09/2026 — pós-Issue #149)*
+*(Nota histórica: parte do inventário abaixo foi escrita após a Issue #149, em 24/09; fatos vigentes de 30/10 aparecem na abertura deste README e no Compass.)*
 
 ✅ **Módulos 0 a 7 concluídos (Release v0.1.0):** fundação do domínio, baseline determinístico, saída estruturada, Evidence Engine, Human-in-the-Loop v1, persistência auditável durável, identidade verificável e persistência de abertura de workflow. A release formal do laboratório permanece estritamente `v0.1.0`.
 
 ✅ **Incrementos pós-v0.1.0 integrados na main (Issues #52 a #149):** persistência de conclusão (`WorkflowConcluded`), verificação de consistência dual-write, contratos e persistência de linhagem para follow-up de correção (`predecessor_workflow_id`, `triggering_review_id`), proveniência e projeção de linhagem de revisões de materiais (`project_material_revision_lineage`), casos de uso `RecordHumanDecisionUseCase` e `ListPendingHumanReviewsUseCase`, trilhas de reivindicação e liberação voluntária de revisão humana (contratos `HumanReviewClaim` e `HumanReviewClaimRelease`, persistência append-only durável `JsonlHumanReviewClaimRepository` e `JsonlHumanReviewClaimReleaseRepository`, projeção factual `project_human_review_claim_state`, política pura de elegibilidade `evaluate_reviewer_claim_eligibility`, enforcement em tempo de execução via gate pré-write em `RecordHumanDecisionUseCase`, e casos de uso `RecordHumanReviewClaimUseCase`, `ListPendingHumanReviewsWithClaimStateUseCase` e `ReleaseHumanReviewClaimUseCase` — Issues #85 a #112), esteira de Ground Truth & Benchmark (contratos puros `MaterialRuleGroundTruth`, `DuplicatePairGroundTruth`, `DecisionRecommendationGroundTruth`, `LabelProvenance` — Issue #115; coleções canônicas `MaterialRuleGroundTruthDataset`, `DuplicatePairGroundTruthDataset`, `DecisionRecommendationGroundTruthDataset` — Issue #119; camada pura de metrologia determinística com avaliador de recomendações de governança — Issue #124; avaliador de regras cadastrais de materiais — Issue #129; avaliador de pares duplicados — Issue #133; serialização atômica versionada em memória — Issue #137; e caso de uso de aplicação `RunDecisionRecommendationBenchmarkUseCase` com `DecisionRecommendationBenchmarkCase` — Issue #141), read path factual release-aware sobre reivindicações de revisão humana — projeção factual pura `project_release_aware_claim_state`, política normativa pura de elegibilidade release-aware `evaluate_release_aware_reviewer_claim_eligibility`, caso de uso de composição da fila pendente release-aware `ListPendingHumanReviewsWithReleaseAwareClaimStateUseCase` e evolução do Runtime `RecordHumanDecisionUseCase` com injeção obrigatória de `HumanReviewClaimReleaseRepository` e gate pré-write release-aware via targeted reads `claims → releases` (Issue #145, integrada via PR funcional #147 / commit `1c6058a` / merge `6a24a20`; SPEC-0145 com status `IMPLEMENTED`), e diagnóstico determinístico de qualidade de catálogo sobre coleção fechada de materiais com análise exaustiva e simétrica de duplicidades em memória via `diagnose_catalog_quality`, read-model imutável `CatalogQualityReport` e boundary de aplicação `DiagnoseCatalogQualityUseCase` com injeção tipada de pipeline (`CatalogDiagnosticPipeline`) e trust boundary fail-closed de saída (Issue #149, integrada via PR funcional #151 / commit `89b844e`; SPEC-0149 com status `IMPLEMENTED`).
 
-🧪 **1173 testes automatizados (100% GREEN)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0 e 1102 testes pré-Issue #149).
+🧪 **1233 testes automatizados (100% GREEN, 30/10/2026)** protegem o comportamento atual na branch `main` com `unittest` (frente aos 206 testes do baseline fundacional da release v0.1.0 e 1102 testes pré-Issue #149).
 
-➡️ **Próxima âncora arquitetural:** a definir após planejamento humano. A branch `main` encontra-se sincronizada com `origin/main` (commit `0ea634d`), protegida pelo baseline de 1173 testes e com a Issue #149 formalmente encerrada (CLOSED / COMPLETED). As trilhas HITL, Ground Truth & Benchmark e o diagnóstico de qualidade de catálogo encontram-se reconciliados. Nenhum incremento funcional subsequente foi autorizado automaticamente; qualquer nova capacidade permanece estritamente condicionada a análise arquitetural, Issue e SPEC explicitamente aprovadas por decisão humana.
+➡️ **Próxima âncora funcional:** [Issue #210](https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210), interface local de uso da PoC. Snapshot comprovado em 30/10/2026: `main` em `3aef3d10`, protegida por 1233 testes; revalidar estado de GitHub/CI antes de qualquer trabalho. A Issue #204 permanece aberta para limites residuais. As trilhas HITL, Ground Truth & Benchmark e o diagnóstico de qualidade de catálogo encontram-se reconciliados. Nenhum incremento funcional subsequente foi autorizado automaticamente; qualquer nova capacidade permanece estritamente condicionada a análise arquitetural, Issue e SPEC explicitamente aprovadas por decisão humana.
