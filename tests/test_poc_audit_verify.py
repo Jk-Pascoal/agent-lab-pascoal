@@ -108,6 +108,29 @@ class PocAuditPairVerifierTests(unittest.TestCase):
             with self.assertRaises(InvalidPocAuditPairError):
                 verify_poc_audit_report_pair(target)
 
+    def test_forged_source_hash_and_csv_label_refused_even_with_matching_digest(self):
+        """R4: a file hash minted by a downstream actor is not source custody."""
+        with tempfile.TemporaryDirectory() as directory:
+            target, manifest = _pair(directory)
+            obj = json.loads(target.read_bytes())
+            obj["catalog"]["source_kind"] = "CSV"
+            obj["catalog"]["source_sha256"] = "a" * 64
+            obj["catalog"]["provenance_status"] = "VERIFIED"
+            _replace_report_and_rehash(target, manifest, _canonical(obj))
+            with self.assertRaisesRegex(InvalidPocAuditPairError, "contract"):
+                verify_poc_audit_report_pair(target)
+
+    def test_forged_engine_execution_trace_refused_even_with_matching_digest(self):
+        """R4/R6: the v0 artifact cannot certify a run commit without evidence."""
+        with tempfile.TemporaryDirectory() as directory:
+            target, manifest = _pair(directory)
+            obj = json.loads(target.read_bytes())
+            obj["engine"] = {"source_commit": "a" * 40,
+                             "execution_trace_status": "VERIFIED"}
+            _replace_report_and_rehash(target, manifest, _canonical(obj))
+            with self.assertRaisesRegex(InvalidPocAuditPairError, "contract"):
+                verify_poc_audit_report_pair(target)
+
     def test_forged_source_row_is_refused_even_when_digest_matches(self):
         with tempfile.TemporaryDirectory() as directory:
             target, manifest = _pair(directory)
