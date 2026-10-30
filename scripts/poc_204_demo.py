@@ -3,7 +3,9 @@
 Run: python scripts/poc_204_demo.py --output-dir /tmp/poc-204-demo
 """
 import argparse
+import csv
 import hashlib
+import io
 import json
 import subprocess
 import sys
@@ -29,6 +31,7 @@ def main(argv=None) -> int:
     output.mkdir(parents=True)
     reports = []
     manifest_data = []
+    triage_data = []
     for ordinal in (1, 2):
         directory = output / f"run-{ordinal}"
         directory.mkdir()
@@ -57,11 +60,30 @@ def main(argv=None) -> int:
             raise ValueError("source custody was asserted without proof")
         if any(r["source_row"] is not None or r["human_review"]["status"] != "NOT_RECORDED" for r in payload["records"]):
             raise ValueError("unverified physical row or fabricated human review")
+        # Read-only, fail-closed triage consumes the validated *published pair*.
+        # Export contains automated recommendations, never a HumanReview event.
+        triage = subprocess.run(
+            [sys.executable, "-m", "agent_lab.poc_audit_triage", str(target)],
+            check=True, cwd=ROOT, capture_output=True,
+        ).stdout
+        triage_rows = list(csv.DictReader(io.StringIO(triage.decode("utf-8"))))
+        if len(triage_rows) != 3:
+            raise ValueError("triage view lost catalog records")
+        if any(
+            row["human_review_status"] != "NOT_RECORDED"
+            or row["source_row_status"] != "UNAVAILABLE"
+            or row["source_custody_status"] != "UNAVAILABLE"
+            for row in triage_rows
+        ):
+            raise ValueError("triage invented human review or source custody")
+        (directory / "triage.csv").write_bytes(triage)
+        triage_data.append(triage)
         reports.append(content)
         manifest_data.append(manifest)
 
-    if reports[0] != reports[1] or manifest_data[0] != manifest_data[1]:
-        raise ValueError("non-deterministic replay")
+    if (reports[0] != reports[1] or manifest_data[0] != manifest_data[1]
+            or triage_data[0] != triage_data[1]):
+        raise ValueError("non-deterministic replay, manifest or triage")
     evidence = {
         "schema_version": "poc_204_demo_evidence.v1",
         "scope": "synthetic CSV structural demonstration only; no HITL-E2E, GT or scale claim",
@@ -72,6 +94,11 @@ def main(argv=None) -> int:
         "report_sha256_run_2": sha256(reports[1]),
         "replay_byte_identical": True,
         "manifest_byte_identical": True,
+        "triage_sha256_run_1": sha256(triage_data[0]),
+        "triage_sha256_run_2": sha256(triage_data[1]),
+        "triage_byte_identical": True,
+        "triage_record_count": 3,
+        "triage_scope": "read-only automated recommendations; not human review",
         "human_review": "NOT_RECORDED",
         "source_row": "UNAVAILABLE",
         "source_sha256_in_export": "UNAVAILABLE",
