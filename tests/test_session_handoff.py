@@ -1,6 +1,7 @@
 """Safety contract tests for the cross-chat Agent Lab handoff (#209)."""
 import copy
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -57,6 +58,14 @@ class SessionHandoffTests(unittest.TestCase):
         document["current_product"]["historical_milestones"]["report_planned_end"] = "2026-11-01"
         with self.assertRaisesRegex(HandoffContractError, "deadlines"):
             validate_handoff(document, ROOT)
+
+    def test_operator_cli_returns_success_for_current_snapshot(self):
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "verify_session_handoff.py")],
+            cwd=ROOT, capture_output=True, text=True, timeout=20, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("HANDOFF CONTRACT OK", completed.stdout)
 
     def test_duplicate_json_key_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
