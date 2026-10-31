@@ -43,19 +43,19 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-10-31",
+    "planned_date": "2026-11-01",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "LOCAL_SYNTHETIC_CSV_USER_JOURNEY",
-    "objective": "Enable a materials specialist to load authorized synthetic CSV, execute the real catalog diagnostic and audit exporter, inspect/filter recommendations, and export verified evidence through one usable local interface.",
+    "scope": "REVIEW_AND_HARDEN_LOCAL_SYNTHETIC_CSV_JOURNEY",
+    "objective": "Review and manually exercise the delivered local UI in PR #214; address security and ergonomic feedback, verify required review/gates, then seek legitimate integration without calendar-driven merge.",
     "entry_protocol": [
-      "Read AGENTS.md, this JSON, and docs/PROJECT_COMPASS.md; check main SHA and last CI against live GitHub; do not treat snapshot as live state.",
+      "Read AGENTS.md, this JSON, Compass and PR #214; verify current main/CI; 31/10 report is an in-branch snapshot, not merged product.",
       "Inspect issues #209 and #210, PR #205 merged, last CI, backlog and existing code (poc_audit_cli/report/verify/triage).",
       "Run or verify canonical unittest baseline before modifying code.",
       "Open a scoped functional branch, implement a narrow user-facing vertical with test-first negative/positive cases; avoid new architecture-only increments.",
       "Execute full unittest, verify CI, review risk/permissions and only merge when permitted by genuine gates."
     ],
-    "minimum_functional_deliverable": "Executable local entrypoint or interface with synthetic CSV -> real diagnostics -> verified report/manifest -> readable triage/export; include both success and corrupt-input failure paths.",
+    "minimum_functional_deliverable": "P1 UI exists in PR #214 with 1248 tests GREEN on head; next increment should test browser manual workflow and fix real issues, not return to documentation-only loops.",
     "acceptance": [
       "Real source code and tests changed, not documentation-only.",
       "Executable demo from real synthetic CSV fixture; no mocked-only demonstration.",
@@ -91,7 +91,29 @@
       "src/agent_lab/poc_audit_verify.py",
       "src/agent_lab/poc_audit_triage.py",
       "scripts/poc_204_demo.py",
-      "tests/fixtures/poc_204_catalog_synthetic_v1.csv"
+      "tests/fixtures/poc_204_catalog_synthetic_v1.csv",
+      "src/agent_lab/poc_local_ui.py",
+      "tests/test_poc_local_ui.py",
+      "docs/operations/POC_210_LOCAL_UI.md"
     ]
+  },
+  "session_activity_2026_10_31": {
+    "date": "2026-10-31",
+    "state": "FUNCTIONAL_BRANCH_PR_DRAFT_NOT_MERGED",
+    "issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
+    "pr": "https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/214",
+    "branch": "feat/210-local-csv-journey-20261031",
+    "head_after_runbook": "2695532502962f1f29208ccba38f74dbf8a978d1",
+    "ci_head": "2695532502962f1f29208ccba38f74dbf8a978d1",
+    "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/41218224926",
+    "ci_status": "SUCCESS",
+    "ci_runner": "python -m unittest discover -s tests -v",
+    "ci_tests_passed": 1248,
+    "increment": "HTTP localhost UI, real synthetic CSV, diagnosis, report/manifest verifier, triage, recommendations filter, downloads",
+    "independent_review": "NOT_RECORDED",
+    "manual_ui_review": "NOT_RECORDED",
+    "contribution_claim": "Three commits and one PR created 31/10; profile green square display NOT_VERIFIED",
+    "merge_status": "UNMERGED",
+    "baseline_note": "CI 1248 is PR HEAD, not main baseline; main snapshot remains historical 30/10"
   }
 }
