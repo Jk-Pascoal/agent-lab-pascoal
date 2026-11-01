@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import secrets
+import shutil
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -160,6 +161,7 @@ class LocalPocServer(ThreadingHTTPServer):
         self.workspace = tempfile.TemporaryDirectory(prefix="agentlab-poc210-")
         self.csrf_token = secrets.token_urlsafe(32)
         self.runs: dict[str, Path] = {}
+        self.pending_runs: set[str] = set()
         self.run_lock = Lock()
         try:
             super().__init__(("127.0.0.1", port), LocalPocHandler)
@@ -248,24 +250,30 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         if len(data) != count:
             return self._json(400, {"error": "CSV incompleto"})
         catalog_id = parse_qs(urlsplit(self.path).query).get("catalog_id", ["POC-210-LOCAL"])[0]
+        # In-flight runs occupy capacity but are never downloadable until verified.
         with self.server.run_lock:
-            if len(self.server.runs) >= MAX_SESSIONS:
+            if len(self.server.runs) + len(self.server.pending_runs) >= MAX_SESSIONS:
                 return self._json(429, {"error": "Limite de sessões; reinicie a interface"})
             run_id = secrets.token_urlsafe(18)
             directory = Path(self.server.workspace.name) / run_id
             directory.mkdir()
-            self.server.runs[run_id] = directory / "report.json"
+            self.server.pending_runs.add(run_id)
         try:
             _, verified = run_diagnostic(data, catalog_id, directory)
         except (ValueError, TypeError, OSError, UnicodeError, csv.Error) as exc:
             with self.server.run_lock:
-                self.server.runs.pop(run_id, None)
+                self.server.pending_runs.discard(run_id)
+            shutil.rmtree(directory, ignore_errors=True)
             return self._json(422, {"error": f"Entrada recusada: {type(exc).__name__}"})
         except Exception:
             with self.server.run_lock:
-                self.server.runs.pop(run_id, None)
+                self.server.pending_runs.discard(run_id)
+            shutil.rmtree(directory, ignore_errors=True)
             self.log_error("unexpected pipeline failure")
             return self._json(500, {"error": "Falha interna; nenhum resultado publicado"})
+        with self.server.run_lock:
+            self.server.pending_runs.remove(run_id)
+            self.server.runs[run_id] = directory / "report.json"
         prefix = f"/artifact/{run_id}/"
         self._json(200, {
             "summary": verified["summary"], "records": verified["records"],
