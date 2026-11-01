@@ -3,9 +3,10 @@ import http.client
 import json
 import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
-from agent_lab.poc_local_ui import LocalPocServer, MAX_CSV_BYTES
+from agent_lab.poc_local_ui import LocalPocServer, MAX_CSV_BYTES, run_diagnostic
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "poc_204_catalog_synthetic_v1.csv"
 
@@ -88,6 +89,43 @@ class PocLocalJourneyTests(unittest.TestCase):
         status, _, response = self.upload(b"a" * (MAX_CSV_BYTES + 1))
         self.assertEqual(status, 413, response)
         self.assertNotIn(b"downloads", response)
+
+    def test_failed_upload_reclaims_disk_and_does_not_consume_a_session(self):
+        previous_runs = set(self.server.runs)
+        previous_dirs = set(Path(self.server.workspace.name).iterdir())
+        status, _, body = self.upload(b"unknown_column\\nSYN-001\\n")
+        self.assertEqual(status, 422, body)
+        self.assertEqual(set(self.server.runs), previous_runs)
+        self.assertEqual(self.server.pending_runs, set())
+        self.assertEqual(set(Path(self.server.workspace.name).iterdir()), previous_dirs)
+
+    def test_inflight_artifact_is_not_published_until_verification(self):
+        reached = threading.Event()
+        proceed = threading.Event()
+        outcome = []
+        before = set(self.server.runs)
+
+        def slow_diagnostic(csv_bytes, catalog_id, directory):
+            reached.set()
+            if not proceed.wait(timeout=10):
+                raise RuntimeError("test timed out waiting for release")
+            return run_diagnostic(csv_bytes, catalog_id, directory)
+
+        with patch("agent_lab.poc_local_ui.run_diagnostic", side_effect=slow_diagnostic):
+            worker = threading.Thread(
+                target=lambda: outcome.append(self.upload(self.csv_bytes)), daemon=True)
+            worker.start()
+            try:
+                self.assertTrue(reached.wait(timeout=5))
+                self.assertEqual(set(self.server.runs), before)
+                self.assertEqual(len(self.server.pending_runs), 1)
+            finally:
+                proceed.set()
+                worker.join(timeout=10)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(outcome[0][0], 200, outcome[0][2])
+        self.assertEqual(len(self.server.runs), len(before) + 1)
+        self.assertEqual(self.server.pending_runs, set())
 
     def test_rejects_missing_token_and_untrusted_origin_and_host(self):
         status, _, _ = self.upload(self.csv_bytes, token="wrong")
