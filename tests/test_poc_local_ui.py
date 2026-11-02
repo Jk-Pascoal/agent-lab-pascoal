@@ -80,6 +80,34 @@ class PocLocalJourneyTests(unittest.TestCase):
             self.assertEqual(status, 409)
             self.assertNotIn(b"material_id", payload)
 
+    def test_search_interface_exposes_material_and_evidence_filter(self):
+        status, _, page = self.request("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertIn(b'id="search"', page)
+        self.assertIn(b"search.addEventListener('input',redraw)", page)
+        self.assertIn(b"r.material_id,r.issues,r.evidence,r.duplicate_candidates", page)
+        self.assertIn(b"search.value='';redraw()", page)
+
+    def test_tampered_manifest_refuses_every_download(self):
+        status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, body)
+        routes = json.loads(body)["downloads"]
+        run_id = routes["report"].split("/")[2]
+        manifest = self.server.runs[run_id].with_name("report.json.manifest.json")
+        original = manifest.read_bytes()
+        # Keep the JSON parseable while corrupting the physical digest.
+        payload = json.loads(original)
+        digest_fields = [key for key, value in payload.items()
+                         if isinstance(value, str) and len(value) == 64
+                         and all(char in "0123456789abcdef" for char in value)]
+        self.assertTrue(digest_fields, payload)
+        payload[digest_fields[0]] = "0" * 64 if payload[digest_fields[0]] != "0" * 64 else "1" * 64
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
+        for route in routes.values():
+            status, _, result = self.request("GET", route)
+            self.assertEqual(status, 409, (route, result))
+            self.assertNotIn(b"material_id", result)
+
     def test_invalid_csv_fails_without_download_links(self):
         status, _, response = self.upload(b"unknown_column\nSYN-001\n")
         self.assertEqual(status, 422, response)
