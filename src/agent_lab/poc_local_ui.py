@@ -64,6 +64,8 @@ th{color:#9ed4d7}details{max-width:420px}summary{cursor:pointer;color:#aee3e4}
 <option value="ALL">Todos</option><option value="ACTIONABLE">Somente REVIEW / REJECT</option>
 <option value="REVIEW">REVIEW</option><option value="REJECT">REJECT</option>
 <option value="APPROVE">APPROVE (algoritmo)</option></select>
+<label for="search">Buscar material ou problema</label>
+<input id="search" type="text" autocomplete="off" placeholder="ID, problema ou evidência" aria-controls="records">
 <p id="count" class="muted"></p><div class="table-scroll"><table>
 <thead><tr><th>Material</th><th>Recomendação</th><th>Completude</th>
 <th>Problemas e evidências</th></tr></thead><tbody id="records"></tbody>
@@ -81,12 +83,20 @@ const error=document.getElementById('error');
 const result=document.getElementById('result');
 const records=document.getElementById('records');
 const filter=document.getElementById('filter');
+const search=document.getElementById('search');
 let rows=[];
 function cell(tr,value){const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);return td;}
 function redraw(){
  records.replaceChildren();
  const f=filter.value;
- const shown=rows.filter(r=>f==='ALL'||(f==='ACTIONABLE'&&['REVIEW','REJECT'].includes(r.recommendation))||r.recommendation===f);
+ const term=search.value.trim().toLocaleLowerCase('pt-BR');
+ const shown=rows.filter(r=>{
+  const matchesAction=f==='ALL'||(f==='ACTIONABLE'&&['REVIEW','REJECT'].includes(r.recommendation))||r.recommendation===f;
+  if(!matchesAction)return false;
+  if(!term)return true;
+  return [r.material_id,r.issues,r.evidence,r.duplicate_candidates]
+    .some(value=>JSON.stringify(value).toLocaleLowerCase('pt-BR').includes(term));
+ });
  document.getElementById('count').textContent=shown.length+' de '+rows.length+' registros';
  for(const r of shown){
   const tr=document.createElement('tr');cell(tr,r.material_id);cell(tr,r.recommendation+' (automática)');
@@ -101,6 +111,7 @@ function redraw(){
  }
 }
 filter.addEventListener('change',redraw);
+search.addEventListener('input',redraw);
 button.addEventListener('click',async()=>{
  error.textContent='';status.textContent='';result.hidden=true;rows=[];
  if(!file.files.length){error.textContent='Selecione um CSV.';return;}
@@ -125,7 +136,7 @@ button.addEventListener('click',async()=>{
     a.textContent=({report:'Relatório JSON',manifest:'Manifesto SHA-256',triage:'Triagem CSV'})[name];
     dl.appendChild(a);
   }
-  filter.value='ALL';redraw();result.hidden=false;
+  filter.value='ALL';search.value='';redraw();result.hidden=false;
   status.textContent='Par relatório/manifesto verificado antes da apresentação.';
  }catch(e){error.textContent='Recusado: '+e.message;status.textContent='Nenhum resultado parcial exibido.';}
  finally{button.disabled=false;}
