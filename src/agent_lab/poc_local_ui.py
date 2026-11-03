@@ -24,7 +24,7 @@ MAX_CSV_BYTES = 256 * 1024
 MAX_MATERIALS = 200
 MAX_SESSIONS = 10
 # A bundled, fictional two-row catalog for a zero-setup local demo; never user data.
-SAMPLE_CSV = "material_id,description_short,long_description,unit,manufacturer,manufacturer_part_number,material_group,status\\nM-DEMO-001,ARRUELA SINTETICA M8,ARRUELA LISA M8,UN,FABRICANTE-FICTICIO,PN-DEMO-001,FIXADORES,ACTIVE\\nM-DEMO-002,PORCA SINTETICA M8,PORCA SEXTAVADA M8,UN,FABRICANTE-FICTICIO,PN-DEMO-002,FIXADORES,ACTIVE\\n" .encode("utf-8")
+SAMPLE_CSV = (\n    "material_id,description_short,long_description,unit,manufacturer,manufacturer_part_number,material_group,status\\n"\n    "M-DEMO-001,ARRUELA SINTETICA M8,ARRUELA LISA M8,UN,FABRICANTE-FICTICIO,PN-DEMO-001,FIXADORES,ACTIVE\\n"\n    "M-DEMO-002,PORCA SINTETICA M8,PORCA SEXTAVADA M8,UN,FABRICANTE-FICTICIO,PN-DEMO-002,FIXADORES,ACTIVE\\n"\n).encode("utf-8")
 
 PAGE = r'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
