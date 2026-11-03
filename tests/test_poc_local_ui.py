@@ -48,6 +48,24 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertIn("no-store", headers["Cache-Control"])
         self.assertNotIn(b"https://", body)
 
+    def test_downloadable_sample_is_real_csv_and_completes_user_journey(self):
+        code, headers, sample = self.request("GET", "/sample.csv")
+        self.assertEqual(code, 200)
+        self.assertIn("text/csv", headers["Content-Type"])
+        self.assertIn("attachment", headers["Content-Disposition"])
+        self.assertEqual(len(sample.decode("utf-8").splitlines()), 3)
+        self.assertIn(b"M-DEMO-001", sample)
+        status, _, body = self.upload(sample)
+        self.assertEqual(status, 200, body)
+        result = json.loads(body)
+        self.assertEqual(result["summary"]["total_records"], 2)
+        self.assertEqual(len(result["records"]), 2)
+        self.assertTrue(all(r["human_review"]["status"] == "NOT_RECORDED"
+                            for r in result["records"]))
+        for route in result["downloads"].values():
+            artifact_status, _, artifact = self.request("GET", route)
+            self.assertEqual(artifact_status, 200, artifact)
+
     def test_real_fixture_end_to_end_verified_report_manifest_and_triage(self):
         code, _, body = self.upload(self.csv_bytes)
         self.assertEqual(code, 200, body)
