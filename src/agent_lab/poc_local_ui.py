@@ -23,6 +23,8 @@ from .poc_audit_verify import InvalidPocAuditPairError, verify_poc_audit_report_
 MAX_CSV_BYTES = 256 * 1024
 MAX_MATERIALS = 200
 MAX_SESSIONS = 10
+# A bundled, fictional two-row catalog for a zero-setup local demo; never user data.
+SAMPLE_CSV = "material_id,description_short,long_description,unit,manufacturer,manufacturer_part_number,material_group,status\\nM-DEMO-001,ARRUELA SINTETICA M8,ARRUELA LISA M8,UN,FABRICANTE-FICTICIO,PN-DEMO-001,FIXADORES,ACTIVE\\nM-DEMO-002,PORCA SINTETICA M8,PORCA SEXTAVADA M8,UN,FABRICANTE-FICTICIO,PN-DEMO-002,FIXADORES,ACTIVE\\n" .encode("utf-8")
 
 PAGE = r'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -55,7 +57,7 @@ th{color:#9ed4d7}details{max-width:420px}summary{cursor:pointer;color:#aee3e4}
 <input id="csv" type="file" accept=".csv,text/csv"></div>
 <div><label for="catalog">Identificador do catálogo</label>
 <input id="catalog" type="text" maxlength="70" value="POC-210-LOCAL"></div></div>
-<button id="analyze">Executar diagnóstico verificado</button>
+<button id="analyze">Executar diagnóstico verificado</button>\n<p><a href="/sample.csv" download="catalogo_sintetico_exemplo.csv">Baixar CSV sintético de exemplo</a></p>
 <p id="status" role="status"></p><p id="error" role="alert"></p></section>
 <section class="panel" id="result" hidden><h2>2. Resultado verificado</h2>
 <p class="muted">Recomendações automáticas ≠ decisões humanas. Proveniência: UNAVAILABLE; HumanReview: NOT_RECORDED.</p>
@@ -217,6 +219,8 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         if not self._trusted_host():
             return self._json(403, {"error": "Host recusado"})
         route = urlsplit(self.path).path
+        if route == "/sample.csv":
+            return self._send(200, SAMPLE_CSV, "text/csv; charset=utf-8", filename="catalogo_sintetico_exemplo.csv")
         if route == "/":
             html = PAGE.replace("__TOKEN__", json.dumps(self.server.csrf_token)).encode("utf-8")
             return self._send(200, html, "text/html; charset=utf-8")
