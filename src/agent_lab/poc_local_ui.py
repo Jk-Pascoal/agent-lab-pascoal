@@ -61,7 +61,9 @@ th{color:#9ed4d7}details{max-width:420px}summary{cursor:pointer;color:#aee3e4}
 <input id="csv" type="file" accept=".csv,text/csv"></div>
 <div><label for="catalog">Identificador do catálogo</label>
 <input id="catalog" type="text" maxlength="70" value="POC-210-LOCAL"></div></div>
-<button id="analyze">Executar diagnóstico verificado</button>\n<p><a href="/sample.csv" download="catalogo_sintetico_exemplo.csv">Baixar CSV sintético de exemplo</a></p>
+<button id="analyze">Executar diagnóstico verificado</button>
+<button id="example" type="button">Testar catálogo sintético agora</button>
+<p><a href="/sample.csv" download="catalogo_sintetico_exemplo.csv">Baixar CSV sintético de exemplo</a></p>
 <p id="status" role="status"></p><p id="error" role="alert"></p></section>
 <section class="panel" id="result" hidden><h2>2. Resultado verificado</h2>
 <p class="muted">Recomendações automáticas ≠ decisões humanas. Proveniência: UNAVAILABLE; HumanReview: NOT_RECORDED.</p>
@@ -84,6 +86,7 @@ th{color:#9ed4d7}details{max-width:420px}summary{cursor:pointer;color:#aee3e4}
 const TOKEN=__TOKEN__;
 const file=document.getElementById('csv');
 const button=document.getElementById('analyze');
+const example=document.getElementById('example');
 const status=document.getElementById('status');
 const error=document.getElementById('error');
 const result=document.getElementById('result');
@@ -118,15 +121,15 @@ function redraw(){
 }
 filter.addEventListener('change',redraw);
 search.addEventListener('input',redraw);
-button.addEventListener('click',async()=>{
+async function analyze(csvBytes){
  error.textContent='';status.textContent='';result.hidden=true;rows=[];
- if(!file.files.length){error.textContent='Selecione um CSV.';return;}
- const f=file.files[0];
- if(f.size===0||f.size>262144){error.textContent='CSV vazio ou maior que 256 KiB.';return;}
- button.disabled=true;status.textContent='Analisando localmente…';
+ if(!csvBytes.byteLength||csvBytes.byteLength>262144){
+  error.textContent='CSV vazio ou maior que 256 KiB.';return;
+ }
+ button.disabled=true;example.disabled=true;status.textContent='Analisando localmente…';
  try{
   const response=await fetch('/analyze?catalog_id='+encodeURIComponent(document.getElementById('catalog').value),
-    {method:'POST',headers:{'Content-Type':'text/csv','X-Poc-Token':TOKEN},body:await f.arrayBuffer()});
+    {method:'POST',headers:{'Content-Type':'text/csv','X-Poc-Token':TOKEN},body:csvBytes});
   const data=await response.json();if(!response.ok)throw new Error(data.error||'Análise recusada');
   rows=data.records;const metrics=document.getElementById('metrics');metrics.replaceChildren();
   for(const [label,n] of [['Registros',data.summary.total_records],
@@ -145,7 +148,21 @@ button.addEventListener('click',async()=>{
   filter.value='ALL';search.value='';redraw();result.hidden=false;
   status.textContent='Par relatório/manifesto verificado antes da apresentação.';
  }catch(e){error.textContent='Recusado: '+e.message;status.textContent='Nenhum resultado parcial exibido.';}
- finally{button.disabled=false;}
+ finally{button.disabled=false;example.disabled=false;}
+}
+button.addEventListener('click',async()=>{
+ if(!file.files.length){error.textContent='Selecione um CSV ou use o exemplo sintético.';return;}
+ await analyze(await file.files[0].arrayBuffer());
+});
+example.addEventListener('click',async()=>{
+ button.disabled=true;example.disabled=true;
+ error.textContent='';status.textContent='Carregando exemplo local…';result.hidden=true;rows=[];
+ try{
+  const sample=await fetch('/sample.csv',{cache:'no-store'});
+  if(!sample.ok)throw new Error('Exemplo sintético indisponível');
+  await analyze(await sample.arrayBuffer());
+ }catch(e){error.textContent='Recusado: '+e.message;status.textContent='Nenhum resultado parcial exibido.';}
+ finally{button.disabled=false;example.disabled=false;}
 });
 </script></body></html>'''
 
