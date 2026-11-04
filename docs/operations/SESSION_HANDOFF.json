@@ -43,11 +43,11 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-11-01",
+    "planned_date": "2026-11-05",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "REVIEW_AND_HARDEN_LOCAL_SYNTHETIC_CSV_JOURNEY",
-    "objective": "Review and manually exercise the delivered local UI in PR #214; address security and ergonomic feedback, verify required review/gates, then seek legitimate integration without calendar-driven merge.",
+    "scope": "MANUAL_UI_SECURITY_REVIEW_AND_SAFE_SESSION_LIFECYCLE",
+    "objective": "Review PR #214 in a real browser and adversarial HTTP tests (#215), reproduce and fix upload timeout risk (#217); only after PR #214 gates consider scoped session reset (#216). No merge without review and human acceptance.",
     "entry_protocol": [
       "Read AGENTS.md, this JSON, Compass and PR #214; verify current main/CI; 31/10 report is an in-branch snapshot, not merged product.",
       "Inspect issues #209 and #210, PR #205 merged, last CI, backlog and existing code (poc_audit_cli/report/verify/triage).",
@@ -55,7 +55,7 @@
       "Open a scoped functional branch, implement a narrow user-facing vertical with test-first negative/positive cases; avoid new architecture-only increments.",
       "Execute full unittest, verify CI, review risk/permissions and only merge when permitted by genuine gates."
     ],
-    "minimum_functional_deliverable": "P1 UI exists in PR #214 with 1248 tests GREEN on head; next increment should test browser manual workflow and fix real issues, not return to documentation-only loops.",
+    "minimum_functional_deliverable": "One-click sample demo and CSV upload are implemented on PR #214; prove browser UX and connection failure handling, retain fail-closed artifacts and verified tests.",
     "acceptance": [
       "Real source code and tests changed, not documentation-only.",
       "Executable demo from real synthetic CSV fixture; no mocked-only demonstration.",
@@ -115,5 +115,36 @@
     "contribution_claim": "Three commits and one PR created 31/10; profile green square display NOT_VERIFIED",
     "merge_status": "UNMERGED",
     "baseline_note": "CI 1248 is PR HEAD, not main baseline; main snapshot remains historical 30/10"
+  },
+  "session_activity_2026_11_04": {
+    "date": "2026-11-04",
+    "timezone": "America/Bahia",
+    "main_head_live_checked": "1ff2a3e508deab55550053622c6dc32c5897492b",
+    "main_previous_ci_tests": "1242_FROM_PRIOR_CHECKPOINT_NOT_NEW_RUN",
+    "branch": "feat/210-local-csv-journey-20261031",
+    "pr": "https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/214",
+    "pr_status": "OPEN_DRAFT_UNMERGED",
+    "source_commits": [
+      "d9cdd7fbd634b32f8bc267882844a5398e373aa7",
+      "6f2f6c756367cccf2bb5d1a99518e45bfb9195b0"
+    ],
+    "test_commits": [
+      "ebbb479a9a12b0ef1eca1cb8efe8836099ff2baf",
+      "0f70b8e9a992b5b6ee5a34eb2d4fe3867a41a46a"
+    ],
+    "documentation_commit": "c6ca1e86e7e85786f20896e573ebc4c10b44d41b",
+    "functional_scope": "One-click CSV synthetic sample in existing real verified pipeline; browser file size rejected before allocation; HTTP regression plus static JS assertions.",
+    "ci_verified_on_commit": "ebbb479a9a12b0ef1eca1cb8efe8836099ff2baf",
+    "ci_verified_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/41902194848",
+    "ci_verified_tests": "1254/1254_SUCCESS_ON_EARLIER_HEAD",
+    "ci_final_head": "PENDING_RECHECK_AFTER_HANDOFF_COMMIT",
+    "manual_browser_validation": "NOT_RECORDED",
+    "independent_security_review": "NOT_RECORDED",
+    "issue_217": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/217",
+    "issue_216": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/216",
+    "issue_215": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/215",
+    "github_contribution_event": "ISSUE_217_CREATED_BY_Jk-Pascoal_ON_2026-11-04; FEATURE_COMMITS_NOT_ON_DEFAULT_BRANCH",
+    "profile_green_square": "NOT_VISUALLY_VERIFIED",
+    "unchanged_guards": "T02_FROZEN/GT/SR-001/B2/COMPASS/D03_D04/RELEASE"
   }
 }
