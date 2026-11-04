@@ -56,6 +56,9 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertIn(b"await fetch('/sample.csv',{cache:'no-store'})", html)
         self.assertIn(b"await analyze(await sample.arrayBuffer())", html)
         self.assertIn(b"body:csvBytes", html)
+        # Browser preflight rejects a large file before arrayBuffer allocates memory.
+        self.assertIn(b"if(uploaded.size===0||uploaded.size>262144)", html)
+        self.assertIn(b"await analyze(await uploaded.arrayBuffer())", html)
         status, _, sample = self.request("GET", "/sample.csv")
         self.assertEqual(status, 200)
         status, _, payload = self.upload(sample)
