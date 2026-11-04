@@ -48,6 +48,26 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertIn("no-store", headers["Cache-Control"])
         self.assertNotIn(b"https://", body)
 
+    def test_one_click_demo_uses_same_real_verified_pipeline(self):
+        # HTTP integration plus explicit browser wiring; not a manual browser review.
+        status, _, html = self.request("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertIn(b'id="example"', html)
+        self.assertIn(b"await fetch('/sample.csv',{cache:'no-store'})", html)
+        self.assertIn(b"await analyze(await sample.arrayBuffer())", html)
+        self.assertIn(b"body:csvBytes", html)
+        status, _, sample = self.request("GET", "/sample.csv")
+        self.assertEqual(status, 200)
+        status, _, payload = self.upload(sample)
+        self.assertEqual(status, 200, payload)
+        result = json.loads(payload)
+        self.assertEqual(result["summary"]["total_records"], 2)
+        self.assertEqual(result["human_review"], "NOT_RECORDED")
+        self.assertEqual(result["source_custody"], "UNAVAILABLE")
+        for route in result["downloads"].values():
+            download_status, _, data = self.request("GET", route)
+            self.assertEqual(download_status, 200, data)
+
     def test_downloadable_sample_is_real_csv_and_completes_user_journey(self):
         code, headers, sample = self.request("GET", "/sample.csv")
         self.assertEqual(code, 200)
