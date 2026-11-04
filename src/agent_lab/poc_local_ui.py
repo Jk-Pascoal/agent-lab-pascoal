@@ -152,7 +152,12 @@ async function analyze(csvBytes){
 }
 button.addEventListener('click',async()=>{
  if(!file.files.length){error.textContent='Selecione um CSV ou use o exemplo sintético.';return;}
- await analyze(await file.files[0].arrayBuffer());
+ const uploaded=file.files[0];
+ // Do not buffer an oversized upload in the browser before enforcing the limit.
+ if(uploaded.size===0||uploaded.size>262144){
+  error.textContent='CSV vazio ou maior que 256 KiB.';return;
+ }
+ await analyze(await uploaded.arrayBuffer());
 });
 example.addEventListener('click',async()=>{
  button.disabled=true;example.disabled=true;
