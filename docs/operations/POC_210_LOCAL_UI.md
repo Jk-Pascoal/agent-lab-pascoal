@@ -54,3 +54,11 @@ upload excessivo, token, origem e Host externos.
 - Issue #217 registra necessidade de timeout para corpo HTTP incompleto;
   Issue #216 continua separada para limpeza segura de sessões.
 - Nenhum gate foi removido. Sem merge, sem release e sem prontidão industrial.
+
+## Regressão de upload incompleto — 05/11/2026 (Issue #217)
+
+- O servidor agora limita a leitura do corpo POST a **3 segundos totais**, contados por `time.monotonic`, independentemente de gotejamento de bytes (não é timeout renovável por byte).
+- Ao estourar o prazo, responde **HTTP 408** quando a conexão ainda permite; encerramento antecipado do cliente resulta em **HTTP 400** quando possível. Em ambos os casos o handler encerra a conexão, sem criar `run_id`, pasta ou artefato parcial.
+- `tests/test_poc_local_ui.py` inclui socket HTTP real que envia cabeçalho válido e corpo incompleto, verifica retorno 408, limite de tempo e ausência de sessões/publicações, seguido por upload válido para provar recuperação da jornada.
+- [CI #42109103050](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/42109103050) **1.255/1.255 GREEN** no commit `fbb305ee`, antes desta atualização documental.
+- A UI **não** foi validada manualmente em navegador e **não** recebeu revisão de segurança independente; PR #214 mantém DRAFT/UNMERGED, Issue #215 OPEN. Nenhuma prontidão industrial ou aceite presumidos.
