@@ -1,12 +1,14 @@
 """Issue #210: real synthetic CSV -> local HTTP -> verified report/manifest/triage."""
 import http.client
 import json
+import socket
+import time
 import threading
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from agent_lab.poc_local_ui import LocalPocServer, MAX_CSV_BYTES, run_diagnostic
+from agent_lab.poc_local_ui import LocalPocServer, MAX_CSV_BYTES, UPLOAD_DEADLINE_SECONDS, run_diagnostic
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "poc_204_catalog_synthetic_v1.csv"
 
@@ -195,6 +197,35 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertEqual(outcome[0][0], 200, outcome[0][2])
         self.assertEqual(len(self.server.runs), len(before) + 1)
         self.assertEqual(self.server.pending_runs, set())
+
+    def test_incomplete_http_upload_deadline_is_bounded_and_fail_closed(self):
+        """Real socket adversarial regression for #217 (no mocked reader)."""
+        before_runs = set(self.server.runs)
+        before_pending = set(self.server.pending_runs)
+        before_dirs = set(Path(self.server.workspace.name).iterdir())
+        with socket.create_connection(("127.0.0.1", self.server.server_port), timeout=4) as conn:
+            conn.settimeout(UPLOAD_DEADLINE_SECONDS + 4)
+            headers = (
+                "POST /analyze?catalog_id=TEST-217 HTTP/1.1\r\n"
+                f"Host: 127.0.0.1:{self.server.server_port}\r\n"
+                "Content-Type: text/csv\r\n"
+                f"X-Poc-Token: {self.server.csrf_token}\r\n"
+                "Content-Length: 128\r\nConnection: close\r\n\r\n"
+            ).encode("ascii")
+            started = time.monotonic()
+            conn.sendall(headers + b"partial")
+            status_line = conn.recv(4096).split(b"\r\n", 1)[0]
+            elapsed = time.monotonic() - started
+        self.assertIn(b" 408 ", status_line)
+        self.assertLess(elapsed, UPLOAD_DEADLINE_SECONDS + 2.0)
+        self.assertEqual(set(self.server.runs), before_runs)
+        self.assertEqual(set(self.server.pending_runs), before_pending)
+        self.assertEqual(set(Path(self.server.workspace.name).iterdir()), before_dirs)
+
+        # A failed connection must not poison the next valid user journey.
+        status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, body)
+        self.assertIn("downloads", json.loads(body))
 
     def test_rejects_missing_token_and_untrusted_origin_and_host(self):
         status, _, _ = self.upload(self.csv_bytes, token="wrong")
