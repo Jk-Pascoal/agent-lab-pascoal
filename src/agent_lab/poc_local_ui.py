@@ -9,6 +9,7 @@ import json
 import secrets
 import shutil
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
@@ -23,6 +24,8 @@ from .poc_audit_verify import InvalidPocAuditPairError, verify_poc_audit_report_
 MAX_CSV_BYTES = 256 * 1024
 MAX_MATERIALS = 200
 MAX_SESSIONS = 10
+# Absolute wall-clock cap, not renewed by slow/trickling clients.
+UPLOAD_DEADLINE_SECONDS = 3.0
 # A bundled, fictional two-row catalog for a zero-setup local demo; never user data.
 SAMPLE_CSV = (
     "material_id,description_short,long_description,unit,manufacturer,manufacturer_part_number,material_group,status\n"
@@ -269,6 +272,28 @@ class LocalPocHandler(BaseHTTPRequestHandler):
             return self._json(409, {"error": "Par relatório/manifesto não verificado"})
         self._send(200, data, kind, filename=filename)
 
+    def _read_csv_body(self, expected: int) -> bytes:
+        """Read exact bytes under one absolute deadline, including slow-drip clients.
+
+        BufferedReader.read(expected) can wait indefinitely for a partial body.
+        read1() accepts available chunks while each next wait receives only the
+        time remaining on the original monotonic deadline.
+        """
+        deadline = time.monotonic() + UPLOAD_DEADLINE_SECONDS
+        chunks: list[bytes] = []
+        received = 0
+        while received < expected:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("upload deadline exceeded")
+            self.connection.settimeout(remaining)
+            chunk = self.rfile.read1(min(expected - received, 64 * 1024))
+            if not chunk:
+                raise EOFError("upload ended before Content-Length")
+            received += len(chunk)
+            chunks.append(chunk)
+        return b"".join(chunks)
+
     def do_POST(self):
         if not self._trusted_host():
             return self._json(403, {"error": "Host recusado"})
@@ -287,9 +312,20 @@ class LocalPocHandler(BaseHTTPRequestHandler):
             return self._json(411, {"error": "Content-Length obrigatório"})
         if not 0 < count <= MAX_CSV_BYTES:
             return self._json(413, {"error": "CSV vazio ou maior que 256 KiB"})
-        data = self.rfile.read(count)
-        if len(data) != count:
-            return self._json(400, {"error": "CSV incompleto"})
+        try:
+            data = self._read_csv_body(count)
+        except (TimeoutError, EOFError, OSError) as exc:
+            # Never let the rest of a partial body become another HTTP request.
+            self.close_connection = True
+            status = 408 if isinstance(exc, TimeoutError) else 400
+            message = "Prazo de upload excedido" if status == 408 else "CSV incompleto"
+            try:
+                return self._json(status, {"error": message})
+            except OSError:
+                # The client may already have disconnected: still no run exists.
+                return None
+        finally:
+            self.connection.settimeout(None)
         catalog_id = parse_qs(urlsplit(self.path).query).get("catalog_id", ["POC-210-LOCAL"])[0]
         # In-flight runs occupy capacity but are never downloadable until verified.
         with self.server.run_lock:
