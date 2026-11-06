@@ -227,6 +227,33 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertIn("downloads", json.loads(body))
 
+    def test_ambiguous_http_body_framing_is_rejected_before_csv_read(self):
+        """Real TCP regressions: no chunked or duplicate Content-Length framing."""
+        baseline_runs = set(self.server.runs)
+        baseline_pending = set(self.server.pending_runs)
+        baseline_dirs = set(Path(self.server.workspace.name).iterdir())
+        for framing in (
+            "Transfer-Encoding: chunked\\r\\nContent-Length: 8\\r\\n",
+            "Transfer-Encoding: chunked\\r\\n",
+            "Content-Length: 8\\r\\nContent-Length: 8\\r\\n",
+        ):
+            with self.subTest(framing=framing):
+                with socket.create_connection(("127.0.0.1", self.server.server_port), timeout=3) as conn:
+                    conn.settimeout(3)
+                    request = (
+                        "POST /analyze?catalog_id=TEST-215 HTTP/1.1\\r\\n"
+                        f"Host: 127.0.0.1:{self.server.server_port}\\r\\n"
+                        "Content-Type: text/csv\\r\\n"
+                        f"X-Poc-Token: {self.server.csrf_token}\\r\\n"
+                        + framing + "Connection: close\\r\\n\\r\\n"
+                    ).encode("ascii")
+                    conn.sendall(request)
+                    response = conn.recv(4096)
+                self.assertIn(b" 400 ", response.split(b"\\r\\n", 1)[0])
+                self.assertEqual(set(self.server.runs), baseline_runs)
+                self.assertEqual(set(self.server.pending_runs), baseline_pending)
+                self.assertEqual(set(Path(self.server.workspace.name).iterdir()), baseline_dirs)
+
     def test_rejects_missing_token_and_untrusted_origin_and_host(self):
         status, _, _ = self.upload(self.csv_bytes, token="wrong")
         self.assertEqual(status, 403)
