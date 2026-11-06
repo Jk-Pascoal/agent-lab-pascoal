@@ -306,9 +306,19 @@ class LocalPocHandler(BaseHTTPRequestHandler):
             self.headers.get("X-Poc-Token") != self.server.csrf_token or
             self.headers.get("Content-Type", "").split(";")[0] != "text/csv"):
             return self._json(403, {"error": "Requisição local não autorizada"})
+        # Reject ambiguous message framing before reading any request body.
+        # This server accepts only one explicit Content-Length, never chunked.
+        # Otherwise proxies/clients could disagree about where a CSV ends.
+        lengths = self.headers.get_all("Content-Length", [])
+        if self.headers.get("Transfer-Encoding") is not None or len(lengths) != 1:
+            self.close_connection = True
+            return self._json(400, {"error": "Enquadramento HTTP inválido"})
         try:
-            count = int(self.headers.get("Content-Length", ""))
+            if not lengths[0].isascii() or not lengths[0].isdecimal():
+                raise ValueError("noncanonical Content-Length")
+            count = int(lengths[0])
         except ValueError:
+            self.close_connection = True
             return self._json(411, {"error": "Content-Length obrigatório"})
         if not 0 < count <= MAX_CSV_BYTES:
             return self._json(413, {"error": "CSV vazio ou maior que 256 KiB"})
