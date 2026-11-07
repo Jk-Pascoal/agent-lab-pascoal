@@ -43,11 +43,11 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-11-06",
+    "planned_date": "2026-11-08",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
     "scope": "MANUAL_BROWSER_ADVERSARIAL_REVIEW_GATE_BEFORE_ANY_MERGE",
-    "objective": "Manual browser and independent adversarial review #215 of PR #214; #217 bounded upload read implemented and CI GREEN on code/test commit, preserve remaining gate; #216 session disposal only after review; #219 explicit CSV mapping is a separately gated product hypothesis, not today's implementation.",
+    "objective": "Continue #215 manual browser/adversarial review gate for draft PR #214; verify nonce CSP under actual browser after #221 and validate downloads/error UX. Review and human merge approval remain pending. Defer #216 until proper gates.",
     "entry_protocol": [
       "Read AGENTS.md, this JSON, Compass and PR #214; verify current main/CI; 31/10 report is an in-branch snapshot, not merged product.",
       "Inspect issues #209 and #210, PR #205 merged, last CI, backlog and existing code (poc_audit_cli/report/verify/triage).",
@@ -172,5 +172,45 @@
     "github_contribution_event": "ISSUE_219_CREATED_BY_Jk-Pascoal_ON_2026-11-05_REPOSITORY_PUBLIC_NOT_FORK",
     "profile_green_square": "NOT_VISUALLY_VERIFIED",
     "unchanged_guards": "T02_FROZEN/GT/SR-001/B2/COMPASS/D03_D04/RELEASE"
+  },
+  "session_activity_2026_11_06": {
+    "date": "2026-11-06",
+    "timezone": "America/Bahia",
+    "main_head_verified": "1ff2a3e508deab55550053622c6dc32c5897492b",
+    "pr": "https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/214",
+    "pr_status": "OPEN_DRAFT_UNMERGED",
+    "issue_security": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/220",
+    "implementation_commits": [
+      "8fda6ca9",
+      "581b63e2",
+      "f3d73fc7c15d742d0fb869608bdb702c0df33efb"
+    ],
+    "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/42249840829",
+    "ci_tests": "1256/1256_SUCCESS",
+    "main_unchanged": true,
+    "manual_browser_review": "NOT_RECORDED",
+    "independent_review": "NOT_RECORDED",
+    "profile_green_square": "NOT_VISUALLY_VERIFIED"
+  },
+  "session_activity_2026_11_07": {
+    "date": "2026-11-07",
+    "timezone": "America/Bahia",
+    "main_head_live_checked": "1ff2a3e508deab55550053622c6dc32c5897492b",
+    "branch": "feat/210-local-csv-journey-20261031",
+    "pr": "https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/214",
+    "pr_status": "OPEN_DRAFT_UNMERGED",
+    "security_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/221",
+    "code_commit": "b007c992bf61563f07098ffc32096020f8105d95",
+    "test_commit": "312545829059e51e7e6af7975abb27fd8eb0dcf7",
+    "functional_scope": "HTTP local UI CSP: per-GET cryptographic script nonce and script-src none for data/error routes; real HTTP test for nonce correlation, freshness and deny-list. No browser manual review claimed.",
+    "ci_verified_head": "312545829059e51e7e6af7975abb27fd8eb0dcf7",
+    "ci_verified_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/42418064021",
+    "ci_verified_tests": "1257/1257_SUCCESS_PYTHON_3_11",
+    "manual_browser_review": "NOT_RECORDED",
+    "independent_security_review": "NOT_RECORDED",
+    "human_merge_approval": "NOT_RECORDED",
+    "contribution_event": "ISSUE_221_CREATED_BY_Jk-Pascoal_AT_2026-11-07T21:53:43Z_IN_STANDALONE_PUBLIC_REPOSITORY",
+    "profile_green_square": "NOT_VISUALLY_VERIFIED",
+    "security_invariants": "T02_FROZEN_GT_SR001_B2_UNCHANGED; D03_D04_PENDING; MAIN_UNCHANGED"
   }
 }
