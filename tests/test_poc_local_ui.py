@@ -1,6 +1,7 @@
 """Issue #210: real synthetic CSV -> local HTTP -> verified report/manifest/triage."""
 import http.client
 import json
+import re
 import socket
 import time
 import threading
@@ -49,6 +50,30 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertIn(self.server.csrf_token.encode(), body)
         self.assertIn("no-store", headers["Cache-Control"])
         self.assertNotIn(b"https://", body)
+
+    def test_script_csp_uses_fresh_matching_nonce_and_blocks_other_inline_scripts(self):
+        """Real HTTP response: only the intended page script has execution permission."""
+        nonce_values = []
+        for _ in range(2):
+            status, headers, html = self.request("GET", "/")
+            self.assertEqual(status, 200)
+            csp = headers["Content-Security-Policy"]
+            self.assertNotIn("script-src 'unsafe-inline'", csp)
+            match = re.search(rb'<script nonce="([A-Za-z0-9_-]+)">', html)
+            self.assertIsNotNone(match)
+            nonce = match.group(1).decode("ascii")
+            nonce_values.append(nonce)
+            self.assertIn("script-src 'nonce-" + nonce + "'", csp)
+            self.assertEqual(html.count(b"<script"), 1)
+            self.assertNotIn(b"<script>", html)
+        self.assertNotEqual(nonce_values[0], nonce_values[1])
+
+        # Data and error routes do not authorize any JavaScript.
+        for route in ("/sample.csv", "/does-not-exist"):
+            with self.subTest(route=route):
+                _, headers, _ = self.request("GET", route)
+                self.assertIn("script-src 'none'", headers["Content-Security-Policy"])
+                self.assertNotIn("script-src 'unsafe-inline'", headers["Content-Security-Policy"])
 
     def test_one_click_demo_uses_same_real_verified_pipeline(self):
         # HTTP integration plus explicit browser wiring; not a manual browser review.
