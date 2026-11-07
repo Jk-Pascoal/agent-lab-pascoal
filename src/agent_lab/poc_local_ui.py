@@ -219,7 +219,8 @@ class LocalPocServer(ThreadingHTTPServer):
 class LocalPocHandler(BaseHTTPRequestHandler):
     server: LocalPocServer
 
-    def _send(self, status: int, data: bytes, kind: str, *, filename: str | None = None):
+    def _send(self, status: int, data: bytes, kind: str, *, filename: str | None = None,
+              script_nonce: str | None = None):
         self.send_response(status)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(data)))
@@ -227,8 +228,10 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        # Only the per-response authorized inline UI script may execute.
+        script_source = f"'nonce-{script_nonce}'" if script_nonce is not None else "'none'"
         self.send_header("Content-Security-Policy",
-            "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+            f"default-src 'none'; script-src {script_source}; style-src 'unsafe-inline'; "
             "connect-src 'self'; base-uri 'none'; form-action 'none'")
         if filename:
             self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -251,8 +254,10 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         if route == "/sample.csv":
             return self._send(200, SAMPLE_CSV, "text/csv; charset=utf-8", filename="catalogo_sintetico_exemplo.csv")
         if route == "/":
-            html = PAGE.replace("__TOKEN__", json.dumps(self.server.csrf_token)).encode("utf-8")
-            return self._send(200, html, "text/html; charset=utf-8")
+            nonce = secrets.token_urlsafe(24)
+            html = (PAGE.replace("__TOKEN__", json.dumps(self.server.csrf_token))
+                    .replace("<script>", f'<script nonce="{nonce}">')).encode("utf-8")
+            return self._send(200, html, "text/html; charset=utf-8", script_nonce=nonce)
         segments = route.split("/")
         if len(segments) != 4 or segments[1] != "artifact" or segments[3] not in ("report", "manifest", "triage"):
             return self._json(404, {"error": "Rota inexistente"})
