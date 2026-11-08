@@ -223,6 +223,33 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertEqual(len(self.server.runs), len(before) + 1)
         self.assertEqual(self.server.pending_runs, set())
 
+    def test_duplicate_authority_and_security_headers_are_rejected(self):
+        """Raw HTTP regression: duplicate security headers never select an arbitrary value."""
+        baseline = set(self.server.runs)
+        for extra_header, expected_status in (
+            ("Host: localhost:{port}", b" 403 "),
+            ("X-Poc-Token: invalid", b" 403 "),
+            ("Origin: http://127.0.0.1:{port}", b" 403 "),
+            ("Content-Type: text/csv", b" 403 "),
+        ):
+            with self.subTest(extra_header=extra_header):
+                port = self.server.server_port
+                request = (
+                    "POST /analyze?catalog_id=TEST-215 HTTP/1.1\\r\\n"
+                    f"Host: 127.0.0.1:{port}\\r\\n"
+                    "Content-Type: text/csv\\r\\n"
+                    f"X-Poc-Token: {self.server.csrf_token}\\r\\n"
+                    + extra_header.format(port=port) + "\\r\\n"
+                    + "Content-Length: 3\\r\\nConnection: close\\r\\n\\r\\nabc"
+                ).encode("ascii")
+                with socket.create_connection(("127.0.0.1", port), timeout=5) as conn:
+                    conn.settimeout(5)
+                    conn.sendall(request)
+                    status_line = conn.recv(4096).split(b"\\r\\n", 1)[0]
+                self.assertIn(expected_status, status_line)
+                self.assertEqual(set(self.server.runs), baseline)
+                self.assertEqual(self.server.pending_runs, set())
+
     def test_incomplete_http_upload_deadline_is_bounded_and_fail_closed(self):
         """Real socket adversarial regression for #217 (no mocked reader)."""
         before_runs = set(self.server.runs)
