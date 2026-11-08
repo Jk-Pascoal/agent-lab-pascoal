@@ -243,6 +243,9 @@ class LocalPocHandler(BaseHTTPRequestHandler):
                    "application/json; charset=utf-8")
 
     def _trusted_host(self):
+        # Duplicated Host headers are ambiguous across HTTP clients and proxies.
+        if len(self.headers.get_all("Host", [])) != 1:
+            return False
         return self.headers.get("Host") in {
             f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"
         }
@@ -304,6 +307,12 @@ class LocalPocHandler(BaseHTTPRequestHandler):
             return self._json(403, {"error": "Host recusado"})
         if urlsplit(self.path).path != "/analyze":
             return self._json(404, {"error": "Rota inexistente"})
+        # Reject duplicated security-sensitive headers instead of silently
+        # trusting the first value chosen by the HTTP parser.
+        for header in ("Origin", "X-Poc-Token", "Content-Type"):
+            if len(self.headers.get_all(header, [])) > 1:
+                self.close_connection = True
+                return self._json(403, {"error": "Cabeçalho de segurança ambíguo"})
         origin = self.headers.get("Origin")
         allowed = {f"http://127.0.0.1:{self.server.server_port}",
                    f"http://localhost:{self.server.server_port}"}
