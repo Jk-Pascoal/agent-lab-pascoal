@@ -235,17 +235,17 @@ class PocLocalJourneyTests(unittest.TestCase):
             with self.subTest(extra_header=extra_header):
                 port = self.server.server_port
                 request = (
-                    "POST /analyze?catalog_id=TEST-215 HTTP/1.1\\r\\n"
-                    f"Host: 127.0.0.1:{port}\\r\\n"
-                    "Content-Type: text/csv\\r\\n"
-                    f"X-Poc-Token: {self.server.csrf_token}\\r\\n"
-                    + extra_header.format(port=port) + "\\r\\n"
-                    + "Content-Length: 3\\r\\nConnection: close\\r\\n\\r\\nabc"
+                    "POST /analyze?catalog_id=TEST-215 HTTP/1.1\r\n"
+                    f"Host: 127.0.0.1:{port}\r\n"
+                    "Content-Type: text/csv\r\n"
+                    f"X-Poc-Token: {self.server.csrf_token}\r\n"
+                    + extra_header.format(port=port) + "\r\n"
+                    + "Content-Length: 3\r\nConnection: close\r\n\r\nabc"
                 ).encode("ascii")
                 with socket.create_connection(("127.0.0.1", port), timeout=5) as conn:
                     conn.settimeout(5)
                     conn.sendall(request)
-                    status_line = conn.recv(4096).split(b"\\r\\n", 1)[0]
+                    status_line = conn.recv(4096).split(b"\r\n", 1)[0]
                 self.assertIn(expected_status, status_line)
                 self.assertEqual(set(self.server.runs), baseline)
                 self.assertEqual(self.server.pending_runs, set())
