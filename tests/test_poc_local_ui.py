@@ -239,6 +239,7 @@ class PocLocalJourneyTests(unittest.TestCase):
                     f"Host: 127.0.0.1:{port}\r\n"
                     "Content-Type: text/csv\r\n"
                     f"X-Poc-Token: {self.server.csrf_token}\r\n"
+                    f"Origin: http://127.0.0.1:{port}\r\n"
                     + extra_header.format(port=port) + "\r\n"
                     + "Content-Length: 3\r\nConnection: close\r\n\r\nabc"
                 ).encode("ascii")
