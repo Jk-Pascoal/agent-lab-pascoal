@@ -14,6 +14,37 @@ from agent_lab.poc_local_ui import LocalPocServer, MAX_CSV_BYTES, UPLOAD_DEADLIN
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "poc_204_catalog_synthetic_v1.csv"
 
 
+def raw_http_request(request_line: str, headers: list[str], body: bytes = b"") -> bytes:
+    """Create a CRLF-correct HTTP request for real socket security regressions.
+
+    Allows duplicate names deliberately; rejects injected lines and literal
+    backslash escapes (a former source of CI timeouts).
+    """
+    if (not request_line.endswith(" HTTP/1.1") or "\r" in request_line or "\n" in request_line
+            or r"\r" in request_line or r"\n" in request_line):
+        raise ValueError("invalid HTTP request line")
+    if any(not h or ":" not in h or "\r" in h or "\n" in h
+           or r"\r" in h or r"\n" in h for h in headers):
+        raise ValueError("one header per list item is required")
+    return ("\r\n".join([request_line, *headers, "", ""])).encode("ascii") + body
+
+
+class RawHttpWireBuilderTests(unittest.TestCase):
+    def test_raw_wire_uses_real_crlf_and_one_header_terminator(self):
+        wire = raw_http_request(
+            "POST /analyze HTTP/1.1", ["Host: 127.0.0.1:1234", "Content-Length: 3"], b"abc")
+        self.assertIn(b"\r\nContent-Length: 3\r\n\r\nabc", wire)
+        self.assertEqual(wire.count(b"\r\n\r\n"), 1)
+        self.assertNotIn(b"\\r\\n", wire)
+        self.assertEqual(wire.split(b"\r\n\r\n", 1)[1], b"abc")
+
+    def test_wire_builder_rejects_embedded_or_literal_delimiters(self):
+        for malformed in ("Host: good\r\nHost: injected", r"Host: bad\r\n", "Host"):
+            with self.subTest(malformed=repr(malformed)):
+                with self.assertRaises(ValueError):
+                    raw_http_request("GET / HTTP/1.1", [malformed])
+
+
 class PocLocalJourneyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -234,15 +265,19 @@ class PocLocalJourneyTests(unittest.TestCase):
         ):
             with self.subTest(extra_header=extra_header):
                 port = self.server.server_port
-                request = (
-                    "POST /analyze?catalog_id=TEST-215 HTTP/1.1\r\n"
-                    f"Host: 127.0.0.1:{port}\r\n"
-                    "Content-Type: text/csv\r\n"
-                    f"X-Poc-Token: {self.server.csrf_token}\r\n"
-                    f"Origin: http://127.0.0.1:{port}\r\n"
-                    + extra_header.format(port=port) + "\r\n"
-                    + "Content-Length: 3\r\nConnection: close\r\n\r\nabc"
-                ).encode("ascii")
+                request = raw_http_request(
+                    "POST /analyze?catalog_id=TEST-215 HTTP/1.1",
+                    [
+                        f"Host: 127.0.0.1:{port}",
+                        "Content-Type: text/csv",
+                        f"X-Poc-Token: {self.server.csrf_token}",
+                        f"Origin: http://127.0.0.1:{port}",
+                        extra_header.format(port=port),
+                        "Content-Length: 3",
+                        "Connection: close",
+                    ],
+                    b"abc",
+                )
                 with socket.create_connection(("127.0.0.1", port), timeout=5) as conn:
                     conn.settimeout(5)
                     conn.sendall(request)
@@ -258,13 +293,16 @@ class PocLocalJourneyTests(unittest.TestCase):
         before_dirs = set(Path(self.server.workspace.name).iterdir())
         with socket.create_connection(("127.0.0.1", self.server.server_port), timeout=4) as conn:
             conn.settimeout(UPLOAD_DEADLINE_SECONDS + 4)
-            headers = (
-                "POST /analyze?catalog_id=TEST-217 HTTP/1.1\r\n"
-                f"Host: 127.0.0.1:{self.server.server_port}\r\n"
-                "Content-Type: text/csv\r\n"
-                f"X-Poc-Token: {self.server.csrf_token}\r\n"
-                "Content-Length: 128\r\nConnection: close\r\n\r\n"
-            ).encode("ascii")
+            headers = raw_http_request(
+                "POST /analyze?catalog_id=TEST-217 HTTP/1.1",
+                [
+                    f"Host: 127.0.0.1:{self.server.server_port}",
+                    "Content-Type: text/csv",
+                    f"X-Poc-Token: {self.server.csrf_token}",
+                    "Content-Length: 128",
+                    "Connection: close",
+                ],
+            )
             started = time.monotonic()
             conn.sendall(headers + b"partial")
             status_line = conn.recv(4096).split(b"\r\n", 1)[0]
@@ -293,13 +331,16 @@ class PocLocalJourneyTests(unittest.TestCase):
             with self.subTest(framing=framing):
                 with socket.create_connection(("127.0.0.1", self.server.server_port), timeout=3) as conn:
                     conn.settimeout(3)
-                    request = (
-                        "POST /analyze?catalog_id=TEST-215 HTTP/1.1\r\n"
-                        f"Host: 127.0.0.1:{self.server.server_port}\r\n"
-                        "Content-Type: text/csv\r\n"
-                        f"X-Poc-Token: {self.server.csrf_token}\r\n"
-                        + framing + "Connection: close\r\n\r\n"
-                    ).encode("ascii")
+                    request = raw_http_request(
+                        "POST /analyze?catalog_id=TEST-215 HTTP/1.1",
+                        [
+                            f"Host: 127.0.0.1:{self.server.server_port}",
+                            "Content-Type: text/csv",
+                            f"X-Poc-Token: {self.server.csrf_token}",
+                            *framing.rstrip("\r\n").split("\r\n"),
+                            "Connection: close",
+                        ],
+                    )
                     conn.sendall(request)
                     response = conn.recv(4096)
                 self.assertIn(b" 400 ", response.split(b"\r\n", 1)[0])
