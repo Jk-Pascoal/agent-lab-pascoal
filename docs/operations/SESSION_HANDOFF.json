@@ -43,11 +43,11 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-11-08",
-    "priority": "P1_FUNCTIONAL_VERTICAL",
+    "planned_date": "2026-11-10",
+    "priority": "P1_BROWSER_MANUAL_GATE",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "MANUAL_BROWSER_ADVERSARIAL_REVIEW_GATE_BEFORE_ANY_MERGE",
-    "objective": "Continue #215 manual browser/adversarial review gate for draft PR #214; verify nonce CSP under actual browser after #221 and validate downloads/error UX. Review and human merge approval remain pending. Defer #216 until proper gates.",
+    "scope": "REAL_BROWSER_VERIFICATION_ISSUE_215_WITH_OPTIONAL_HEADLESS_TEST_ISSUE_223",
+    "objective": "Perform actual local-browser user-journey and adversarial review #215; collect screenshots/browser logs and artifact evidence, then seek independent/human gate. Implement #223 headless smoke in test-only scope if feasible. Keep #214 draft/unmerged; no release or industrial claim.",
     "entry_protocol": [
       "Read AGENTS.md, this JSON, Compass and PR #214; verify current main/CI; 31/10 report is an in-branch snapshot, not merged product.",
       "Inspect issues #209 and #210, PR #205 merged, last CI, backlog and existing code (poc_audit_cli/report/verify/triage).",
@@ -55,7 +55,7 @@
       "Open a scoped functional branch, implement a narrow user-facing vertical with test-first negative/positive cases; avoid new architecture-only increments.",
       "Execute full unittest, verify CI, review risk/permissions and only merge when permitted by genuine gates."
     ],
-    "minimum_functional_deliverable": "Validate the existing self-service synthetic demo with a real browser, complete security/manual acceptance evidence, and only then consider the scoped #216 session lifecycle; no merge without human approval.",
+    "minimum_functional_deliverable": "Real browser validation evidence of the synthetic CSV journey (happy/error paths) or concrete execution blocker, without substituting headless automated tests for the #215 human review.",
     "acceptance": [
       "Real source code and tests changed, not documentation-only.",
       "Executable demo from real synthetic CSV fixture; no mocked-only demonstration.",
@@ -212,5 +212,29 @@
     "contribution_event": "ISSUE_221_CREATED_BY_Jk-Pascoal_AT_2026-11-07T21:53:43Z_IN_STANDALONE_PUBLIC_REPOSITORY",
     "profile_green_square": "NOT_VISUALLY_VERIFIED",
     "security_invariants": "T02_FROZEN_GT_SR001_B2_UNCHANGED; D03_D04_PENDING; MAIN_UNCHANGED"
+  },
+  "session_activity_2026_11_09": {
+    "date": "2026-11-09",
+    "timezone": "America/Bahia",
+    "main_head_verified": "1ff2a3e508deab55550053622c6dc32c5897492b",
+    "branch": "feat/210-local-csv-journey-20261031",
+    "pr": "https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/214",
+    "pr_status": "OPEN_DRAFT_UNMERGED",
+    "issue_instrumental": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/222",
+    "issue_browser_followup": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/223",
+    "test_infrastructure_commit": "deb28e1b692347d0e8602cf171053805e5ca161a",
+    "delivered": "Real-socket HTTP test helper with canonical CRLF header construction, guardrails against embedded/literal escape delimiters, two builder regressions and refactoring of three prior real-socket scenarios. No product/runtime change; no manual browser run.",
+    "ci_verified_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/42677362674",
+    "ci_verified_head": "deb28e1b692347d0e8602cf171053805e5ca161a",
+    "ci_verified_tests": "1260/1260_SUCCESS_PYTHON_3_11",
+    "code_scope": "TEST_INFRASTRUCTURE_NOT_PRODUCT_FEATURE",
+    "manual_browser_review": "NOT_RECORDED",
+    "independent_security_review": "NOT_RECORDED",
+    "human_merge_approval": "NOT_RECORDED",
+    "contribution_event": "ISSUE_223_CREATED_2026-11-09T18:49:40Z_BY_Jk-Pascoal_IN_PUBLIC_REPOSITORY",
+    "contribution_eligibility": "ISSUE_EVENT_NORMALLY_ELIGIBLE",
+    "profile_green_square": "NOT_VISUALLY_VERIFIED",
+    "unproven": "R4_SOURCE_CUSTODY,R7_POWER_LOSS_DURABILITY,HITL_E2E,100K_SKUS,ERP_READINESS",
+    "invariants": "GT_T02_FROZEN_SR001_B2_UNCHANGED;D03_D04_PENDING;MAIN_UNCHANGED"
   }
 }
