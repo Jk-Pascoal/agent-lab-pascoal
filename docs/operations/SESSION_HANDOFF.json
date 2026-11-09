@@ -44,7 +44,7 @@
   },
   "next_session": {
     "planned_date": "2026-11-10",
-    "priority": "P1_BROWSER_MANUAL_GATE",
+    "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
     "scope": "REAL_BROWSER_VERIFICATION_ISSUE_215_WITH_OPTIONAL_HEADLESS_TEST_ISSUE_223",
     "objective": "Perform actual local-browser user-journey and adversarial review #215; collect screenshots/browser logs and artifact evidence, then seek independent/human gate. Implement #223 headless smoke in test-only scope if feasible. Keep #214 draft/unmerged; no release or industrial claim.",
