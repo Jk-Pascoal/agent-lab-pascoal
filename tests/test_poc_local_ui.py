@@ -106,6 +106,18 @@ class PocLocalJourneyTests(unittest.TestCase):
                 self.assertIn("script-src 'none'", headers["Content-Security-Policy"])
                 self.assertNotIn("script-src 'unsafe-inline'", headers["Content-Security-Policy"])
 
+    def test_new_invalid_upload_clears_stale_verified_view(self):
+        """Browser handler must hide old report and links before local preflight."""
+        code, _, page = self.request("GET", "/")
+        self.assertEqual(code, 200)
+        handler = page.split(b"button.addEventListener('click',async()=>{", 1)[1].split(
+            b"example.addEventListener('click'", 1)[0]
+        self.assertLess(handler.index(b"result.hidden=true;rows=[];records.replaceChildren()"),
+                        handler.index(b"if(!file.files.length)"))
+        self.assertLess(handler.index(b"document.getElementById('downloads').replaceChildren()"),
+                        handler.index(b"if(uploaded.size===0||uploaded.size>262144)"))
+        self.assertIn(b"await analyze(await uploaded.arrayBuffer())", handler)
+
     def test_one_click_demo_uses_same_real_verified_pipeline(self):
         # HTTP integration plus explicit browser wiring; not a manual browser review.
         status, _, html = self.request("GET", "/")
