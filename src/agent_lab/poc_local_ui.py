@@ -154,6 +154,10 @@ async function analyze(csvBytes){
  finally{button.disabled=false;example.disabled=false;}
 }
 button.addEventListener('click',async()=>{
+ // A new attempt invalidates the previous view even if preflight rejects it.
+ result.hidden=true;rows=[];records.replaceChildren();
+ document.getElementById('downloads').replaceChildren();
+ error.textContent='';status.textContent='';
  if(!file.files.length){error.textContent='Selecione um CSV ou use o exemplo sintético.';return;}
  const uploaded=file.files[0];
  // Do not buffer an oversized upload in the browser before enforcing the limit.
