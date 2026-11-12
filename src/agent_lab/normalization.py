@@ -82,10 +82,10 @@ def category_token(value: str) -> str:
 # Conserva a sequência física de dois valores ligados por X (diâmetro × comprimento).
 # Não atribui papéis dimensionais quando a descrição não permite inferi-los.
 _DIMENSION_PAIR = re.compile(
-    r"(?<![0-9])(?P<first>\\d+(?:/\\d+|[.,]\\d+)?)"
-    r"\\s*[X×]\\s*"
-    r"(?P<second>\\d+(?:/\\d+|[.,]\\d+)?)"
-    r"(?:\\s*(?P<unit>POLEGADAS?|POL|IN|MM))?"
+    r"(?<![0-9])(?P<first>\d+(?:/\d+|[.,]\d+)?)"
+    r"\s*[X×]\s*"
+    r"(?P<second>\d+(?:/\d+|[.,]\d+)?)"
+    r"(?:\s*(?P<unit>POLEGADAS?|POL|IN|MM))?"
     r"(?![A-Z0-9])"
 )
 
@@ -104,7 +104,7 @@ def ordered_dimension_pair(value: str) -> tuple[str, str, str] | None:
         return None
     match = matches[0]
     # Rejeita cadeias de 3+ dimensões em vez de ler só o primeiro par.
-    if re.search(r"\\bX\\s*\\d", upper[match.end():]):
+    if re.search(r"\bX\s*\d", upper[match.end():]):
         return None
     unit = match.group("unit") or ""
     canonical_unit = "IN" if unit in {"POL", "POLEGADA", "POLEGADAS", "IN"} else unit
