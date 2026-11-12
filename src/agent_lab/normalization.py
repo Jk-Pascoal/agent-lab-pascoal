@@ -103,6 +103,9 @@ def ordered_dimension_pair(value: str) -> tuple[str, str, str] | None:
     if len(matches) != 1:
         return None
     match = matches[0]
+    # Rejeita cadeias de 3+ dimensões em vez de ler só o primeiro par.
+    if re.search(r"\\bX\\s*\\d", upper[match.end():]):
+        return None
     unit = match.group("unit") or ""
     canonical_unit = "IN" if unit in {"POL", "POLEGADA", "POLEGADAS", "IN"} else unit
     first = match.group("first").replace(",", ".")
