@@ -179,6 +179,89 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertIn(b"human_review_status", artifacts["triage"])
         self.assertIn(b"NOT_RECORDED", artifacts["triage"])
 
+    def test_authenticated_session_discard_reclaims_disk_and_capacity(self):
+        """A successful diagnostic can be explicitly discarded without restart."""
+        status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, body)
+        links = json.loads(body)["downloads"]
+        run_id = links["report"].split("/")[2]
+        report_dir = self.server.runs[run_id].parent
+        self.assertTrue(report_dir.is_dir())
+
+        status, _, _ = self.request("DELETE", "/sessions", headers={
+            "X-Poc-Token": "wrong",
+        })
+        self.assertEqual(status, 403)
+        self.assertTrue(report_dir.exists())
+        status, _, _ = self.request("DELETE", "/sessions", headers={
+            "X-Poc-Token": self.server.csrf_token,
+            "Origin": "https://attacker.invalid",
+        })
+        self.assertEqual(status, 403)
+        self.assertTrue(report_dir.exists())
+
+        status, _, body = self.request("DELETE", "/sessions", headers={
+            "X-Poc-Token": self.server.csrf_token,
+        })
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)["status"], "SESSIONS_DISCARDED")
+        self.assertFalse(report_dir.exists())
+        self.assertEqual(self.server.runs, {})
+        for route in links.values():
+            status, _, _ = self.request("GET", route)
+            self.assertEqual(status, 404)
+
+        # After clearing, valid analyses can proceed again without server restart.
+        status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, body)
+
+    def test_session_discard_rejects_inflight_analysis_without_data_loss(self):
+        """No cleanup may race a publication while the pipeline is in flight."""
+        reached, release = threading.Event(), threading.Event()
+        outcome = []
+        def slow(csv_bytes, catalog_id, directory):
+            reached.set()
+            if not release.wait(timeout=10):
+                raise RuntimeError("timed out")
+            return run_diagnostic(csv_bytes, catalog_id, directory)
+        with patch("agent_lab.poc_local_ui.run_diagnostic", side_effect=slow):
+            worker = threading.Thread(
+                target=lambda: outcome.append(self.upload(self.csv_bytes)), daemon=True)
+            worker.start()
+            try:
+                self.assertTrue(reached.wait(timeout=5))
+                status, _, response = self.request("DELETE", "/sessions", headers={
+                    "X-Poc-Token": self.server.csrf_token,
+                })
+                self.assertEqual(status, 409, response)
+                self.assertIn(b"andamento", response)
+            finally:
+                release.set()
+                worker.join(timeout=10)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(outcome[0][0], 200, outcome[0][2])
+
+    def test_discard_rejects_body_and_ambiguous_headers(self):
+        before = set(self.server.runs)
+        port = self.server.server_port
+        cases = (
+            ([f"Host: 127.0.0.1:{port}",
+              f"X-Poc-Token: {self.server.csrf_token}",
+              "Content-Length: 2", "Connection: close"], b"xx", b" 400 "),
+            ([f"Host: 127.0.0.1:{port}",
+              f"X-Poc-Token: {self.server.csrf_token}",
+              "X-Poc-Token: other", "Connection: close"], b"", b" 403 "),
+        )
+        for headers, body, expected in cases:
+            with self.subTest(expected=expected):
+                wire = raw_http_request("DELETE /sessions HTTP/1.1", headers, body)
+                with socket.create_connection(("127.0.0.1", port), timeout=3) as conn:
+                    conn.settimeout(3)
+                    conn.sendall(wire)
+                    status_line = conn.recv(4096).split(b"\\r\\n", 1)[0]
+                self.assertIn(expected, status_line)
+                self.assertEqual(before, set(self.server.runs))
+
     def test_missing_manifest_blocks_all_downloads(self):
         status, _, body = self.upload(self.csv_bytes)
         self.assertEqual(status, 200, body)
