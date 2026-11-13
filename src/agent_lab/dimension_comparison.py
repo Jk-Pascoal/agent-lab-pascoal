@@ -24,6 +24,10 @@ def compare_ordered_dimensions(first_description: str, second_description: str) 
     second = ordered_dimension_pair(second_description)
     if first is None or second is None or not first[2] or not second[2]:
         return DimensionPairRelation.UNKNOWN
+    # A different unit requires an explicitly governed conversion policy.
+    # Without that policy even apparently different numbers are not comparable.
+    if first[2] != second[2]:
+        return DimensionPairRelation.UNKNOWN
     if first == second:
         return DimensionPairRelation.MATCH
     return DimensionPairRelation.MISMATCH
