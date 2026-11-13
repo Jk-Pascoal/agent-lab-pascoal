@@ -7,6 +7,12 @@ on:
     paths:
       - scripts/poc_210_browser_smoke.py
       - .github/workflows/poc-210-browser-smoke.yml
+  pull_request:
+    branches:
+      - feat/210-local-csv-journey-20261031
+    paths:
+      - scripts/poc_210_browser_smoke.py
+      - .github/workflows/poc-210-browser-smoke.yml
   workflow_dispatch:
 
 permissions:
