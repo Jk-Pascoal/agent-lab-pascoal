@@ -328,8 +328,14 @@ class LocalPocHandler(BaseHTTPRequestHandler):
                 return self._json(409, {"error": "Análise em andamento; descarte recusado"})
             folders = [path.parent for path in self.server.runs.values()]
             self.server.runs.clear()
+        failures = 0
         for folder in folders:
-            shutil.rmtree(folder, ignore_errors=True)
+            try:
+                shutil.rmtree(folder)
+            except OSError:
+                failures += 1
+        if failures:
+            return self._json(500, {"error": "Descarte fisico incompleto", "failed": failures})
         return self._json(200, {"status": "SESSIONS_DISCARDED", "count": len(folders)})
 
     def _read_csv_body(self, expected: int) -> bytes:
