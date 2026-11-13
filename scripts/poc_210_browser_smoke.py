@@ -83,6 +83,18 @@ def run(evidence_dir: Path) -> None:
                 assert page.locator("#result").is_hidden()
                 assert page.locator("#downloads a").count() == 0
                 page.screenshot(path=str(evidence_dir / "invalid-csv-rejected.png"), full_page=True)
+                # Recover the interface and discard verified local sessions.
+                page.locator("#example").click()
+                page.locator("#result").wait_for(state="visible", timeout=15000)
+                previous_link = page.locator("#downloads a").first.get_attribute("href")
+                assert previous_link and previous_link.startswith("/artifact/")
+                page.once("dialog", lambda dialog: dialog.accept())
+                page.locator("#clear").click()
+                page.get_by_text("Sessões locais descartadas.", exact=False).wait_for(timeout=15000)
+                assert page.locator("#result").is_hidden()
+                assert page.locator("#downloads a").count() == 0
+                assert page.request.get(origin + previous_link).status == 404
+                page.screenshot(path=str(evidence_dir / "sessions-discarded.png"), full_page=True)
                 assert not errors, f"unexpected browser JavaScript errors: {errors}"
                 (evidence_dir / "smoke-result.json").write_text(
                     json.dumps({"result": "PASS", "scope": "automated-headless-only",
