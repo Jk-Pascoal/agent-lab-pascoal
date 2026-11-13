@@ -77,3 +77,38 @@ def category_token(value: str) -> str:
         if canonical not in IGNORED_WORDS and not canonical.isdigit():
             return canonical
     return ""
+
+
+# Conserva a sequência física de dois valores ligados por X (diâmetro × comprimento).
+# Não atribui papéis dimensionais quando a descrição não permite inferi-los.
+_DIMENSION_PAIR = re.compile(
+    r"(?<![0-9])(?P<first>\d+(?:/\d+|[.,]\d+)?)"
+    r"\s*[X×]\s*"
+    r"(?P<second>\d+(?:/\d+|[.,]\d+)?)"
+    r"(?:\s*(?P<unit>POLEGADAS?|POL|IN|MM))?"
+    r"(?![A-Z0-9])"
+)
+
+
+def ordered_dimension_pair(value: str) -> tuple[str, str, str] | None:
+    """Lê um par dimensional explícito sem perder frações, ordem ou unidade.
+
+    Retorna None quando não há exatamente um par reconhecível. A assinatura
+    é apenas evidência lexical; NÃO decide equivalência nem duplicidade.
+    """
+
+    upper = unicodedata.normalize("NFKD", value)
+    upper = "".join(c for c in upper if not unicodedata.combining(c)).upper()
+    matches = list(_DIMENSION_PAIR.finditer(upper))
+    if len(matches) != 1:
+        return None
+    match = matches[0]
+    # Rejeita cadeias de 3+ dimensões em vez de ler só o primeiro par.
+    if (re.search(r"[X×]\s*$", upper[:match.start()])
+            or re.match(r"\s*[X×]\s*\d", upper[match.end():])):
+        return None
+    unit = match.group("unit") or ""
+    canonical_unit = "IN" if unit in {"POL", "POLEGADA", "POLEGADAS", "IN"} else unit
+    first = match.group("first").replace(",", ".")
+    second = match.group("second").replace(",", ".")
+    return first, second, canonical_unit
