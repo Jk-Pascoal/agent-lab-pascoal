@@ -8,6 +8,9 @@ on:
       - main
     paths:
       - scripts/poc_210_browser_smoke.py
+      - src/agent_lab/poc_local_ui.py
+      - tests/test_poc_local_ui.py
+      - tests/fixtures/poc_204_catalog_synthetic_v1.csv
       - .github/workflows/poc-210-browser-smoke.yml
   pull_request:
     branches:
@@ -15,6 +18,9 @@ on:
       - main
     paths:
       - scripts/poc_210_browser_smoke.py
+      - src/agent_lab/poc_local_ui.py
+      - tests/test_poc_local_ui.py
+      - tests/fixtures/poc_204_catalog_synthetic_v1.csv
       - .github/workflows/poc-210-browser-smoke.yml
   workflow_dispatch:
 
