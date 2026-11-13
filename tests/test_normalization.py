@@ -30,6 +30,19 @@ class NormalizationTests(unittest.TestCase):
         self.assertIsNone(ordered_dimension_pair("PARAFUSO 1/2 POL"))
         self.assertIsNone(ordered_dimension_pair("PARAFUSO 1/2 X 2 X 4 POL"))
 
+    def test_compact_or_spaced_dimension_chain_is_rejected(self) -> None:
+        for description in (
+            "PARAF 10X30X40MM",
+            "PARAF 10 X 30 X 40 MM",
+            "PARAF 10×30×40MM",
+            "PARAF 10 X30X40 MM",
+        ):
+            with self.subTest(description=description):
+                self.assertIsNone(ordered_dimension_pair(description))
+
+    def test_single_compact_dimension_pair_remains_supported(self) -> None:
+        self.assertEqual(ordered_dimension_pair("PARAF 10X30MM"), ("10", "30", "MM"))
+
     def test_dimension_pair_keeps_millimeter_unit(self) -> None:
         self.assertEqual(ordered_dimension_pair("PARAF M10X30MM"), ("10", "30", "MM"))
 
