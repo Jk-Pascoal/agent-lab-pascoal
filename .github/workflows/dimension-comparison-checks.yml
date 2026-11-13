@@ -6,7 +6,7 @@ on:
       - feat/225-dimension-comparison-20261113
   pull_request:
     branches:
-      - fix/225-ordered-dimensions-20261112
+      - main
   workflow_dispatch:
 
 permissions:
