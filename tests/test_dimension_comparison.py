@@ -37,6 +37,18 @@ class DimensionComparisonTests(unittest.TestCase):
             DimensionPairRelation.MISMATCH,
         )
 
+    def test_equivalent_fraction_and_decimal_spellings_match(self):
+        self.assertEqual(
+            compare_ordered_dimensions("BARRA 1/2 X 2 MM", "BARRA 0.5 X 2.0 MM"),
+            DimensionPairRelation.MATCH,
+        )
+
+    def test_invalid_zero_denominator_fails_closed(self):
+        self.assertEqual(
+            compare_ordered_dimensions("BARRA 1/0 X 2 MM", "BARRA 1 X 2 MM"),
+            DimensionPairRelation.UNKNOWN,
+        )
+
     def test_missing_unit_is_unknown_instead_of_match(self):
         self.assertEqual(
             compare_ordered_dimensions("BARRA 10 X 30", "BARRA 10 X 30 MM"),
