@@ -4,6 +4,7 @@ Somente evidência lexical: não altera o scorer nem decide duplicidade.
 """
 
 from enum import Enum
+from fractions import Fraction
 
 from agent_lab.normalization import ordered_dimension_pair
 
@@ -28,6 +29,14 @@ def compare_ordered_dimensions(first_description: str, second_description: str) 
     # Without that policy even apparently different numbers are not comparable.
     if first[2] != second[2]:
         return DimensionPairRelation.UNKNOWN
-    if first == second:
-        return DimensionPairRelation.MATCH
-    return DimensionPairRelation.MISMATCH
+    # Equivalent rational spellings (1/2 and 0.5) must not be called conflicts.
+    # Bound numeric lengths before parsing untrusted catalog text.
+    values = (*first[:2], *second[:2])
+    if any(len(v) > 80 for v in values):
+        return DimensionPairRelation.UNKNOWN
+    try:
+        left = tuple(Fraction(v) for v in first[:2])
+        right = tuple(Fraction(v) for v in second[:2])
+    except (ValueError, ZeroDivisionError, OverflowError):
+        return DimensionPairRelation.UNKNOWN
+    return DimensionPairRelation.MATCH if left == right else DimensionPairRelation.MISMATCH
