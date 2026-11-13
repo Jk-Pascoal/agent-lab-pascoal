@@ -66,6 +66,7 @@ th{color:#9ed4d7}details{max-width:420px}summary{cursor:pointer;color:#aee3e4}
 <input id="catalog" type="text" maxlength="70" value="POC-210-LOCAL"></div></div>
 <button id="analyze">Executar diagnóstico verificado</button>
 <button id="example" type="button">Testar catálogo sintético agora</button>
+<button id="clear" type="button">Descartar sessões locais</button>
 <p><a href="/sample.csv" download="catalogo_sintetico_exemplo.csv">Baixar CSV sintético de exemplo</a></p>
 <p id="status" role="status"></p><p id="error" role="alert"></p></section>
 <section class="panel" id="result" hidden><h2>2. Resultado verificado</h2>
@@ -90,6 +91,7 @@ const TOKEN=__TOKEN__;
 const file=document.getElementById('csv');
 const button=document.getElementById('analyze');
 const example=document.getElementById('example');
+const clearButton=document.getElementById('clear');
 const status=document.getElementById('status');
 const error=document.getElementById('error');
 const result=document.getElementById('result');
@@ -165,6 +167,19 @@ button.addEventListener('click',async()=>{
   error.textContent='CSV vazio ou maior que 256 KiB.';return;
  }
  await analyze(await uploaded.arrayBuffer());
+});
+clearButton.addEventListener('click',async()=>{
+ if(!confirm('Descartar todos os resultados locais deste servidor?'))return;
+ clearButton.disabled=true;error.textContent='';status.textContent='';
+ try{
+  const response=await fetch('/sessions',{method:'DELETE',headers:{'X-Poc-Token':TOKEN}});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||'Descarte recusado');
+  result.hidden=true;rows=[];records.replaceChildren();
+  document.getElementById('downloads').replaceChildren();
+  status.textContent='Sessões locais descartadas. Você pode executar novo diagnóstico.';
+ }catch(e){error.textContent='Recusado: '+e.message;}
+ finally{clearButton.disabled=false;}
 });
 example.addEventListener('click',async()=>{
  button.disabled=true;example.disabled=true;
@@ -283,6 +298,39 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         except (OSError, InvalidPocAuditPairError):
             return self._json(409, {"error": "Par relatório/manifesto não verificado"})
         self._send(200, data, kind, filename=filename)
+
+    def do_DELETE(self):
+        """Discard completed local sessions only when no analysis is in flight.
+
+        No client-supplied path or run identifier is accepted. Existing downloads
+        may receive a fail-closed 409 if a session disappears concurrently.
+        """
+        if not self._trusted_host():
+            return self._json(403, {"error": "Host recusado"})
+        if urlsplit(self.path).path != "/sessions":
+            return self._json(404, {"error": "Rota inexistente"})
+        for name in ("Origin", "X-Poc-Token", "Content-Length"):
+            if len(self.headers.get_all(name, [])) > 1:
+                self.close_connection = True
+                return self._json(403, {"error": "Cabeçalho ambíguo"})
+        allowed = {f"http://127.0.0.1:{self.server.server_port}",
+                   f"http://localhost:{self.server.server_port}"}
+        origin = self.headers.get("Origin")
+        if (origin is not None and origin not in allowed or
+                self.headers.get("X-Poc-Token") != self.server.csrf_token):
+            return self._json(403, {"error": "Requisição local não autorizada"})
+        if (self.headers.get("Transfer-Encoding") is not None or
+                self.headers.get("Content-Length", "0") != "0"):
+            self.close_connection = True
+            return self._json(400, {"error": "Corpo DELETE não permitido"})
+        with self.server.run_lock:
+            if self.server.pending_runs:
+                return self._json(409, {"error": "Análise em andamento; descarte recusado"})
+            folders = [path.parent for path in self.server.runs.values()]
+            self.server.runs.clear()
+        for folder in folders:
+            shutil.rmtree(folder, ignore_errors=True)
+        return self._json(200, {"status": "SESSIONS_DISCARDED", "count": len(folders)})
 
     def _read_csv_body(self, expected: int) -> bytes:
         """Read exact bytes under one absolute deadline, including slow-drip clients.
