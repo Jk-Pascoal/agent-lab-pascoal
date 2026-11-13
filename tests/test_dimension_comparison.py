@@ -19,9 +19,21 @@ class DimensionComparisonTests(unittest.TestCase):
             DimensionPairRelation.MISMATCH,
         )
 
-    def test_distinct_explicit_units_are_not_equivalent(self):
+    def test_cross_unit_comparison_requires_governed_conversion(self):
         self.assertEqual(
             compare_ordered_dimensions("BARRA 10 X 30 MM", "BARRA 10 X 30 IN"),
+            DimensionPairRelation.UNKNOWN,
+        )
+
+    def test_potentially_equivalent_cross_unit_values_do_not_claim_mismatch(self):
+        self.assertEqual(
+            compare_ordered_dimensions("BARRA 25.4 X 50.8 MM", "BARRA 1 X 2 IN"),
+            DimensionPairRelation.UNKNOWN,
+        )
+
+    def test_same_unit_explicit_dimension_mismatch(self):
+        self.assertEqual(
+            compare_ordered_dimensions("BARRA 10 X 30 MM", "BARRA 10 X 40 MM"),
             DimensionPairRelation.MISMATCH,
         )
 
