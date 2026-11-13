@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - test/223-browser-smoke-20261111
+      - feat/210-local-csv-journey-20261031
+      - main
     paths:
       - scripts/poc_210_browser_smoke.py
       - .github/workflows/poc-210-browser-smoke.yml
   pull_request:
     branches:
       - feat/210-local-csv-journey-20261031
+      - main
     paths:
       - scripts/poc_210_browser_smoke.py
       - .github/workflows/poc-210-browser-smoke.yml
