@@ -1,14 +1,14 @@
 {
   "schema_version": "agent_lab.session_handoff.v1",
   "checkpoint": {
-    "date": "2026-10-30",
+    "date": "2026-11-14",
     "timezone": "America/Bahia",
-    "main_sha_at_checkpoint": "3aef3d10febc61855186fe31caa26c911948424b",
-    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/41126119760",
-    "main_tests_passed": 1233,
+    "main_sha_at_checkpoint": "f5da31eeb6d8f70cca7a1180c688c7406d9e4164",
+    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43622551673",
+    "main_tests_passed": 1260,
     "canonical_runner": "python -m unittest discover -s tests -v",
-    "last_functional_pr": 205,
-    "last_functional_merge": "332faaca5b081c955eab34fcc3dc82a163d689a1",
+    "last_functional_pr": 228,
+    "last_functional_merge": "f5da31eeb6d8f70cca7a1180c688c7406d9e4164",
     "release": "v0.1.0"
   },
   "current_product": {
@@ -18,7 +18,8 @@
       "versioned audit report JSON plus SHA-256 manifest",
       "read-only fail-closed pair verifier",
       "verified CSV triage projection",
-      "reproducible dual physical replay"
+      "reproducible dual physical replay",
+      "Fail-closed ordered dimension parser guards against malformed fraction/decimal fragments (not wired to baseline candidate scorer)"
     ],
     "source_original_custody": "UNAVAILABLE",
     "physical_source_row": "UNAVAILABLE",
@@ -43,17 +44,18 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-10-31",
+    "planned_date": "2026-11-15",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "LOCAL_SYNTHETIC_CSV_USER_JOURNEY",
-    "objective": "Enable a materials specialist to load authorized synthetic CSV, execute the real catalog diagnostic and audit exporter, inspect/filter recommendations, and export verified evidence through one usable local interface.",
+    "scope": "LOCAL_SYNTHETIC_CSV_USER_JOURNEY_ADVERSARIAL_ACCEPTANCE",
+    "objective": "Prioritize independent/manual adversarial acceptance of PR #214 under Issue #215; retain draft until human GO. Reproduce dimension-inverted false candidates end-to-end without altering the frozen baseline, and plan a separately reviewed scorer integration under #225.",
     "entry_protocol": [
-      "Read AGENTS.md, this JSON, and docs/PROJECT_COMPASS.md; check main SHA and last CI against live GitHub; do not treat snapshot as live state.",
-      "Inspect issues #209 and #210, PR #205 merged, last CI, backlog and existing code (poc_audit_cli/report/verify/triage).",
-      "Run or verify canonical unittest baseline before modifying code.",
-      "Open a scoped functional branch, implement a narrow user-facing vertical with test-first negative/positive cases; avoid new architecture-only increments.",
-      "Execute full unittest, verify CI, review risk/permissions and only merge when permitted by genuine gates."
+      "Read AGENTS.md, docs/PROJECT_COMPASS.md, and this handoff; verify main SHA and latest CI live; checkpoint may become stale.",
+      "Confirm #214 remains OPEN/DRAFT with Issue #215 manual independent review pending; #191 remains DRAFT for methodological approval. Confirm #228 merged in main and #225 still open for scorer integration.",
+      "Run or verify canonical Python 3.11 unittest suite: 1260 on 14/11 main, run 43622551673; do not treat CI alone as human acceptance.",
+      "Inspect the HTTP/UI threat model and browser evidence on PR #214; seek real independent/manual specialist acceptance, record reproduction steps/screenshots and failures.",
+      "On #225, reproduce end-to-end inverted-dimension false candidates on separate synthetic data; design review-state/UNKNOWN semantics and acceptance tests before touching legacy duplicate ranking.",
+      "Use a scoped code+tests PR with genuine gates; do not merge draft #214 or #191 to maintain contribution calendar."
     ],
     "minimum_functional_deliverable": "Executable local entrypoint or interface with synthetic CSV -> real diagnostics -> verified report/manifest -> readable triage/export; include both success and corrupt-input failure paths.",
     "acceptance": [
@@ -92,6 +94,70 @@
       "src/agent_lab/poc_audit_triage.py",
       "scripts/poc_204_demo.py",
       "tests/fixtures/poc_204_catalog_synthetic_v1.csv"
+    ]
+  },
+  "latest_verified_checkpoint": {
+    "date": "2026-11-14",
+    "repository": "Jk-Pascoal/agent-lab-pascoal",
+    "branch": "main",
+    "main_sha": "f5da31eeb6d8f70cca7a1180c688c7406d9e4164",
+    "main_ci": {
+      "status": "SUCCESS",
+      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43622551673",
+      "unittest_count": 1260,
+      "python": "3.11"
+    },
+    "delivered": {
+      "pr": 228,
+      "status": "MERGED_MAIN",
+      "changed_files": [
+        "src/agent_lab/normalization.py",
+        "tests/test_normalization.py",
+        "tests/test_dimension_comparison.py"
+      ],
+      "issue": 225,
+      "scope": "malformed dimensional fragments fail closed; baseline scoring unchanged"
+    },
+    "open_prs": [
+      {
+        "number": 214,
+        "status": "OPEN_DRAFT",
+        "blocking_issue": 215
+      },
+      {
+        "number": 191,
+        "status": "OPEN_DRAFT",
+        "blocking_issue": "HUMAN_METHOD_APPROVAL"
+      }
+    ],
+    "latest_product_branch": {
+      "pr": 214,
+      "head_at_inspection": "c2e3ce94b8032eae5dc132f8b4a16a764fbb7775",
+      "merged_to_main": false,
+      "ci": "SUCCESS_2026-11-13"
+    },
+    "research": {
+      "sr001_t02": "FROZEN",
+      "b2": "POST_HOC_NOT_INDEPENDENT",
+      "production_eligible": false
+    },
+    "github_contribution": {
+      "login": "Jk-Pascoal",
+      "commit_authored_at_utc": "2026-11-14T17:42:18Z",
+      "eligible_main_merge": true,
+      "profile_calendar": "NOT_VISUALLY_CONFIRMED"
+    },
+    "independent_review_of_pr228": "NOT_RECORDED",
+    "risk_register": [
+      "Legacy is_possible_duplicate and validator still ignore ordered dimension mismatch",
+      "PR #214 manual review/acceptance gate incomplete",
+      "B2 independent validation PR #191 lacks human GO",
+      "Stale historical Compass summary #17 must not override this checkpoint"
+    ],
+    "prohibited": [
+      "No rebaseline, no retrospective metric adjustments, no release/ERP/HITL claims",
+      "Do not merge #214 or #191 without applicable human gates",
+      "No retrodated commits or claims of visible calendar without evidence"
     ]
   }
 }
