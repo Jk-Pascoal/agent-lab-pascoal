@@ -103,6 +103,15 @@ def ordered_dimension_pair(value: str) -> tuple[str, str, str] | None:
     if len(matches) != 1:
         return None
     match = matches[0]
+    # Uma expressão numérica malformada pode conter um sufixo que casa com
+    # o regex (ex.: "1//2 X 2" -> "2 X 2" ou "12.5.0" -> "5.0").
+    # Não aceitar a parte válida como evidência física íntegra.
+    if match.start() > 0 and upper[match.start() - 1] in "/.,":
+        return None
+    # Também rejeitar sufixo numérico pendurado na dimensão/unidade.
+    # "10 X 30 MM/40" não é um par físico inequívoco.
+    if re.match(r"\s*[/.,]\s*\d", upper[match.end():]):
+        return None
     # Rejeita cadeias de 3+ dimensões em vez de ler só o primeiro par.
     if (re.search(r"[X×]\s*$", upper[:match.start()])
             or re.match(r"\s*[X×]\s*\d", upper[match.end():])):

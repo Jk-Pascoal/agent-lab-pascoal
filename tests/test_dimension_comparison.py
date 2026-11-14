@@ -65,6 +65,20 @@ class DimensionComparisonTests(unittest.TestCase):
             DimensionPairRelation.UNKNOWN,
         )
 
+    def test_malformed_fragments_cannot_produce_false_matches(self):
+        # O classificador deve devolver UNKNOWN, nunca igualdade acidental.
+        pairs = (
+            ("BARRA 1//2 X 2 MM", "BARRA 2 X 2 MM"),
+            ("BARRA 12.5.0 X 4 MM", "BARRA 5 X 4 MM"),
+            ("BARRA 10 X 30 MM/40", "BARRA 10 X 30 MM"),
+        )
+        for corrupted, valid in pairs:
+            with self.subTest(corrupted=corrupted):
+                self.assertEqual(
+                    compare_ordered_dimensions(corrupted, valid),
+                    DimensionPairRelation.UNKNOWN,
+                )
+
     def test_result_is_symmetric(self):
         left, right = "PARAFUSO 1/2 X 2 POL", "PARAFUSO 2 X 1/2 POL"
         self.assertEqual(
