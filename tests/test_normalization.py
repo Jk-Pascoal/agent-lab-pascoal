@@ -43,6 +43,21 @@ class NormalizationTests(unittest.TestCase):
     def test_single_compact_dimension_pair_remains_supported(self) -> None:
         self.assertEqual(ordered_dimension_pair("PARAF 10X30MM"), ("10", "30", "MM"))
 
+
+    def test_malformed_numeric_fragments_fail_closed(self) -> None:
+        # Antes da correção, o regex podia aceitar apenas o sufixo de
+        # frações/decimais inválidos como se fosse uma dimensão íntegra.
+        malformed = (
+            "PARAF 1//2 X 2 MM",
+            "PARAF 1/2/3 X 2 MM",
+            "PARAF 12.5.0 X 4 MM",
+            "PARAF 5.0.5X2MM",
+            "PARAF 10 X 30 MM/40",
+        )
+        for description in malformed:
+            with self.subTest(description=description):
+                self.assertIsNone(ordered_dimension_pair(description))
+
     def test_dimension_pair_keeps_millimeter_unit(self) -> None:
         self.assertEqual(ordered_dimension_pair("PARAF M10X30MM"), ("10", "30", "MM"))
 
