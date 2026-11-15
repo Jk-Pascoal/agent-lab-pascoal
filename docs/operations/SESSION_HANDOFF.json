@@ -1,14 +1,14 @@
 {
   "schema_version": "agent_lab.session_handoff.v1",
   "checkpoint": {
-    "date": "2026-11-14",
+    "date": "2026-11-15",
     "timezone": "America/Bahia",
-    "main_sha_at_checkpoint": "f5da31eeb6d8f70cca7a1180c688c7406d9e4164",
-    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43622551673",
-    "main_tests_passed": 1260,
+    "main_sha_at_checkpoint": "08abe248058f353b30134f933a54a4faa76321f6",
+    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43739751150",
+    "main_tests_passed": 1265,
     "canonical_runner": "python -m unittest discover -s tests -v",
-    "last_functional_pr": 228,
-    "last_functional_merge": "f5da31eeb6d8f70cca7a1180c688c7406d9e4164",
+    "last_functional_pr": 230,
+    "last_functional_merge": "08abe248058f353b30134f933a54a4faa76321f6",
     "release": "v0.1.0"
   },
   "current_product": {
@@ -19,7 +19,8 @@
       "read-only fail-closed pair verifier",
       "verified CSV triage projection",
       "reproducible dual physical replay",
-      "Fail-closed ordered dimension parser guards against malformed fraction/decimal fragments (not wired to baseline candidate scorer)"
+      "Fail-closed ordered dimension parser guards against malformed fraction/decimal fragments (not wired to baseline candidate scorer)",
+      "Read-only dimension candidate audit CLI (#230): actual CSV catalog and legacy candidate pairs -> MATCH/MISMATCH/UNKNOWN evidence; scorer unchanged."
     ],
     "source_original_custody": "UNAVAILABLE",
     "physical_source_row": "UNAVAILABLE",
@@ -44,18 +45,18 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-11-15",
+    "planned_date": "2026-11-16",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "LOCAL_SYNTHETIC_CSV_USER_JOURNEY_ADVERSARIAL_ACCEPTANCE",
-    "objective": "Prioritize independent/manual adversarial acceptance of PR #214 under Issue #215; retain draft until human GO. Reproduce dimension-inverted false candidates end-to-end without altering the frozen baseline, and plan a separately reviewed scorer integration under #225.",
+    "scope": "LOCAL_SYNTHETIC_CSV_MANUAL_ADVERSARIAL_ACCEPTANCE",
+    "objective": "Complete manual/adversarial acceptance of PR #214 under #215, now mergeable clean with CI/browser GREEN; require actual human GO. Use #230 read-only observed candidate conflicts to specify separately governed scorer policy under #225 (do not change frozen baseline).",
     "entry_protocol": [
-      "Read AGENTS.md, docs/PROJECT_COMPASS.md, and this handoff; verify main SHA and latest CI live; checkpoint may become stale.",
-      "Confirm #214 remains OPEN/DRAFT with Issue #215 manual independent review pending; #191 remains DRAFT for methodological approval. Confirm #228 merged in main and #225 still open for scorer integration.",
-      "Run or verify canonical Python 3.11 unittest suite: 1260 on 14/11 main, run 43622551673; do not treat CI alone as human acceptance.",
-      "Inspect the HTTP/UI threat model and browser evidence on PR #214; seek real independent/manual specialist acceptance, record reproduction steps/screenshots and failures.",
-      "On #225, reproduce end-to-end inverted-dimension false candidates on separate synthetic data; design review-state/UNKNOWN semantics and acceptance tests before touching legacy duplicate ranking.",
-      "Use a scoped code+tests PR with genuine gates; do not merge draft #214 or #191 to maintain contribution calendar."
+      "Read AGENTS.md, Compass, handoff, inspect main and new CI (handoff is a historical snapshot).",
+      "Confirm #214 DRAFT/OPEN but mergeable CLEAN after merge-from-main 9103f7f; CI/browser/dimension workflows succeeded on 15/11. #215 independent/manual acceptance still pending.",
+      "Confirm #191 DRAFT pending human methodological approval; no T03/new frozen experiment.",
+      "Confirm #230 merged in main at 08abe248, run 43739751150 Python 3.11 1265/1265 GREEN; read-only audit does not alter baseline.",
+      "Run real synthetic CSV in UI manually with specialist: upload/demo, filtering, report/manifest/triage downloads, token/Host/Origin/CSP, stale session discard and concurrency; record verified evidence and faults.",
+      "Prioritize actionable fixes and tests in PR #214 without bypassing #215; after human decision on policy, plan dimension audit evidence display vs scorer integration under #225."
     ],
     "minimum_functional_deliverable": "Executable local entrypoint or interface with synthetic CSV -> real diagnostics -> verified report/manifest -> readable triage/export; include both success and corrupt-input failure paths.",
     "acceptance": [
@@ -97,31 +98,30 @@
     ]
   },
   "latest_verified_checkpoint": {
-    "date": "2026-11-14",
+    "date": "2026-11-15",
     "repository": "Jk-Pascoal/agent-lab-pascoal",
     "branch": "main",
-    "main_sha": "f5da31eeb6d8f70cca7a1180c688c7406d9e4164",
+    "main_sha": "08abe248058f353b30134f933a54a4faa76321f6",
     "main_ci": {
       "status": "SUCCESS",
-      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43622551673",
-      "unittest_count": 1260,
+      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43739751150",
+      "unittest_count": 1265,
       "python": "3.11"
     },
     "delivered": {
-      "pr": 228,
+      "pr": 230,
       "status": "MERGED_MAIN",
       "changed_files": [
-        "src/agent_lab/normalization.py",
-        "tests/test_normalization.py",
-        "tests/test_dimension_comparison.py"
+        "src/agent_lab/dimension_candidate_audit.py",
+        "tests/test_dimension_candidate_audit.py"
       ],
       "issue": 225,
-      "scope": "malformed dimensional fragments fail closed; baseline scoring unchanged"
+      "scope": "read-only audit of ordered dimensions for actual legacy candidate pairs, 5 real path tests, scorer and frozen benchmark untouched"
     },
     "open_prs": [
       {
         "number": 214,
-        "status": "OPEN_DRAFT",
+        "status": "OPEN_DRAFT_MERGEABLE_CLEAN",
         "blocking_issue": 215
       },
       {
@@ -132,9 +132,11 @@
     ],
     "latest_product_branch": {
       "pr": 214,
-      "head_at_inspection": "c2e3ce94b8032eae5dc132f8b4a16a764fbb7775",
+      "head_at_inspection": "9103f7fb5f5edcb911250600aa213552db7b4f13",
       "merged_to_main": false,
-      "ci": "SUCCESS_2026-11-13"
+      "mergeable": "CLEAN",
+      "ci": "SUCCESS_2026-11-15",
+      "browser_ci": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43739278126"
     },
     "research": {
       "sr001_t02": "FROZEN",
@@ -143,21 +145,24 @@
     },
     "github_contribution": {
       "login": "Jk-Pascoal",
-      "commit_authored_at_utc": "2026-11-14T17:42:18Z",
+      "commit_authored_at_utc": "2026-11-15T17:11:56Z",
       "eligible_main_merge": true,
-      "profile_calendar": "NOT_VISUALLY_CONFIRMED"
+      "profile_calendar": "NOT_VISUALLY_CONFIRMED",
+      "pr_event_230": "CREATED_2026-11-15"
     },
     "independent_review_of_pr228": "NOT_RECORDED",
     "risk_register": [
-      "Legacy is_possible_duplicate and validator still ignore ordered dimension mismatch",
-      "PR #214 manual review/acceptance gate incomplete",
-      "B2 independent validation PR #191 lacks human GO",
-      "Stale historical Compass summary #17 must not override this checkpoint"
+      "Legacy duplicate scorer continues selecting inverted dimension pairs (now reproducible through #230); read-only evidence is not an automated veto.",
+      "PR #214 manual/adversarial and specialist acceptance #215 incomplete; maintain DRAFT despite clean mergeability and green browser smoke.",
+      "Independent B2 validation PR #191 lacks human methodological GO; T02 frozen.",
+      "Historical SPECs retain snapshot status (0008 proposed, 0010 implementation), despite present operational CI; do not mistake history for live status.",
+      "POC target 20/11 lacks revalidation; industrial-scale and external review remain unproven."
     ],
     "prohibited": [
-      "No rebaseline, no retrospective metric adjustments, no release/ERP/HITL claims",
+      "No rebaseline, no retrospective metric changes, no release/ERP/HITL claims",
       "Do not merge #214 or #191 without applicable human gates",
       "No retrodated commits or claims of visible calendar without evidence"
-    ]
+    ],
+    "independent_review_of_pr230": "NOT_RECORDED_ASSISTED_TECHNICAL_REVIEW"
   }
 }
