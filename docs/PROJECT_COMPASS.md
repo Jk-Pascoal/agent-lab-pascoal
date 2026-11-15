@@ -1564,3 +1564,19 @@ PRÓXIMA ÂNCORA — 14/10/2026 (PÓS-B2, SEM PROMOÇÃO A PRODUÇÃO):
 Comando oficial:
 python -m unittest discover -s tests -v
 ```
+
+
+## 18. Checkpoint operacional verificado — 14/11/2026 (não reescreve checkpoints antigos)
+
+**Fonte dominante:** código e CI da `main` consultados em 14/11; o resumo histórico acima (seção 17, 1194 testes) é um registro anterior, **não** descreve a `main` atual.
+
+- `main`: `f5da31eeb6d8f70cca7a1180c688c7406d9e4164` após [PR #228](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/228); [CI pós-merge #43622551673](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43622551673) **SUCCESS**, Python 3.11, `1260/1260` unittest.
+- Em 13/11 foram integradas à `main` #226 (extração ordenada), #227 (comparação triestável) e #218 (roadmap estratégico somente documental); #224 foi integrada **somente à branch funcional** da #214. O run pós-merge da `main` de 13/11 foi confirmado como SUCCESS em #43444839649 na reentrada de 14/11.
+- PR #228 em 14/11: recusas fail-closed de leituras parciais em frações/decimais malformados e sufixos numéricos ambíguos; regressões na extração e em `compare_ordered_dimensions`. Nenhuma integração ao `is_possible_duplicate`, `find_duplicate_candidates` ou `DeterministicGovernanceValidator` foi feita. **CI verde ≠ redução aferida de falsos positivos end-to-end.**
+- **PRs abertas permanecem duas:** [#214](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/214) DRAFT (interface CSV sintética, browser smoke automatizado verde, **gate de revisão independente/manual #215 pendente**) e [#191](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/191) DRAFT (pré-registro da validação independente B2, sem HUMAN GO).
+- Os resultados da T02, Ground Truth, SR-001/B2, métricas publicadas, deadlines e pesos históricos continuam inalterados. O baseline B0 é legado e não integra a nova comparação dimensional na decisão de duplicidade. A Issue #225 permanece aberta para um incremento end-to-end controlado.
+- **Maturidade:** PoC sintética estrutural; **não** release industrial, nem validação de escala 100 mil SKUs, ERP integrado, revisão humana E2E, custódia R4 ou durabilidade R7.
+- **GitHub:** commit de merge de 14/11 atribuído a `Jk-Pascoal` (evento elegível), mas o quadradinho verde do calendário do perfil **não foi confirmado visualmente**. Manter `EVENT_ELIGIBLE_PROFILE_PENDING`.
+- **Próxima prioridade:** avaliação manual adversarial e aceite humano da #214 sob a #215; em paralelo, teste de candidato com dimensões invertidas em dataset sintético separado, sem promover o baseline B2 post-hoc. Concluir a deliberação #191 somente mediante decisão humana fundamentada.
+
+Registro técnico de reentrada detalhado: `docs/operations/SESSION_HANDOFF.json` (`latest_verified_checkpoint`).
