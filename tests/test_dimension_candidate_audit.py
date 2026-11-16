@@ -35,6 +35,7 @@ class DimensionCandidateAuditTests(unittest.TestCase):
         )
         self.assertEqual(result["total_legacy_candidate_pairs"], 1)
         self.assertEqual(result["relations"]["MISMATCH"], 1)
+        self.assertEqual(result["pairs"][0]["legacy_candidate_origin"], "DESCRIPTION_HEURISTIC")
         self.assertEqual(result["pairs"][0]["material_ids"], ["MAT-A", "MAT-B"])
         self.assertTrue(result["pairs"][0]["lexical_conflict_requires_review"])
         self.assertFalse(result["candidate_selection_changed"])
@@ -55,6 +56,44 @@ class DimensionCandidateAuditTests(unittest.TestCase):
         )
         self.assertEqual(result["relations"]["UNKNOWN"], 1)
         self.assertFalse(result["pairs"][0]["lexical_conflict_requires_review"])
+
+    def test_exact_part_and_manufacturer_origin_is_visible_even_with_dimensional_conflict(self) -> None:
+        first = MaterialRecord(
+            material_id="MAT-A", description_short="PARAFUSO 1/2 X 2 POL CLASSE 8",
+            unit="PC", material_group="FIXADORES", status="ACTIVE",
+            manufacturer_part_number="P-123", manufacturer="FABRICANTE A",
+        )
+        second = MaterialRecord(
+            material_id="MAT-B", description_short="PARAFUSO 2 X 1/2 POL CLASSE 8",
+            unit="PC", material_group="FIXADORES", status="ACTIVE",
+            manufacturer_part_number="P-123", manufacturer="FABRICANTE A",
+        )
+        records = (first, second)
+        report = diagnose_catalog_quality(records, catalog_id="SYN-PN")
+        self.assertEqual(report.duplicate_pairs, (("MAT-A", "MAT-B"),))
+        result = audit_dimension_candidates(records, report)
+        self.assertEqual(result["pairs"][0]["legacy_candidate_origin"], "EXACT_PART_MANUFACTURER")
+        self.assertEqual(result["relations"]["MISMATCH"], 1)
+        self.assertFalse(result["candidate_selection_changed"])
+        self.assertEqual(result["human_review"], "NOT_RECORDED")
+
+    def test_partial_part_match_still_uses_description_heuristic(self) -> None:
+        first = MaterialRecord(
+            material_id="MAT-A", description_short="PARAFUSO 1/2 X 2 POL CLASSE 8",
+            unit="PC", material_group="FIXADORES", status="ACTIVE",
+            manufacturer_part_number="P-123", manufacturer="FABRICANTE A",
+        )
+        second = MaterialRecord(
+            material_id="MAT-B", description_short="PARAFUSO 2 X 1/2 POL CLASSE 8",
+            unit="PC", material_group="FIXADORES", status="ACTIVE",
+            manufacturer_part_number="P-123", manufacturer="FABRICANTE B",
+        )
+        records = (first, second)
+        report = diagnose_catalog_quality(records, catalog_id="SYN-MAKER")
+        self.assertEqual(report.duplicate_pairs, (("MAT-A", "MAT-B"),))
+        result = audit_dimension_candidates(records, report)
+        self.assertEqual(result["pairs"][0]["legacy_candidate_origin"], "DESCRIPTION_HEURISTIC")
+        self.assertEqual(result["relations"]["MISMATCH"], 1)
 
     def test_different_catalog_is_rejected(self) -> None:
         records = (_material("MAT-A", "PARAFUSO 1/2 X 2 POL"),)
