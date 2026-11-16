@@ -12,6 +12,7 @@ from .catalog_csv_adapter import load_catalog_materials
 from .catalog_quality import CatalogQualityReport, diagnose_catalog_quality
 from .dimension_comparison import DimensionPairRelation, compare_ordered_dimensions
 from .domain import MaterialRecord
+from .normalization import normalize_text
 
 
 def audit_dimension_candidates(
@@ -34,11 +35,24 @@ def audit_dimension_candidates(
         left_text = f"{left.description_short} {left.long_description}".strip()
         right_text = f"{right.description_short} {right.long_description}".strip()
         relation = compare_ordered_dimensions(left_text, right_text)
+        # Mirror the first branch of the legacy selector for traceability.
+        # This is explanatory only; it never changes candidate selection.
+        left_part = normalize_text(left.manufacturer_part_number)
+        right_part = normalize_text(right.manufacturer_part_number)
+        left_maker = normalize_text(left.manufacturer)
+        right_maker = normalize_text(right.manufacturer)
+        candidate_origin = (
+            "EXACT_PART_MANUFACTURER"
+            if left_part and left_part == right_part
+            and left_maker and left_maker == right_maker
+            else "DESCRIPTION_HEURISTIC"
+        )
         counts[relation.value] += 1
         findings.append(
             {
                 "material_ids": [left_id, right_id],
                 "dimension_relation": relation.value,
+                "legacy_candidate_origin": candidate_origin,
                 "lexical_conflict_requires_review": relation is DimensionPairRelation.MISMATCH,
             }
         )
