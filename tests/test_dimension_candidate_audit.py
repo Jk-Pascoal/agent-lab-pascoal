@@ -95,6 +95,50 @@ class DimensionCandidateAuditTests(unittest.TestCase):
         self.assertEqual(result["pairs"][0]["legacy_candidate_origin"], "DESCRIPTION_HEURISTIC")
         self.assertEqual(result["relations"]["MISMATCH"], 1)
 
+    def test_json_contract_preserves_v1_shape_and_origin_enumeration(self) -> None:
+        """The new explanatory field must not silently change consumer keys."""
+        result = self._audit(
+            "PARAFUSO 1/2 X 2 POL CLASSE 8",
+            "PARAFUSO 2 X 1/2 POL CLASSE 8",
+        )
+        self.assertEqual(result["schema_version"], "agent_lab.dimension_candidate_audit.v1")
+        self.assertEqual(
+            set(result),
+            {
+                "schema_version", "catalog_id", "total_legacy_candidate_pairs",
+                "relations", "pairs", "candidate_selection_changed",
+                "physical_identity_verified", "human_review", "interpretation",
+            },
+        )
+        pair = result["pairs"][0]
+        self.assertEqual(
+            set(pair),
+            {
+                "material_ids", "dimension_relation",
+                "legacy_candidate_origin", "lexical_conflict_requires_review",
+            },
+        )
+        self.assertIn(
+            pair["legacy_candidate_origin"],
+            {"EXACT_PART_MANUFACTURER", "DESCRIPTION_HEURISTIC"},
+        )
+        self.assertEqual(sum(result["relations"].values()), result["total_legacy_candidate_pairs"])
+        self.assertEqual(json.loads(json.dumps(result)), result)
+
+    def test_repeated_audit_remains_deterministic_and_read_only(self) -> None:
+        records = (
+            _material("MAT-A", "PARAFUSO 1/2 X 2 POL CLASSE 8"),
+            _material("MAT-B", "PARAFUSO 2 X 1/2 POL CLASSE 8"),
+        )
+        report = diagnose_catalog_quality(records, catalog_id="DIM-STABILITY")
+        before_pairs = report.duplicate_pairs
+        first = audit_dimension_candidates(records, report)
+        second = audit_dimension_candidates(records, report)
+        self.assertEqual(first, second)
+        self.assertEqual(report.duplicate_pairs, before_pairs)
+        self.assertFalse(first["candidate_selection_changed"])
+        self.assertFalse(first["physical_identity_verified"])
+
     def test_different_catalog_is_rejected(self) -> None:
         records = (_material("MAT-A", "PARAFUSO 1/2 X 2 POL"),)
         report = diagnose_catalog_quality(records, catalog_id="CAT")
