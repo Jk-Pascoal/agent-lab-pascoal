@@ -73,6 +73,29 @@ def run(evidence_dir: Path) -> None:
                 page.locator("#filter").select_option("ALL")
                 page.screenshot(path=str(evidence_dir / "verified-journey.png"), full_page=True)
 
+                # Adversarial #215: revocation of a physical manifest after an
+                # earlier verified render must block every artifact download.
+                manifest_path = server.runs[urls["Relatório JSON"].split("/")[2]].with_name(
+                    "report.json.manifest.json")
+                manifest_path.unlink()
+                for name, href in urls.items():
+                    denied = page.request.get(origin + href)
+                    assert denied.status == 409, f"invalid pair still downloadable: {name}"
+                assert page.locator("#result").is_visible(), "render changed without a user action"
+
+                # Adversarial #215: reject oversized files during browser
+                # preflight, before making a new server-side diagnostic run.
+                run_count_before = len(server.runs)
+                page.locator("#csv").set_input_files({
+                    "name": "oversized.csv", "mimeType": "text/csv",
+                    "buffer": b"x" * (256 * 1024 + 1),
+                })
+                page.locator("#analyze").click()
+                assert page.locator("#result").is_hidden()
+                assert page.locator("#downloads a").count() == 0
+                assert "maior que 256 KiB" in page.locator("#error").inner_text()
+                assert len(server.runs) == run_count_before, "oversized CSV reached analysis"
+
                 # A subsequent invalid CSV must not leave previously verified data visible.
                 page.locator("#csv").set_input_files({
                     "name": "invalid.csv", "mimeType": "text/csv",
@@ -99,7 +122,10 @@ def run(evidence_dir: Path) -> None:
                 (evidence_dir / "smoke-result.json").write_text(
                     json.dumps({"result": "PASS", "scope": "automated-headless-only",
                                 "records": 2, "artifacts_verified": True,
-                                "invalid_csv_hidden": True, "javascript_errors": 0}, indent=2) + "\n",
+                                "invalid_csv_hidden": True,
+                                "missing_manifest_downloads_refused": True,
+                                "oversized_browser_preflight_refused": True,
+                                "javascript_errors": 0}, indent=2) + "\n",
                     encoding="utf-8",
                 )
             finally:
