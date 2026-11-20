@@ -258,7 +258,8 @@ class PocLocalJourneyTests(unittest.TestCase):
                 with socket.create_connection(("127.0.0.1", port), timeout=3) as conn:
                     conn.settimeout(3)
                     conn.sendall(wire)
-                    status_line = conn.recv(4096).split(b"\\r\\n", 1)[0]
+                    status_line = conn.recv(4096).split(b"\r\n", 1)[0]
+                    self.assertNotIn(b"\r\n", status_line)
                 self.assertIn(expected, status_line)
                 self.assertEqual(before, set(self.server.runs))
 
