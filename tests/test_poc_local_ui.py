@@ -241,6 +241,36 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertFalse(worker.is_alive())
         self.assertEqual(outcome[0][0], 200, outcome[0][2])
 
+    def test_failed_session_discard_remains_tracked_and_can_be_retried(self):
+        """A filesystem cleanup failure cannot orphan a session in the workspace."""
+        headers = {"X-Poc-Token": self.server.csrf_token}
+        status, _, body = self.request("DELETE", "/sessions", headers=headers)
+        self.assertEqual(status, 200, body)
+
+        status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, body)
+        report_route = json.loads(body)["downloads"]["report"]
+        run_id = report_route.split("/")[2]
+        report_path = self.server.runs[run_id]
+        self.assertTrue(report_path.is_file())
+
+        with patch("agent_lab.poc_local_ui.shutil.rmtree",
+                   side_effect=OSError("simulated cleanup failure")):
+            status, _, error = self.request("DELETE", "/sessions", headers=headers)
+        self.assertEqual(status, 500, error)
+        self.assertEqual(json.loads(error)["failed"], 1)
+        self.assertEqual(self.server.runs[run_id], report_path)
+        self.assertTrue(report_path.is_file())
+
+        # A still-present verified report remains reachable until retry succeeds.
+        status, _, _ = self.request("GET", report_route)
+        self.assertEqual(status, 200)
+        status, _, retried = self.request("DELETE", "/sessions", headers=headers)
+        self.assertEqual(status, 200, retried)
+        self.assertEqual(json.loads(retried)["count"], 1)
+        self.assertNotIn(run_id, self.server.runs)
+        self.assertFalse(report_path.parent.exists())
+
     def test_discard_rejects_body_and_ambiguous_headers(self):
         before = set(self.server.runs)
         port = self.server.server_port
