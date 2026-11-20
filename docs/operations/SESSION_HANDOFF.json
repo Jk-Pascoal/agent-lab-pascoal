@@ -49,12 +49,13 @@
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
     "scope": "LOCAL_SYNTHETIC_CSV_HUMAN_ACCEPTANCE_AND_PENDING_BRANCH_REVIEW",
-    "objective": "Manually and independently validate P1 local UI #214 under #215, including real browser use, downloads and adversarial controls; human GO required before merge. PR #234 was closed as duplicate after its real CRLF fix was incorporated in #214 and verified by 3 successful workflows on 20/11. Review #232 JSON compatibility, #233 issue-audit document and #191 independent B2 preregistration separately without broadening frozen research.",
+    "objective": "Complete actual specialist/manual and independent #215 acceptance of PR #214; on 20/11 two code fixes #222 and #216 were added to the feature branch and 1288 tests + browser smoke passed, but no merge. Follow separate review gates #232 JSON compatibility, #233 audit document and #191 independent B2 preregistration.",
     "entry_protocol": [
       "Read AGENTS.md, this handoff, PROJECT_COMPASS.md and repository main/CI; this file is a dated checkpoint, not a live API.",
       "Verify main c04dacb from 15/11 and successful run 43740424332 (1265 unittest); do not confuse with PR #214's 1287 tests or declare a new main release.",
-      "Verify #214 DRAFT/OPEN, commit caa8c735 on the feature branch and three SUCCESS workflows 44739581863, 44739581859 and 44739581843; #215 has no independent/manual acceptance recorded.",
+      "Verify #214 DRAFT/OPEN, HEAD a677e271 (caa8c735 real CRLF fix; fbad4de cleanup retry fix; a677e271 I/O regression), 1288/1288 Python unittest SUCCESS in run 44740802962, dimension run 44740803147 and browser smoke run 44740802960 SUCCESS; #215 is still no manual/independent acceptance.",
       "Verify #234 CLOSED/NOT MERGED as redundant; its CRLF regression was ported directly to #214 in commit caa8c735. Do not reopen or double-merge without new evidence.",
+      "Verify issue #216's safe discard under simulated OSError and retry (branch-only); document separately from R4/R7 power-loss durability.",
       "Check #191 DRAFT for human methodological approval, #232 DRAFT for consumer JSON compatibility, #233 DRAFT for the issue-audit review, and 13 open Issues at the 20/11 inspection checkpoint.",
       "Execute real specialist manual test of the local UI with synthetic CSV: sample/upload, search/filter, report/manifest/triage downloads, invalid/oversize CSV, missing/modified manifest, token/Host/Origin, reset and concurrency; record screenshots or exact repro evidence.",
       "Keep #225's legacy candidate dimensional mismatch as observable read-only evidence: no scorer/ranking veto or frozen benchmark mutation without separate policy decision.",
@@ -111,19 +112,38 @@
       "python": "3.11"
     },
     "delivered": {
-      "issue": 222,
+      "issue": 216,
       "pr": 214,
       "status": "FEATURE_BRANCH_ONLY_CI_GREEN",
-      "commit": "caa8c73514b680bc286f37f0a2c8a5029370b847",
+      "head": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad",
+      "commits": [
+        {
+          "sha": "caa8c73514b680bc286f37f0a2c8a5029370b847",
+          "issue": 222,
+          "scope": "real CRLF HTTP test status line, PR #234 superseded"
+        },
+        {
+          "sha": "fbad4de804f9914e4ec097ff7581aa3020420eb4",
+          "issue": 216,
+          "scope": "track failed physical session cleanup for retry under lock"
+        },
+        {
+          "sha": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad",
+          "issue": 216,
+          "scope": "real HTTP regression for OSError cleanup failure and safe retry"
+        }
+      ],
       "changed_files": [
+        "src/agent_lab/poc_local_ui.py",
         "tests/test_poc_local_ui.py"
       ],
-      "scope": "Port of PR #234 real-CRLF status-line regression directly into #214; no server/scorer/domain changes",
+      "unittest_count": 1288,
       "checks": [
-        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44739581863",
-        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44739581859",
-        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44739581843"
-      ]
+        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44740802962",
+        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44740803147",
+        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44740802960"
+      ],
+      "not_merged_to_main": true
     },
     "pr_234": {
       "status": "CLOSED_UNMERGED_REDUNDANT",
@@ -140,7 +160,7 @@
         "number": 214,
         "status": "OPEN_DRAFT",
         "blocking_issue": 215,
-        "head": "caa8c73514b680bc286f37f0a2c8a5029370b847"
+        "head": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad"
       },
       {
         "number": 232,
@@ -174,9 +194,18 @@
       "commit_author_and_committer": "Jk-Pascoal",
       "feature_commit_integrated_main": false,
       "profile_calendar": "NOT_VISUALLY_CONFIRMED",
-      "note": "Branch commit alone is not proof of a green square; do not retrodate or merge restricted PRs for calendar purposes."
+      "note": "Branch commit alone is not proof of a green square; do not retrodate or merge restricted PRs for calendar purposes.",
+      "pr_235": {
+        "event": "PR_CREATED",
+        "author": "Jk-Pascoal",
+        "created_at_utc": "2026-11-20T12:58:29Z",
+        "target": "main",
+        "profile_calendar": "NOT_VISUALLY_CONFIRMED"
+      },
+      "latest_feature_commit": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad"
     },
     "risk_register": [
+      "On #216, a session cleanup failure is now retriable on the PR #214 branch with tested OSError path, but it has not reached main and is not R7 physical power-loss proof.",
       "PR #214 manual browser/adversarial specialist review and independent human acceptance #215 remain missing despite automated green workflows.",
       "Legacy scorer can still select inverted dimensional candidate pairs; #225 read-only evidence != approved veto; #232 format compatibility review pending.",
       "R4 custody of source bytes and physical rows UNAVAILABLE; R7 two-file power-loss durability NOT_PROVEN; HITL E2E, ERP and 100k scale not demonstrated.",
@@ -189,6 +218,11 @@
       "Do not merge #214 or #191 without applicable independent human gates; CI and automated browser smoke do not replace them.",
       "Do not claim commercial release, physical provenance, real human review, scale or ERP integration.",
       "Do not retrodate commits or assert GitHub calendar green without direct visual evidence."
-    ]
+    ],
+    "handoff_pr": {
+      "number": 235,
+      "status": "OPEN_DRAFT_PENDING_DOCUMENT_REVIEW",
+      "created_at": "2026-11-20T12:58:29Z"
+    }
   }
 }
