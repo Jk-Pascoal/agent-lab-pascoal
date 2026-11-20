@@ -323,20 +323,23 @@ class LocalPocHandler(BaseHTTPRequestHandler):
                 self.headers.get("Content-Length", "0") != "0"):
             self.close_connection = True
             return self._json(400, {"error": "Corpo DELETE não permitido"})
+        # Serialize cleanup with publication and concurrent discard requests.
+        # A failed physical deletion must remain tracked for a safe retry.
         with self.server.run_lock:
             if self.server.pending_runs:
                 return self._json(409, {"error": "Análise em andamento; descarte recusado"})
-            folders = [path.parent for path in self.server.runs.values()]
-            self.server.runs.clear()
-        failures = 0
-        for folder in folders:
-            try:
-                shutil.rmtree(folder)
-            except OSError:
-                failures += 1
+            sessions = tuple(self.server.runs.items())
+            failures = 0
+            for run_id, report_path in sessions:
+                try:
+                    shutil.rmtree(report_path.parent)
+                except OSError:
+                    failures += 1
+                else:
+                    del self.server.runs[run_id]
         if failures:
             return self._json(500, {"error": "Descarte fisico incompleto", "failed": failures})
-        return self._json(200, {"status": "SESSIONS_DISCARDED", "count": len(folders)})
+        return self._json(200, {"status": "SESSIONS_DISCARDED", "count": len(sessions)})
 
     def _read_csv_body(self, expected: int) -> bytes:
         """Read exact bytes under one absolute deadline, including slow-drip clients.
