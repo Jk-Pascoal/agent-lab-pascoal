@@ -1,10 +1,10 @@
 {
   "schema_version": "agent_lab.session_handoff.v1",
   "checkpoint": {
-    "date": "2026-11-15",
+    "date": "2026-11-20",
     "timezone": "America/Bahia",
-    "main_sha_at_checkpoint": "08abe248058f353b30134f933a54a4faa76321f6",
-    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43739751150",
+    "main_sha_at_checkpoint": "c04dacb600041c715dada7126fa93075d52f8799",
+    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
     "main_tests_passed": 1265,
     "canonical_runner": "python -m unittest discover -s tests -v",
     "last_functional_pr": 230,
@@ -45,18 +45,20 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-11-16",
+    "planned_date": "2026-11-21",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "LOCAL_SYNTHETIC_CSV_MANUAL_ADVERSARIAL_ACCEPTANCE",
-    "objective": "Complete manual/adversarial acceptance of PR #214 under #215, now mergeable clean with CI/browser GREEN; require actual human GO. Use #230 read-only observed candidate conflicts to specify separately governed scorer policy under #225 (do not change frozen baseline).",
+    "scope": "LOCAL_SYNTHETIC_CSV_HUMAN_ACCEPTANCE_AND_PENDING_BRANCH_REVIEW",
+    "objective": "Manually and independently validate P1 local UI #214 under #215, including real browser use, downloads and adversarial controls; human GO required before merge. PR #234 was closed as duplicate after its real CRLF fix was incorporated in #214 and verified by 3 successful workflows on 20/11. Review #232 JSON compatibility, #233 issue-audit document and #191 independent B2 preregistration separately without broadening frozen research.",
     "entry_protocol": [
-      "Read AGENTS.md, Compass, handoff, inspect main and new CI (handoff is a historical snapshot).",
-      "Confirm #214 DRAFT/OPEN but mergeable CLEAN after merge-from-main 9103f7f; CI/browser/dimension workflows succeeded on 15/11. #215 independent/manual acceptance still pending.",
-      "Confirm #191 DRAFT pending human methodological approval; no T03/new frozen experiment.",
-      "Confirm #230 merged in main at 08abe248, run 43739751150 Python 3.11 1265/1265 GREEN; read-only audit does not alter baseline.",
-      "Run real synthetic CSV in UI manually with specialist: upload/demo, filtering, report/manifest/triage downloads, token/Host/Origin/CSP, stale session discard and concurrency; record verified evidence and faults.",
-      "Prioritize actionable fixes and tests in PR #214 without bypassing #215; after human decision on policy, plan dimension audit evidence display vs scorer integration under #225."
+      "Read AGENTS.md, this handoff, PROJECT_COMPASS.md and repository main/CI; this file is a dated checkpoint, not a live API.",
+      "Verify main c04dacb from 15/11 and successful run 43740424332 (1265 unittest); do not confuse with PR #214's 1287 tests or declare a new main release.",
+      "Verify #214 DRAFT/OPEN, commit caa8c735 on the feature branch and three SUCCESS workflows 44739581863, 44739581859 and 44739581843; #215 has no independent/manual acceptance recorded.",
+      "Verify #234 CLOSED/NOT MERGED as redundant; its CRLF regression was ported directly to #214 in commit caa8c735. Do not reopen or double-merge without new evidence.",
+      "Check #191 DRAFT for human methodological approval, #232 DRAFT for consumer JSON compatibility, #233 DRAFT for the issue-audit review, and 13 open Issues at the 20/11 inspection checkpoint.",
+      "Execute real specialist manual test of the local UI with synthetic CSV: sample/upload, search/filter, report/manifest/triage downloads, invalid/oversize CSV, missing/modified manifest, token/Host/Origin, reset and concurrency; record screenshots or exact repro evidence.",
+      "Keep #225's legacy candidate dimensional mismatch as observable read-only evidence: no scorer/ranking veto or frozen benchmark mutation without separate policy decision.",
+      "Reconcile historical 20/11 PoC target as unvalidated and date-reached, retaining D-03/D-04 PENDING and current product maturity."
     ],
     "minimum_functional_deliverable": "Executable local entrypoint or interface with synthetic CSV -> real diagnostics -> verified report/manifest -> readable triage/export; include both success and corrupt-input failure paths.",
     "acceptance": [
@@ -98,71 +100,95 @@
     ]
   },
   "latest_verified_checkpoint": {
-    "date": "2026-11-15",
+    "date": "2026-11-20",
     "repository": "Jk-Pascoal/agent-lab-pascoal",
     "branch": "main",
-    "main_sha": "08abe248058f353b30134f933a54a4faa76321f6",
+    "main_sha": "c04dacb600041c715dada7126fa93075d52f8799",
     "main_ci": {
       "status": "SUCCESS",
-      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43739751150",
+      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
       "unittest_count": 1265,
       "python": "3.11"
     },
     "delivered": {
-      "pr": 230,
-      "status": "MERGED_MAIN",
+      "issue": 222,
+      "pr": 214,
+      "status": "FEATURE_BRANCH_ONLY_CI_GREEN",
+      "commit": "caa8c73514b680bc286f37f0a2c8a5029370b847",
       "changed_files": [
-        "src/agent_lab/dimension_candidate_audit.py",
-        "tests/test_dimension_candidate_audit.py"
+        "tests/test_poc_local_ui.py"
       ],
-      "issue": 225,
-      "scope": "read-only audit of ordered dimensions for actual legacy candidate pairs, 5 real path tests, scorer and frozen benchmark untouched"
+      "scope": "Port of PR #234 real-CRLF status-line regression directly into #214; no server/scorer/domain changes",
+      "checks": [
+        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44739581863",
+        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44739581859",
+        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44739581843"
+      ]
     },
-    "open_prs": [
-      {
-        "number": 214,
-        "status": "OPEN_DRAFT_MERGEABLE_CLEAN",
-        "blocking_issue": 215
-      },
+    "pr_234": {
+      "status": "CLOSED_UNMERGED_REDUNDANT",
+      "replaced_by_commit": "caa8c73514b680bc286f37f0a2c8a5029370b847",
+      "base": "feat/210-local-csv-journey-20261031"
+    },
+    "open_prs_at_inspection": [
       {
         "number": 191,
         "status": "OPEN_DRAFT",
         "blocking_issue": "HUMAN_METHOD_APPROVAL"
+      },
+      {
+        "number": 214,
+        "status": "OPEN_DRAFT",
+        "blocking_issue": 215,
+        "head": "caa8c73514b680bc286f37f0a2c8a5029370b847"
+      },
+      {
+        "number": 232,
+        "status": "OPEN_DRAFT",
+        "blocking_issue": "INDEPENDENT_CONSUMER_JSON_REVIEW"
+      },
+      {
+        "number": 233,
+        "status": "OPEN_DRAFT",
+        "blocking_issue": "DOCUMENT_AUDIT_REVIEW"
       }
     ],
-    "latest_product_branch": {
-      "pr": 214,
-      "head_at_inspection": "9103f7fb5f5edcb911250600aa213552db7b4f13",
-      "merged_to_main": false,
-      "mergeable": "CLEAN",
-      "ci": "SUCCESS_2026-11-15",
-      "browser_ci": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43739278126"
+    "issues_open_at_inspection": 13,
+    "historical_specs": {
+      "spec_0008": "PROPOSTA_AS_OF_2026-08-05_HISTORICAL",
+      "spec_0010": "EM_IMPLEMENTACAO_AS_OF_2026-08-06_HISTORICAL",
+      "spec_0115": "IMPLEMENTED",
+      "spec_0149": "IMPLEMENTED",
+      "spec_0154": "IMPLEMENTED",
+      "spec_0158": "IMPLEMENTED_EXPERIMENT_HARNESS_NOT_VALIDATION"
     },
     "research": {
       "sr001_t02": "FROZEN",
       "b2": "POST_HOC_NOT_INDEPENDENT",
-      "production_eligible": false
+      "production_eligible": false,
+      "pr191_methodological_go": "PENDING"
     },
     "github_contribution": {
       "login": "Jk-Pascoal",
-      "commit_authored_at_utc": "2026-11-15T17:11:56Z",
-      "eligible_main_merge": true,
+      "feature_commit": "caa8c73514b680bc286f37f0a2c8a5029370b847",
+      "commit_author_and_committer": "Jk-Pascoal",
+      "feature_commit_integrated_main": false,
       "profile_calendar": "NOT_VISUALLY_CONFIRMED",
-      "pr_event_230": "CREATED_2026-11-15"
+      "note": "Branch commit alone is not proof of a green square; do not retrodate or merge restricted PRs for calendar purposes."
     },
-    "independent_review_of_pr228": "NOT_RECORDED",
     "risk_register": [
-      "Legacy duplicate scorer continues selecting inverted dimension pairs (now reproducible through #230); read-only evidence is not an automated veto.",
-      "PR #214 manual/adversarial and specialist acceptance #215 incomplete; maintain DRAFT despite clean mergeability and green browser smoke.",
-      "Independent B2 validation PR #191 lacks human methodological GO; T02 frozen.",
-      "Historical SPECs retain snapshot status (0008 proposed, 0010 implementation), despite present operational CI; do not mistake history for live status.",
-      "POC target 20/11 lacks revalidation; industrial-scale and external review remain unproven."
+      "PR #214 manual browser/adversarial specialist review and independent human acceptance #215 remain missing despite automated green workflows.",
+      "Legacy scorer can still select inverted dimensional candidate pairs; #225 read-only evidence != approved veto; #232 format compatibility review pending.",
+      "R4 custody of source bytes and physical rows UNAVAILABLE; R7 two-file power-loss durability NOT_PROVEN; HITL E2E, ERP and 100k scale not demonstrated.",
+      "B2 observed post-hoc on T02, not independently validated; #191 no human approval, GT/T02 FROZEN.",
+      "Historical PoC target 2026-11-20 reached with no schedule revalidation or demonstrated commercial readiness; D-03/D-04 remain PENDING.",
+      "Historical SPEC 0008/0010 statuses are snapshots, not proof workflow/CI is absent today."
     ],
     "prohibited": [
-      "No rebaseline, no retrospective metric changes, no release/ERP/HITL claims",
-      "Do not merge #214 or #191 without applicable human gates",
-      "No retrodated commits or claims of visible calendar without evidence"
-    ],
-    "independent_review_of_pr230": "NOT_RECORDED_ASSISTED_TECHNICAL_REVIEW"
+      "Do not modify T02 FROZEN, Ground Truth, experimental SR-001/B2 or historical weights and metrics.",
+      "Do not merge #214 or #191 without applicable independent human gates; CI and automated browser smoke do not replace them.",
+      "Do not claim commercial release, physical provenance, real human review, scale or ERP integration.",
+      "Do not retrodate commits or assert GitHub calendar green without direct visual evidence."
+    ]
   }
 }
