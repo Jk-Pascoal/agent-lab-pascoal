@@ -1,7 +1,7 @@
 {
   "schema_version": "agent_lab.session_handoff.v1",
   "checkpoint": {
-    "date": "2026-11-20",
+    "date": "2026-11-21",
     "timezone": "America/Bahia",
     "main_sha_at_checkpoint": "c04dacb600041c715dada7126fa93075d52f8799",
     "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
@@ -42,24 +42,34 @@
       "report_historical_status": "OVERDUE",
       "poc_target": "2026-11-20",
       "poc_target_revalidated": false
+    },
+    "branch_only_pending_integration": {
+      "pr": 214,
+      "head": "62036ea76898da1009dd438d3d1ecf80ab409839",
+      "improvement": "HTTP 507 on OSError from temporary workspace mkdir, no pending/published run; regression HTTP retry with fixture synthetic",
+      "verification": "CI_GREEN_ON_PR_BRANCH_NOT_MAIN",
+      "unittest_count": 1289,
+      "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44900347725",
+      "browser_smoke_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44900347746",
+      "dimension_check_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44900347884",
+      "pending_issue": 215,
+      "fix_tracking_issue": 236
     }
   },
   "next_session": {
-    "planned_date": "2026-11-21",
+    "planned_date": "2026-11-22",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "LOCAL_SYNTHETIC_CSV_HUMAN_ACCEPTANCE_AND_PENDING_BRANCH_REVIEW",
-    "objective": "Complete actual specialist/manual and independent #215 acceptance of PR #214; on 20/11 two code fixes #222 and #216 were added to the feature branch and 1288 tests + browser smoke passed, but no merge. Follow separate review gates #232 JSON compatibility, #233 audit document and #191 independent B2 preregistration.",
+    "scope": "LOCAL_SYNTHETIC_CSV_FINAL_MANUAL_ACCEPTANCE_AND_PENDING_BRANCH_REVIEW",
+    "objective": "Review PR #214 after 21/11 fail-closed HTTP 507 workspace allocation fix (HEAD 62036ea, 1289/1289 unittest GREEN + browser/dimension CI GREEN); #215 still lacks independent/manual specialist acceptance. Review #232 consumer JSON contract and #233 audit; #191 awaits human methodological GO. Do not merge to color a GitHub square.",
     "entry_protocol": [
-      "Read AGENTS.md, this handoff, PROJECT_COMPASS.md and repository main/CI; this file is a dated checkpoint, not a live API.",
-      "Verify main c04dacb from 15/11 and successful run 43740424332 (1265 unittest); do not confuse with PR #214's 1287 tests or declare a new main release.",
-      "Verify #214 DRAFT/OPEN, HEAD a677e271 (caa8c735 real CRLF fix; fbad4de cleanup retry fix; a677e271 I/O regression), 1288/1288 Python unittest SUCCESS in run 44740802962, dimension run 44740803147 and browser smoke run 44740802960 SUCCESS; #215 is still no manual/independent acceptance.",
-      "Verify #234 CLOSED/NOT MERGED as redundant; its CRLF regression was ported directly to #214 in commit caa8c735. Do not reopen or double-merge without new evidence.",
-      "Verify issue #216's safe discard under simulated OSError and retry (branch-only); document separately from R4/R7 power-loss durability.",
-      "Check #191 DRAFT for human methodological approval, #232 DRAFT for consumer JSON compatibility, #233 DRAFT for the issue-audit review, and 13 open Issues at the 20/11 inspection checkpoint.",
-      "Execute real specialist manual test of the local UI with synthetic CSV: sample/upload, search/filter, report/manifest/triage downloads, invalid/oversize CSV, missing/modified manifest, token/Host/Origin, reset and concurrency; record screenshots or exact repro evidence.",
-      "Keep #225's legacy candidate dimensional mismatch as observable read-only evidence: no scorer/ranking veto or frozen benchmark mutation without separate policy decision.",
-      "Reconcile historical 20/11 PoC target as unvalidated and date-reached, retaining D-03/D-04 PENDING and current product maturity."
+      "Read AGENTS.md, this handoff and PROJECT_COMPASS.md; compare snapshot with live GitHub status. Main c04dacb has 1265/1265 CI SUCCESS in 43740424332.",
+      "PR #214 HEAD 62036ea: HTTP 507 fail-closed workspace allocation fix and real HTTP recovery regression (#236), 1289/1289 tests in 44900347725; dimension 44900347884 and browser 44900347746 SUCCESS; all feature-branch only, DRAFT/UNMERGED.",
+      "Human manual/adversarial acceptance #215 STILL OPEN: test real UI with synthetic fixture and record screenshots/attestation of specialist; automated Playwright is not human GO.",
+      "PRs #191 (methodological GO), #232 (candidate-origin JSON compatibility), #233 (17/11 issue audit) and #235 (updated Compass/handoff 21/11) remain drafts pending their own reviews.",
+      "Issue #236 tracks workspace mkdir OSError fix on #214, not in main; #222 raw-HTTP builder partially implemented branch-only and any closure requires its own DoD.",
+      "Keep #225 dimensional candidate risks read-only, no production scorer veto, no GT/T02 FROZEN or B2/SR-001 modification; 20/11 PoC target elapsed, no D-03/D-04 revalidation.",
+      "Before next session, inspect CI and branch heads again; do not treat this document as live state."
     ],
     "minimum_functional_deliverable": "Executable local entrypoint or interface with synthetic CSV -> real diagnostics -> verified report/manifest -> readable triage/export; include both success and corrupt-input failure paths.",
     "acceptance": [
@@ -101,6 +111,101 @@
     ]
   },
   "latest_verified_checkpoint": {
+    "date": "2026-11-21",
+    "timezone": "America/Bahia",
+    "repository": "Jk-Pascoal/agent-lab-pascoal",
+    "main_sha": "c04dacb600041c715dada7126fa93075d52f8799",
+    "main_ci": {
+      "status": "SUCCESS",
+      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
+      "unittest_count": 1265,
+      "python": "3.11",
+      "note": "prior verified main run, not a fresh run on 21/11"
+    },
+    "delivery": {
+      "issue": 236,
+      "pr": 214,
+      "state": "FEATURE_BRANCH_ONLY_DRAFT_UNMERGED",
+      "head": "62036ea76898da1009dd438d3d1ecf80ab409839",
+      "files": [
+        "src/agent_lab/poc_local_ui.py",
+        "tests/test_poc_local_ui.py"
+      ],
+      "implementation": "Catch temporary workspace mkdir OSError and return HTTP 507 without pending/published run; HTTP regression exercises error and successful retry with real synthetic pipeline.",
+      "ci": {
+        "status": "SUCCESS",
+        "unittest_count": 1289,
+        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44900347725",
+        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44900347884",
+        "browser_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44900347746"
+      }
+    },
+    "repository_audit": {
+      "open_issues": 14,
+      "open_prs": [
+        191,
+        214,
+        232,
+        233,
+        235
+      ],
+      "closed_pr_234": {
+        "status": "CLOSED_UNMERGED",
+        "reason": "CRLF fix already applied directly on #214"
+      },
+      "historical_spec_check": [
+        "0008 PROPOSTA (2026-08-05)",
+        "0010 EM_IMPLEMENTACAO (2026-08-06)",
+        "0115 IMPLEMENTED",
+        "0149 IMPLEMENTED",
+        "0154 IMPLEMENTED",
+        "0158 harness IMPLEMENTED only (experimental)"
+      ]
+    },
+    "human_gates": {
+      "issue215": "PENDING_HUMAN_MANUAL_INDEPENDENT_ACCEPTANCE",
+      "pr214": "DRAFT_UNMERGED",
+      "pr191": "PENDING_HUMAN_METHOD_APPROVAL",
+      "pr232": "JSON_CONSUMER_REVIEW_PENDING",
+      "pr233": "DOCUMENT_REVIEW_PENDING",
+      "pr235": "DOCUMENT_REVIEW_PENDING"
+    },
+    "research": {
+      "t02": "FROZEN",
+      "b2": "POST_HOC_NOT_INDEPENDENT",
+      "industrial_100k_sku": "NOT_PROVEN"
+    },
+    "schedule": {
+      "report_2026_10_25": "OVERDUE_HISTORICAL",
+      "poc_2026_11_20": "ELAPSED_NOT_REVALIDATED",
+      "D03": "PENDING",
+      "D04": "PENDING"
+    },
+    "github_contribution": {
+      "actor": "Jk-Pascoal",
+      "authored_at_utc": "2026-11-21T11:41:59Z",
+      "feature_commit": "62036ea76898da1009dd438d3d1ecf80ab409839",
+      "commit_in_main": false,
+      "issue_236_created_at_utc": "2026-11-21T11:42:44Z",
+      "issue_event_eligible": true,
+      "profile_calendar": "NOT_VISUALLY_CONFIRMED"
+    },
+    "risk_register": [
+      "All 1289 PR #214 tests and browser checks GREEN, but manual specialist #215 and independent human acceptance still missing; do not merge.",
+      "Unhandled filesystem allocation is fixed on #214 branch only. HTTP 507 regression is not R4 custody or R7 power-loss durability.",
+      "Legacy duplicate scorer may select inverted dimensions; #230 read-only evidence and #232 branch origin do not permit an automatic veto.",
+      "SR-001/B2 remains post-hoc T02, not independently validated. No GT rewrite, 100k scale, ERP, HITL E2E or industrial readiness claim.",
+      "Compass/SESSION_HANDOFF updated in PR #235 branch, not in main; live main still carries 15/11 Compass checkpoint until appropriate review/merge.",
+      "PoC target 20/11 elapsed without documented schedule revalidation. D-03/D-04 remain PENDING."
+    ],
+    "prohibited": [
+      "No merge for GitHub calendar",
+      "No invented human review/manual screenshots",
+      "No T02/GT/SR-001 changes",
+      "No retrodated commits or false production claims"
+    ]
+  },
+  "prior_verified_checkpoint": {
     "date": "2026-11-20",
     "repository": "Jk-Pascoal/agent-lab-pascoal",
     "branch": "main",
