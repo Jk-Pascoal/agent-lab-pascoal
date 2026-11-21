@@ -418,7 +418,11 @@ class LocalPocHandler(BaseHTTPRequestHandler):
                 return self._json(429, {"error": "Limite de sessões; reinicie a interface"})
             run_id = secrets.token_urlsafe(18)
             directory = Path(self.server.workspace.name) / run_id
-            directory.mkdir()
+            try:
+                directory.mkdir()
+            except OSError:
+                # A disk error must not create a pending or downloadable session.
+                return self._json(507, {"error": "Armazenamento local indisponível"})
             self.server.pending_runs.add(run_id)
         try:
             _, verified = run_diagnostic(data, catalog_id, directory)

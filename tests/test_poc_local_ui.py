@@ -352,6 +352,29 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertEqual(self.server.pending_runs, set())
         self.assertEqual(set(Path(self.server.workspace.name).iterdir()), previous_dirs)
 
+    def test_workspace_creation_failure_is_fail_closed_and_recoverable(self):
+        """An unavailable local filesystem returns JSON without orphaning session state."""
+        headers = {"X-Poc-Token": self.server.csrf_token}
+        status, _, body = self.request("DELETE", "/sessions", headers=headers)
+        self.assertEqual(status, 200, body)
+        before_dirs = set(Path(self.server.workspace.name).iterdir())
+        self.assertEqual(self.server.runs, {})
+        self.assertEqual(self.server.pending_runs, set())
+
+        with patch("agent_lab.poc_local_ui.Path.mkdir",
+                   side_effect=OSError("simulated storage failure")):
+            status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 507, body)
+        self.assertEqual(json.loads(body)["error"], "Armazenamento local indisponível")
+        self.assertEqual(self.server.runs, {})
+        self.assertEqual(self.server.pending_runs, set())
+        self.assertEqual(set(Path(self.server.workspace.name).iterdir()), before_dirs)
+
+        # The next ordinary upload must still traverse the real pipeline.
+        status, _, response = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, response)
+        self.assertIn("downloads", json.loads(response))
+
     def test_inflight_artifact_is_not_published_until_verification(self):
         reached = threading.Event()
         proceed = threading.Event()
