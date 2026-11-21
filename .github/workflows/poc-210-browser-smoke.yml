@@ -1,0 +1,53 @@
+name: PoC 210 browser smoke (experimental)
+
+on:
+  push:
+    branches:
+      - test/223-browser-smoke-20261111
+      - feat/210-local-csv-journey-20261031
+      - main
+    paths:
+      - scripts/poc_210_browser_smoke.py
+      - src/agent_lab/poc_local_ui.py
+      - tests/test_poc_local_ui.py
+      - tests/fixtures/poc_204_catalog_synthetic_v1.csv
+      - .github/workflows/poc-210-browser-smoke.yml
+  pull_request:
+    branches:
+      - feat/210-local-csv-journey-20261031
+      - main
+    paths:
+      - scripts/poc_210_browser_smoke.py
+      - src/agent_lab/poc_local_ui.py
+      - tests/test_poc_local_ui.py
+      - tests/fixtures/poc_204_catalog_synthetic_v1.csv
+      - .github/workflows/poc-210-browser-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install project and optional headless tooling
+        run: |
+          python -m pip install -e .
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Run real browser smoke against loopback synthetic CSV
+        run: python scripts/poc_210_browser_smoke.py --evidence-dir browser-evidence
+      - name: Upload screenshots and verified synthetic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poc-210-browser-smoke-evidence
+          path: browser-evidence/
+          if-no-files-found: warn
+          retention-days: 7
