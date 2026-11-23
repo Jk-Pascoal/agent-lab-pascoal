@@ -223,6 +223,8 @@ class LocalPocServer(ThreadingHTTPServer):
         self.csrf_token = secrets.token_urlsafe(32)
         self.runs: dict[str, Path] = {}
         self.pending_runs: set[str] = set()
+        # Rejected uploads whose physical deletion failed: never downloadable.
+        self.failed_cleanup_dirs: dict[str, Path] = {}
         self.run_lock = Lock()
         try:
             super().__init__(("127.0.0.1", port), LocalPocHandler)
@@ -329,17 +331,46 @@ class LocalPocHandler(BaseHTTPRequestHandler):
             if self.server.pending_runs:
                 return self._json(409, {"error": "Análise em andamento; descarte recusado"})
             sessions = tuple(self.server.runs.items())
+            rejected = tuple(self.server.failed_cleanup_dirs.items())
             failures = 0
             for run_id, report_path in sessions:
                 try:
                     shutil.rmtree(report_path.parent)
+                except FileNotFoundError:
+                    # An external local actor may already have removed this folder.
+                    del self.server.runs[run_id]
                 except OSError:
                     failures += 1
                 else:
                     del self.server.runs[run_id]
+            for run_id, directory in rejected:
+                try:
+                    shutil.rmtree(directory)
+                except FileNotFoundError:
+                    del self.server.failed_cleanup_dirs[run_id]
+                except OSError:
+                    failures += 1
+                else:
+                    del self.server.failed_cleanup_dirs[run_id]
         if failures:
             return self._json(500, {"error": "Descarte fisico incompleto", "failed": failures})
-        return self._json(200, {"status": "SESSIONS_DISCARDED", "count": len(sessions)})
+        return self._json(200, {"status": "SESSIONS_DISCARDED",
+                                "count": len(sessions) + len(rejected)})
+
+    def _discard_failed_upload(self, run_id: str, directory: Path) -> bool:
+        """Retryable physical cleanup of rejected CSV; never publish its artifacts."""
+        # Keep cleanup serialized with DELETE and session admission. Otherwise
+        # a concurrent discard could miss a directory whose deletion just failed.
+        with self.server.run_lock:
+            self.server.pending_runs.discard(run_id)
+            try:
+                shutil.rmtree(directory)
+            except FileNotFoundError:
+                return True
+            except OSError:
+                self.server.failed_cleanup_dirs[run_id] = directory
+                return False
+        return True
 
     def _read_csv_body(self, expected: int) -> bytes:
         """Read exact bytes under one absolute deadline, including slow-drip clients.
@@ -414,7 +445,8 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         catalog_id = parse_qs(urlsplit(self.path).query).get("catalog_id", ["POC-210-LOCAL"])[0]
         # In-flight runs occupy capacity but are never downloadable until verified.
         with self.server.run_lock:
-            if len(self.server.runs) + len(self.server.pending_runs) >= MAX_SESSIONS:
+            if (len(self.server.runs) + len(self.server.pending_runs) +
+                    len(self.server.failed_cleanup_dirs) >= MAX_SESSIONS):
                 return self._json(429, {"error": "Limite de sessões; reinicie a interface"})
             run_id = secrets.token_urlsafe(18)
             directory = Path(self.server.workspace.name) / run_id
@@ -427,15 +459,15 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         try:
             _, verified = run_diagnostic(data, catalog_id, directory)
         except (ValueError, TypeError, OSError, UnicodeError, csv.Error) as exc:
-            with self.server.run_lock:
-                self.server.pending_runs.discard(run_id)
-            shutil.rmtree(directory, ignore_errors=True)
+            if not self._discard_failed_upload(run_id, directory):
+                return self._json(507, {"error": "Entrada recusada; limpeza local pendente. "
+                                                 "Use Descartar sessões locais."})
             return self._json(422, {"error": f"Entrada recusada: {type(exc).__name__}"})
         except Exception:
-            with self.server.run_lock:
-                self.server.pending_runs.discard(run_id)
-            shutil.rmtree(directory, ignore_errors=True)
             self.log_error("unexpected pipeline failure")
+            if not self._discard_failed_upload(run_id, directory):
+                return self._json(507, {"error": "Falha interna; limpeza local pendente. "
+                                                 "Use Descartar sessões locais."})
             return self._json(500, {"error": "Falha interna; nenhum resultado publicado"})
         with self.server.run_lock:
             self.server.pending_runs.remove(run_id)
