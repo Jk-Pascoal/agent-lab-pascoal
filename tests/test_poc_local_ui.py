@@ -352,6 +352,50 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertEqual(self.server.pending_runs, set())
         self.assertEqual(set(Path(self.server.workspace.name).iterdir()), previous_dirs)
 
+    def test_rejected_csv_cleanup_failure_remains_private_bounded_and_retryable(self):
+        """Real HTTP regression (#237): failed unlink cannot silently orphan input."""
+        headers = {"X-Poc-Token": self.server.csrf_token}
+        status, _, response = self.request("DELETE", "/sessions", headers=headers)
+        self.assertEqual(status, 200, response)
+        self.assertEqual(self.server.runs, {})
+        self.assertEqual(self.server.failed_cleanup_dirs, {})
+
+        invalid = b"unknown_column\\nSYN-001\\n"
+        # Inject an unavailable filesystem: rejected inputs must remain tracked
+        # outside published runs, consuming capacity until cleanup is retried.
+        with patch("agent_lab.poc_local_ui.shutil.rmtree",
+                   side_effect=OSError("simulated deletion failure")):
+            for _ in range(10):
+                status, _, response = self.upload(invalid)
+                self.assertEqual(status, 507, response)
+                self.assertIn(b"limpeza local pendente", response)
+                self.assertNotIn(b"downloads", response)
+
+            status, _, body = self.request("DELETE", "/sessions", headers=headers)
+            self.assertEqual(status, 500, body)
+            self.assertEqual(json.loads(body)["failed"], 10)
+
+        self.assertEqual(len(self.server.failed_cleanup_dirs), 10)
+        self.assertEqual(self.server.runs, {})
+        self.assertEqual(self.server.pending_runs, set())
+        for run_id, directory in self.server.failed_cleanup_dirs.items():
+            self.assertTrue(directory.is_dir())
+            self.assertEqual(self.request("GET", f"/artifact/{run_id}/report")[0], 404)
+
+        status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 429, body)
+
+        status, _, body = self.request("DELETE", "/sessions", headers=headers)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)["count"], 10)
+        self.assertEqual(self.server.failed_cleanup_dirs, {})
+        self.assertEqual(list(Path(self.server.workspace.name).iterdir()), [])
+
+        # Recovery: a new valid CSV must exercise the real end-to-end pipeline.
+        status, _, response = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, response)
+        self.assertIn("downloads", json.loads(response))
+
     def test_workspace_creation_failure_is_fail_closed_and_recoverable(self):
         """An unavailable local filesystem returns JSON without orphaning session state."""
         headers = {"X-Poc-Token": self.server.csrf_token}
