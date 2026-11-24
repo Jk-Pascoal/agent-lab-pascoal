@@ -4,9 +4,11 @@
 >
 > Leia este documento antes de propor uma nova Issue, SPEC ou alteração de código.
 
-> **REENTRADA MAIS RECENTE — 23/11/2026:** ver seção final **CHECKPOINT OPERACIONAL — 23/11/2026**. `main` ainda em `c04dacb` (1.265 testes no último CI), PR #214 DRAFT com HEAD `c52d8b3` e 1.290 testes GREEN, navegador headless e dimensão SUCCESS. Issue #237 rastreia recuperação de diretórios de CSV rejeitado com remoção física falha; gate humano #215 ainda não cumprido. 22/11 sem atividade Agent Lab documentada; não retrodatá-la. A PR documental #235 ainda está DRAFT.
+> **REENTRADA MAIS RECENTE — 24/11/2026 (AUD-002):** consultar checkpoint 24/11 e nota de auditoria ao final. PR #214 HEAD b884420: 1.291 testes GREEN; browser/dimension SUCCESS; #215 permanece gate humano. 16 Issues e 5 PRs abertas na inspeção; nenhuma revisão formal registrada.
 
-> **REENTRADA MAIS RECENTE — 21/11/2026:** consultar a seção final **CHECKPOINT OPERACIONAL — 21/11/2026**. A `main` segue em `c04dacb` (1.265 testes no último CI verificado); a PR #214 recebeu fix de falha de armazenamento, 1.289 testes e browser/dimension GREEN, mas permanece DRAFT sem aceite #215. A PR #235 documenta o checkpoint e ainda não está integrada à `main`.
+> **SNAPSHOT HISTÓRICO — 23/11/2026:** ver seção final **CHECKPOINT OPERACIONAL — 23/11/2026**. `main` ainda em `c04dacb` (1.265 testes no último CI), PR #214 DRAFT com HEAD `c52d8b3` e 1.290 testes GREEN, navegador headless e dimensão SUCCESS. Issue #237 rastreia recuperação de diretórios de CSV rejeitado com remoção física falha; gate humano #215 ainda não cumprido. 22/11 sem atividade Agent Lab documentada; não retrodatá-la. A PR documental #235 ainda está DRAFT.
+
+> **SNAPSHOT HISTÓRICO — 21/11/2026:** consultar a seção final **CHECKPOINT OPERACIONAL — 21/11/2026**. A `main` segue em `c04dacb` (1.265 testes no último CI verificado); a PR #214 recebeu fix de falha de armazenamento, 1.289 testes e browser/dimension GREEN, mas permanece DRAFT sem aceite #215. A PR #235 documenta o checkpoint e ainda não está integrada à `main`.
 
 > **SNAPSHOT HISTÓRICO — 15/11/2026:** consultar a seção final **CHECKPOINT OPERACIONAL — 15/11/2026**. A `main` integrou a auditoria dimensional read-only da PR #230 com 1.265 testes GREEN; a PR #214 está sem conflitos mas ainda aguarda aceite humano. Os snapshots históricos preservam suas datas originais.
 
@@ -1633,3 +1635,10 @@ Registro técnico de reentrada detalhado: `docs/operations/SESSION_HANDOFF.json`
 - PR #214 DRAFT: [fa993ed](https://github.com/Jk-Pascoal/agent-lab-pascoal/commit/fa993ed36660bdcb3438986869e8c7930dff0a7c) invalida visualização antes do DELETE confirmado; [b884420](https://github.com/Jk-Pascoal/agent-lab-pascoal/commit/b884420cdffcfbf4faee55b14e29d404ff0b3a84) fixa regressão estrutural. Issue #238 rastreia falha parcial e aceite. CI [45388445578](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578) em execução na inspeção; 1291 esperado, não comprovado. Último 1290 GREEN em c52d8b3.
 - 16 Issues abertas após #238; cinco PRs DRAFT. Main listada em c04dacb, 1265 GREEN no último registro; metadados de base #214 divergentes, revalidar. Nenhum merge hoje.
 - Próximo gate: #215, especialista real, comportamento browser no descarte parcial/retry, decisão GO/NO-GO; revisar #232 e #233/#235. R4/R7, D-03/D-04, GT/T02 FROZEN e B2 preservados. Issue #238 criada por Jk-Pascoal em 24/11; calendário visual não comprovado.
+
+
+### AUD-002 — reconciliação de evidências (24/11)
+
+- CI canônica 45388445578: log Python 3.11 `Ran 1291 tests in 6.411s` / `OK`; browser 45388445850 e dimensão 45388445530 SUCCESS, HEAD b884420. A contagem esperada no checkpoint anterior foi confirmada; não é baseline integrado.
+- Revisão assistida dos diffs: #233 é snapshot histórico de 17/11; #232 acrescenta campo aninhado mantendo schema v1, compatibilidade estrita externa não comprovada; #191 depende de plano amostral/limiares e GO metodológico; #214 depende de #215. Nenhum review formal observado nas cinco PRs antes da auditoria. Sem aprovação independente fabricada.
+- #216: contrato exige retirada do mapa antes de limpeza, mas implementação retém sessão publicada se remoção falhar; requer decisão e teste específico. #237/#238: CI confirmada, aceite e integração pendentes. Não fechar Issues por CI isolada.
