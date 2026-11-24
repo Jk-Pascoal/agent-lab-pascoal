@@ -1626,3 +1626,10 @@ Registro técnico de reentrada detalhado: `docs/operations/SESSION_HANDOFF.json`
 - **Leitura das SPECs históricas:** SPEC-0008 `Proposta` (estado do próprio documento em 05/08); SPEC-0010 `Em implementação` (06/08); SPEC-0115, 0149, 0154 implementadas. SPEC-0158-harness `IMPLEMENTED` significa apenas instrumentação experimental, sem validação B2 independente; T02/GT permanecem FROZEN, sem scorer dimensional veto de #225.
 - **Decisão:** sem merge em #214 ou outras PRs apenas para calendário. Contribuição 23/11 comprovada por Issue #237 e commits com autoria `Jk-Pascoal` em branch pública; **quadradinho visual não verificado** e commits não incorporados à main podem não aparecer como contribuição de commit no calendário.
 - **Próxima âncora 24/11:** #210/#215 — especialista testar UI com catálogo sintético em navegador local, inclusive descarte falho/retry, capturar aprovação humana real e observar uso/risco; só então decidir GO/NO-GO da #214, e depois revisar #232 e #233. Sem alterações GT/T02/SR-001/B2; sem antecipar preço, prontidão ou marcos vencidos.
+
+
+## CHECKPOINT OPERACIONAL — 24/11/2026
+
+- PR #214 DRAFT: [fa993ed](https://github.com/Jk-Pascoal/agent-lab-pascoal/commit/fa993ed36660bdcb3438986869e8c7930dff0a7c) invalida visualização antes do DELETE confirmado; [b884420](https://github.com/Jk-Pascoal/agent-lab-pascoal/commit/b884420cdffcfbf4faee55b14e29d404ff0b3a84) fixa regressão estrutural. Issue #238 rastreia falha parcial e aceite. CI [45388445578](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578) em execução na inspeção; 1291 esperado, não comprovado. Último 1290 GREEN em c52d8b3.
+- 16 Issues abertas após #238; cinco PRs DRAFT. Main listada em c04dacb, 1265 GREEN no último registro; metadados de base #214 divergentes, revalidar. Nenhum merge hoje.
+- Próximo gate: #215, especialista real, comportamento browser no descarte parcial/retry, decisão GO/NO-GO; revisar #232 e #233/#235. R4/R7, D-03/D-04, GT/T02 FROZEN e B2 preservados. Issue #238 criada por Jk-Pascoal em 24/11; calendário visual não comprovado.
