@@ -58,14 +58,14 @@
     }
   },
   "next_session": {
-    "planned_date": "2026-11-24",
+    "planned_date": "2026-11-25",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
     "scope": "LOCAL_SYNTHETIC_CSV_FINAL_MANUAL_ACCEPTANCE_AND_PENDING_BRANCH_REVIEW",
-    "objective": "Real human specialist browser acceptance #215 of PR #214 at HEAD c52d8b3 (1290 GREEN CI plus browser/dimension SUCCESS); test synthetic CSV success and failure, recovery of cleanup failures #237, downloads and safety; record factual review before any merge. Review draft PRs #232/#233 and independent methodological #191 only within their gates. No retrodated 22 Nov contributions.",
+    "objective": "Verify final CI for #214 HEAD b884420, then actual specialist browser acceptance #215 including partial discard/retry #238, cleanup #237 and valid/invalid CSV; review #232 JSON consumers and #233/#235 documentary gates. Do not merge absent required acceptance.",
     "entry_protocol": [
       "Read AGENTS.md, latest SESSION_HANDOFF.json and Compass, then compare with live GitHub. Main c04dacb has last 1265/1265 CI GREEN in 43740424332, not changed by branch-only 23 Nov.",
-      "PR #214 HEAD c52d8b3 remains DRAFT/UNMERGED: Issue #237 rejected-upload physical cleanup failure tracked and retryable, real HTTP regression, 1290/1290 Python 3.11 CI GREEN in 45168351577, browser 45168351593 and dimension 45168351586 SUCCESS.",
+      "PR #214 remains DRAFT/UNMERGED; head b884420, CI pending at inspection; prior head c52d8b3 1290 GREEN. Verify new head and actual main SHA, given inconsistent PR base metadata.",
       "Run local specialist manual acceptance for #215 on synthetic CSV (including 507 and retry, 403, corrupted manifest and UI behavior), document evidence and actual approver; headless tests do not equal independent human GO.",
       "Recheck #191 scientific B2 methodological GO, #232 JSON consumer compatibility, #233 17 Nov audit, #235 documentary gate, #225 conservative dimensional evidence; all DRAFT/OPEN on 23 Nov.",
       "Keep experimental SR-001 T02/GT FROZEN, no auto veto, no industrial claims; D-03/D-04 PENDING and 20 Nov milestone expired without approved reforecast.",
@@ -111,6 +111,86 @@
     ]
   },
   "latest_verified_checkpoint": {
+    "date": "2026-11-24",
+    "timezone": "America/Bahia",
+    "main_sha": "c04dacb600041c715dada7126fa93075d52f8799",
+    "main_ci": {
+      "status": "SUCCESS",
+      "unittest_count": 1265,
+      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
+      "note": "Prior CI on main; not a newly triggered 23 Nov build"
+    },
+    "delivery": {
+      "issue": 238,
+      "pr": 214,
+      "status": "FEATURE_BRANCH_ONLY_DRAFT_UNMERGED",
+      "head": "b884420cdffcfbf4faee55b14e29d404ff0b3a84",
+      "files": [
+        "src/agent_lab/poc_local_ui.py",
+        "tests/test_poc_local_ui.py"
+      ],
+      "implementation": "Invalidate UI results and downloads before confirmed session DELETE, including partial discard errors. Structural HTTP-served HTML regression; manual browser behavior not verified.",
+      "ci": {
+        "status": "IN_PROGRESS_AT_INSPECTION",
+        "expected_unittest_count": 1291,
+        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578",
+        "browser_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445850",
+        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445530"
+      }
+    },
+    "audit": {
+      "open_issues": 16,
+      "open_prs": [
+        191,
+        214,
+        232,
+        233,
+        235
+      ],
+      "formal_reviews_observed": null,
+      "pr234": "CLOSED_UNMERGED",
+      "last_merged_functional_pr": 230,
+      "note": "Review count not reverified; PR metadata for #214 and #235 reports inconsistent base SHA; default-branch commit listing returns c04dacb."
+    },
+    "human_gates": {
+      "issue215": "PENDING_HUMAN_MANUAL_INDEPENDENT_ACCEPTANCE",
+      "pr191": "PENDING_SCIENTIFIC_GO",
+      "pr232": "JSON_CONSUMER_REVIEW_PENDING",
+      "pr233": "DOC_REVIEW_PENDING",
+      "pr235": "DOC_REVIEW_PENDING"
+    },
+    "research": {
+      "t02": "FROZEN",
+      "B2": "POST_HOC_NOT_INDEPENDENT",
+      "industrial_100k_sku": "NOT_PROVEN"
+    },
+    "schedule": {
+      "report_2026_10_25": "OVERDUE",
+      "poc_2026_11_20": "ELAPSED_NOT_REVALIDATED",
+      "D03": "PENDING",
+      "D04": "PENDING",
+      "missed_2026_11_22": "NO_DOCUMENTED_SESSION_IN_THIS_HANDOFF"
+    },
+    "github_contribution": {
+      "actor": "Jk-Pascoal",
+      "issue_created": 238,
+      "issue_created_at": "2026-11-24T11:54:18Z",
+      "feature_commits": [
+        "fa993ed36660bdcb3438986869e8c7930dff0a7c",
+        "b884420cdffcfbf4faee55b14e29d404ff0b3a84"
+      ],
+      "in_main": false,
+      "profile_calendar": "NOT_VISUALLY_CONFIRMED"
+    },
+    "prohibited": [
+      "No calendar-driven merge",
+      "No fabricated human review",
+      "No T02/GT/SR-001 changes",
+      "No retrodated commits",
+      "No false readiness claims"
+    ]
+  },
+  "prior_verified_checkpoint": {
     "date": "2026-11-23",
     "timezone": "America/Bahia",
     "main_sha": "c04dacb600041c715dada7126fa93075d52f8799",
@@ -188,7 +268,7 @@
       "No false readiness claims"
     ]
   },
-  "prior_verified_checkpoint": {
+  "earlier_verified_checkpoint": {
     "date": "2026-11-21",
     "timezone": "America/Bahia",
     "repository": "Jk-Pascoal/agent-lab-pascoal",
@@ -282,130 +362,5 @@
       "No T02/GT/SR-001 changes",
       "No retrodated commits or false production claims"
     ]
-  },
-  "earlier_verified_checkpoint": {
-    "date": "2026-11-20",
-    "repository": "Jk-Pascoal/agent-lab-pascoal",
-    "branch": "main",
-    "main_sha": "c04dacb600041c715dada7126fa93075d52f8799",
-    "main_ci": {
-      "status": "SUCCESS",
-      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
-      "unittest_count": 1265,
-      "python": "3.11"
-    },
-    "delivered": {
-      "issue": 216,
-      "pr": 214,
-      "status": "FEATURE_BRANCH_ONLY_CI_GREEN",
-      "head": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad",
-      "commits": [
-        {
-          "sha": "caa8c73514b680bc286f37f0a2c8a5029370b847",
-          "issue": 222,
-          "scope": "real CRLF HTTP test status line, PR #234 superseded"
-        },
-        {
-          "sha": "fbad4de804f9914e4ec097ff7581aa3020420eb4",
-          "issue": 216,
-          "scope": "track failed physical session cleanup for retry under lock"
-        },
-        {
-          "sha": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad",
-          "issue": 216,
-          "scope": "real HTTP regression for OSError cleanup failure and safe retry"
-        }
-      ],
-      "changed_files": [
-        "src/agent_lab/poc_local_ui.py",
-        "tests/test_poc_local_ui.py"
-      ],
-      "unittest_count": 1288,
-      "checks": [
-        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44740802962",
-        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44740803147",
-        "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/44740802960"
-      ],
-      "not_merged_to_main": true
-    },
-    "pr_234": {
-      "status": "CLOSED_UNMERGED_REDUNDANT",
-      "replaced_by_commit": "caa8c73514b680bc286f37f0a2c8a5029370b847",
-      "base": "feat/210-local-csv-journey-20261031"
-    },
-    "open_prs_at_inspection": [
-      {
-        "number": 191,
-        "status": "OPEN_DRAFT",
-        "blocking_issue": "HUMAN_METHOD_APPROVAL"
-      },
-      {
-        "number": 214,
-        "status": "OPEN_DRAFT",
-        "blocking_issue": 215,
-        "head": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad"
-      },
-      {
-        "number": 232,
-        "status": "OPEN_DRAFT",
-        "blocking_issue": "INDEPENDENT_CONSUMER_JSON_REVIEW"
-      },
-      {
-        "number": 233,
-        "status": "OPEN_DRAFT",
-        "blocking_issue": "DOCUMENT_AUDIT_REVIEW"
-      }
-    ],
-    "issues_open_at_inspection": 13,
-    "historical_specs": {
-      "spec_0008": "PROPOSTA_AS_OF_2026-08-05_HISTORICAL",
-      "spec_0010": "EM_IMPLEMENTACAO_AS_OF_2026-08-06_HISTORICAL",
-      "spec_0115": "IMPLEMENTED",
-      "spec_0149": "IMPLEMENTED",
-      "spec_0154": "IMPLEMENTED",
-      "spec_0158": "IMPLEMENTED_EXPERIMENT_HARNESS_NOT_VALIDATION"
-    },
-    "research": {
-      "sr001_t02": "FROZEN",
-      "b2": "POST_HOC_NOT_INDEPENDENT",
-      "production_eligible": false,
-      "pr191_methodological_go": "PENDING"
-    },
-    "github_contribution": {
-      "login": "Jk-Pascoal",
-      "feature_commit": "caa8c73514b680bc286f37f0a2c8a5029370b847",
-      "commit_author_and_committer": "Jk-Pascoal",
-      "feature_commit_integrated_main": false,
-      "profile_calendar": "NOT_VISUALLY_CONFIRMED",
-      "note": "Branch commit alone is not proof of a green square; do not retrodate or merge restricted PRs for calendar purposes.",
-      "pr_235": {
-        "event": "PR_CREATED",
-        "author": "Jk-Pascoal",
-        "created_at_utc": "2026-11-20T12:58:29Z",
-        "target": "main",
-        "profile_calendar": "NOT_VISUALLY_CONFIRMED"
-      },
-      "latest_feature_commit": "a677e2717cde1940f3b5f1f2ed73ad1e1f6ca2ad"
-    },
-    "risk_register": [
-      "On #216, a session cleanup failure is now retriable on the PR #214 branch with tested OSError path, but it has not reached main and is not R7 physical power-loss proof.",
-      "PR #214 manual browser/adversarial specialist review and independent human acceptance #215 remain missing despite automated green workflows.",
-      "Legacy scorer can still select inverted dimensional candidate pairs; #225 read-only evidence != approved veto; #232 format compatibility review pending.",
-      "R4 custody of source bytes and physical rows UNAVAILABLE; R7 two-file power-loss durability NOT_PROVEN; HITL E2E, ERP and 100k scale not demonstrated.",
-      "B2 observed post-hoc on T02, not independently validated; #191 no human approval, GT/T02 FROZEN.",
-      "Historical PoC target 2026-11-20 reached with no schedule revalidation or demonstrated commercial readiness; D-03/D-04 remain PENDING.",
-      "Historical SPEC 0008/0010 statuses are snapshots, not proof workflow/CI is absent today."
-    ],
-    "prohibited": [
-      "Do not modify T02 FROZEN, Ground Truth, experimental SR-001/B2 or historical weights and metrics.",
-      "Do not merge #214 or #191 without applicable independent human gates; CI and automated browser smoke do not replace them.",
-      "Do not claim commercial release, physical provenance, real human review, scale or ERP integration.",
-      "Do not retrodate commits or assert GitHub calendar green without direct visual evidence."
-    ],
-    "handoff_pr": {
-      "number": 235,
-      "status": "OPEN_DRAFT_PENDING_DOCUMENT_REVIEW",
-      "created_at": "2026-11-20T12:58:29Z"
-    }
   }
 }
