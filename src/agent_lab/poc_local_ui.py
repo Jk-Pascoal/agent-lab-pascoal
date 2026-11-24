@@ -171,6 +171,9 @@ button.addEventListener('click',async()=>{
 clearButton.addEventListener('click',async()=>{
  if(!confirm('Descartar todos os resultados locais deste servidor?'))return;
  clearButton.disabled=true;error.textContent='';status.textContent='';
+ // A partial physical discard may invalidate any previously displayed artifact.
+ result.hidden=true;rows=[];records.replaceChildren();
+ document.getElementById('downloads').replaceChildren();
  try{
   const response=await fetch('/sessions',{method:'DELETE',headers:{'X-Poc-Token':TOKEN}});
   const data=await response.json();
