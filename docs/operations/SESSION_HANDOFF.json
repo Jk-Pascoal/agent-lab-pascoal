@@ -1,7 +1,7 @@
 {
   "schema_version": "agent_lab.session_handoff.v1",
   "checkpoint": {
-    "date": "2026-11-23",
+    "date": "2026-11-24",
     "timezone": "America/Bahia",
     "main_sha_at_checkpoint": "c04dacb600041c715dada7126fa93075d52f8799",
     "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
@@ -45,16 +45,17 @@
     },
     "branch_only_pending_integration": {
       "pr": 214,
-      "head": "c52d8b37ca6112d12b25b556d65231f4ae237941",
-      "improvement": "#237 rejected CSV cleanup error kept in private tracked retryable directories, physical discard and MAX_SESSIONS bound; prior #236 HTTP 507 workspace mkdir preserved",
+      "head": "b884420cdffcfbf4faee55b14e29d404ff0b3a84",
+      "improvement": "Prior #236/#237 storage/cleanup fixes plus #238 UI invalidation before discard",
       "verification": "CI_GREEN_ON_PR_BRANCH_NOT_MAIN",
-      "unittest_count": 1290,
-      "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45168351577",
-      "browser_smoke_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45168351593",
-      "dimension_check_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45168351586",
+      "unittest_count": 1291,
+      "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578",
+      "browser_smoke_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445850",
+      "dimension_check_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445530",
       "pending_issue": 215,
       "fix_tracking_issue": 236,
-      "cleanup_tracking_issue": 237
+      "cleanup_tracking_issue": 237,
+      "ui_discard_tracking_issue": 238
     }
   },
   "next_session": {
@@ -65,7 +66,7 @@
     "objective": "Verify final CI for #214 HEAD b884420, then actual specialist browser acceptance #215 including partial discard/retry #238, cleanup #237 and valid/invalid CSV; review #232 JSON consumers and #233/#235 documentary gates. Do not merge absent required acceptance.",
     "entry_protocol": [
       "Read AGENTS.md, latest SESSION_HANDOFF.json and Compass, then compare with live GitHub. Main c04dacb has last 1265/1265 CI GREEN in 43740424332, not changed by branch-only 23 Nov.",
-      "PR #214 remains DRAFT/UNMERGED; head b884420, CI pending at inspection; prior head c52d8b3 1290 GREEN. Verify new head and actual main SHA, given inconsistent PR base metadata.",
+      "PR #214 DRAFT/UNMERGED, head b884420: 1291/1291 GREEN, browser and dimension SUCCESS; #215 human/manual gate remains. Verify live refs before integration.",
       "Run local specialist manual acceptance for #215 on synthetic CSV (including 507 and retry, 403, corrupted manifest and UI behavior), document evidence and actual approver; headless tests do not equal independent human GO.",
       "Recheck #191 scientific B2 methodological GO, #232 JSON consumer compatibility, #233 17 Nov audit, #235 documentary gate, #225 conservative dimensional evidence; all DRAFT/OPEN on 23 Nov.",
       "Keep experimental SR-001 T02/GT FROZEN, no auto veto, no industrial claims; D-03/D-04 PENDING and 20 Nov milestone expired without approved reforecast.",
@@ -131,11 +132,11 @@
       ],
       "implementation": "Invalidate UI results and downloads before confirmed session DELETE, including partial discard errors. Structural HTTP-served HTML regression; manual browser behavior not verified.",
       "ci": {
-        "status": "IN_PROGRESS_AT_INSPECTION",
-        "expected_unittest_count": 1291,
+        "status": "SUCCESS",
         "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578",
         "browser_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445850",
-        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445530"
+        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445530",
+        "unittest_count": 1291
       }
     },
     "audit": {
@@ -147,7 +148,7 @@
         233,
         235
       ],
-      "formal_reviews_observed": null,
+      "formal_reviews_observed": 0,
       "pr234": "CLOSED_UNMERGED",
       "last_merged_functional_pr": 230,
       "note": "Review count not reverified; PR metadata for #214 and #235 reports inconsistent base SHA; default-branch commit listing returns c04dacb."
