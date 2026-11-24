@@ -226,7 +226,8 @@ class LocalPocServer(ThreadingHTTPServer):
         self.csrf_token = secrets.token_urlsafe(32)
         self.runs: dict[str, Path] = {}
         self.pending_runs: set[str] = set()
-        # Rejected uploads whose physical deletion failed: never downloadable.
+        # Rejected uploads and logically discarded sessions pending physical cleanup.
+        # Never downloadable; all still occupy capacity until physical cleanup.
         self.failed_cleanup_dirs: dict[str, Path] = {}
         self.run_lock = Lock()
         try:
@@ -333,23 +334,19 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         with self.server.run_lock:
             if self.server.pending_runs:
                 return self._json(409, {"error": "Análise em andamento; descarte recusado"})
-            sessions = tuple(self.server.runs.items())
-            rejected = tuple(self.server.failed_cleanup_dirs.items())
+            # Revoke every published session before any physical removal (#216).
+            # A failed rmtree keeps the directory private and retryable, never
+            # re-publishes it, and continues to consume a capacity slot.
+            for run_id, report_path in self.server.runs.items():
+                self.server.failed_cleanup_dirs[run_id] = report_path.parent
+            self.server.runs.clear()
+            cleanup = tuple(self.server.failed_cleanup_dirs.items())
             failures = 0
-            for run_id, report_path in sessions:
-                try:
-                    shutil.rmtree(report_path.parent)
-                except FileNotFoundError:
-                    # An external local actor may already have removed this folder.
-                    del self.server.runs[run_id]
-                except OSError:
-                    failures += 1
-                else:
-                    del self.server.runs[run_id]
-            for run_id, directory in rejected:
+            for run_id, directory in cleanup:
                 try:
                     shutil.rmtree(directory)
                 except FileNotFoundError:
+                    # An external local actor may already have removed this folder.
                     del self.server.failed_cleanup_dirs[run_id]
                 except OSError:
                     failures += 1
@@ -358,7 +355,7 @@ class LocalPocHandler(BaseHTTPRequestHandler):
         if failures:
             return self._json(500, {"error": "Descarte fisico incompleto", "failed": failures})
         return self._json(200, {"status": "SESSIONS_DISCARDED",
-                                "count": len(sessions) + len(rejected)})
+                                "count": len(cleanup)})
 
     def _discard_failed_upload(self, run_id: str, directory: Path) -> bool:
         """Retryable physical cleanup of rejected CSV; never publish its artifacts."""

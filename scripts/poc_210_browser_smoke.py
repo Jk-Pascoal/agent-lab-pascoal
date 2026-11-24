@@ -12,8 +12,10 @@ evidence, NOT the independent/manual review required by Issue #215.
 """
 import argparse
 import json
+import shutil
 import threading
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_lab.poc_audit_verify import verify_poc_audit_report_pair
 from agent_lab.poc_local_ui import LocalPocServer
@@ -111,9 +113,36 @@ def run(evidence_dir: Path) -> None:
                 page.locator("#result").wait_for(state="visible", timeout=15000)
                 previous_link = page.locator("#downloads a").first.get_attribute("href")
                 assert previous_link and previous_link.startswith("/artifact/")
+                # #216/#238: inject a real server-side partial physical deletion
+                # failure, exercise the browser's error path and retry.
+                failed_id = previous_link.split("/")[2]
+                failed_dir = server.runs[failed_id].parent
+                original_rmtree = shutil.rmtree
+
+                def fail_one_directory(directory, *args, **kwargs):
+                    if Path(directory) == failed_dir:
+                        raise OSError("simulated partial discard failure")
+                    return original_rmtree(directory, *args, **kwargs)
+
+                with patch("agent_lab.poc_local_ui.shutil.rmtree", side_effect=fail_one_directory):
+                    page.once("dialog", lambda dialog: dialog.accept())
+                    page.locator("#clear").click()
+                    page.locator("#error").get_by_text(
+                        "Descarte fisico incompleto", exact=False).wait_for(timeout=15000)
+                assert page.locator("#result").is_hidden()
+                assert page.locator("#records tr").count() == 0
+                assert page.locator("#downloads a").count() == 0
+                assert server.runs == {}
+                assert server.failed_cleanup_dirs == {failed_id: failed_dir}
+                assert failed_dir.is_dir()
+                assert page.request.get(origin + previous_link).status == 404
+                page.screenshot(path=str(evidence_dir / "partial-discard-rejected.png"), full_page=True)
+
                 page.once("dialog", lambda dialog: dialog.accept())
                 page.locator("#clear").click()
                 page.get_by_text("Sessões locais descartadas.", exact=False).wait_for(timeout=15000)
+                assert server.failed_cleanup_dirs == {}
+                assert not failed_dir.exists()
                 assert page.locator("#result").is_hidden()
                 assert page.locator("#downloads a").count() == 0
                 assert page.request.get(origin + previous_link).status == 404
@@ -125,6 +154,8 @@ def run(evidence_dir: Path) -> None:
                                 "invalid_csv_hidden": True,
                                 "missing_manifest_downloads_refused": True,
                                 "oversized_browser_preflight_refused": True,
+                                "partial_discard_hidden_and_download_revoked": True,
+                                "partial_discard_retry_succeeded": True,
                                 "javascript_errors": 0}, indent=2) + "\n",
                     encoding="utf-8",
                 )

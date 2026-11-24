@@ -62,3 +62,9 @@ upload excessivo, token, origem e Host externos.
 - `tests/test_poc_local_ui.py` inclui socket HTTP real que envia cabeçalho válido e corpo incompleto, verifica retorno 408, limite de tempo e ausência de sessões/publicações, seguido por upload válido para provar recuperação da jornada.
 - [CI #42109103050](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/42109103050) **1.255/1.255 GREEN** no commit `fbb305ee`, antes desta atualização documental.
 - A UI **não** foi validada manualmente em navegador e **não** recebeu revisão de segurança independente; PR #214 mantém DRAFT/UNMERGED, Issue #215 OPEN. Nenhuma prontidão industrial ou aceite presumidos.
+
+## AUD-002 — descarte lógico e físico (#216, #238)
+
+O descarte autenticado de sessões conclui primeiro a retirada lógica de todas as sessões publicadas, antes de tentar a remoção física. Se uma pasta não puder ser removida, o servidor responde HTTP 500, mantém a pasta no registro privado de limpeza e continua contabilizando sua capacidade. Novas requisições de download da sessão descartada retornam 404 mesmo quando os bytes ainda existem. Um novo descarte autenticado tenta remover as pastas pendentes. Isso não cancela downloads já iniciados nem comprova eliminação física quando houve erro.
+
+A regressão HTTP injeta uma falha de remoção entre duas sessões reais. O smoke automatizado de navegador exercita a resposta de erro, ocultação de resultados/links e retry. Não substitui revisão humana ou aceite #215. PR #214 continua DRAFT; sem merge, alteração de scorer, experimentos ou dados reais.

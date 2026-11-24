@@ -2,6 +2,7 @@
 import http.client
 import json
 import re
+import shutil
 import socket
 import time
 import threading
@@ -242,34 +243,52 @@ class PocLocalJourneyTests(unittest.TestCase):
         self.assertEqual(outcome[0][0], 200, outcome[0][2])
 
     def test_failed_session_discard_remains_tracked_and_can_be_retried(self):
-        """A filesystem cleanup failure cannot orphan a session in the workspace."""
+        """Partial physical cleanup revokes all published downloads (#216)."""
         headers = {"X-Poc-Token": self.server.csrf_token}
         status, _, body = self.request("DELETE", "/sessions", headers=headers)
         self.assertEqual(status, 200, body)
 
-        status, _, body = self.upload(self.csv_bytes)
-        self.assertEqual(status, 200, body)
-        report_route = json.loads(body)["downloads"]["report"]
-        run_id = report_route.split("/")[2]
-        report_path = self.server.runs[run_id]
-        self.assertTrue(report_path.is_file())
+        runs = []
+        for _ in range(2):
+            status, _, body = self.upload(self.csv_bytes)
+            self.assertEqual(status, 200, body)
+            routes = json.loads(body)["downloads"]
+            run_id = routes["report"].split("/")[2]
+            report_path = self.server.runs[run_id]
+            self.assertTrue(report_path.is_file())
+            runs.append((run_id, report_path, routes))
 
-        with patch("agent_lab.poc_local_ui.shutil.rmtree",
-                   side_effect=OSError("simulated cleanup failure")):
+        failed_id, failed_path, _ = runs[1]
+        original_rmtree = shutil.rmtree
+
+        def fail_one_directory(directory, *args, **kwargs):
+            # All published sessions must be revoked before physical cleanup.
+            self.assertEqual(self.server.runs, {})
+            if Path(directory) == failed_path.parent:
+                raise OSError("simulated cleanup failure")
+            return original_rmtree(directory, *args, **kwargs)
+
+        with patch("agent_lab.poc_local_ui.shutil.rmtree", side_effect=fail_one_directory):
             status, _, error = self.request("DELETE", "/sessions", headers=headers)
         self.assertEqual(status, 500, error)
         self.assertEqual(json.loads(error)["failed"], 1)
-        self.assertEqual(self.server.runs[run_id], report_path)
-        self.assertTrue(report_path.is_file())
+        self.assertEqual(self.server.runs, {})
+        self.assertEqual(self.server.failed_cleanup_dirs, {failed_id: failed_path.parent})
+        self.assertFalse(runs[0][1].parent.exists())
+        self.assertTrue(failed_path.is_file())
+        for _, _, routes in runs:
+            for route in routes.values():
+                status, _, _ = self.request("GET", route)
+                self.assertEqual(status, 404)
 
-        # A still-present verified report remains reachable until retry succeeds.
-        status, _, _ = self.request("GET", report_route)
-        self.assertEqual(status, 200)
         status, _, retried = self.request("DELETE", "/sessions", headers=headers)
         self.assertEqual(status, 200, retried)
         self.assertEqual(json.loads(retried)["count"], 1)
-        self.assertNotIn(run_id, self.server.runs)
-        self.assertFalse(report_path.parent.exists())
+        self.assertEqual(self.server.failed_cleanup_dirs, {})
+        self.assertFalse(failed_path.parent.exists())
+        status, _, body = self.upload(self.csv_bytes)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.request("DELETE", "/sessions", headers=headers)[0], 200)
 
     def test_discard_rejects_body_and_ambiguous_headers(self):
         before = set(self.server.runs)
