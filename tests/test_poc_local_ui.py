@@ -293,6 +293,15 @@ class PocLocalJourneyTests(unittest.TestCase):
                 self.assertIn(expected, status_line)
                 self.assertEqual(before, set(self.server.runs))
 
+    def test_discard_ui_invalidates_view_before_request(self):
+        """Partial DELETE failure can leave old download links invalid (#215)."""
+        status, _, page = self.request("GET", "/")
+        self.assertEqual(status, 200)
+        handler = page.split(b"clearButton.addEventListener('click',async()=>{", 1)[1]
+        before_request = handler.split(b"fetch('/sessions'", 1)[0]
+        self.assertIn(b"result.hidden=true;rows=[];records.replaceChildren();", before_request)
+        self.assertIn(b"document.getElementById('downloads').replaceChildren();", before_request)
+
     def test_missing_manifest_blocks_all_downloads(self):
         status, _, body = self.upload(self.csv_bytes)
         self.assertEqual(status, 200, body)
