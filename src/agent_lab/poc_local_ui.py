@@ -99,6 +99,14 @@ const records=document.getElementById('records');
 const filter=document.getElementById('filter');
 const search=document.getElementById('search');
 let rows=[];
+let busy=false;
+function beginOperation(){
+ if(busy)return false;
+ busy=true;button.disabled=true;example.disabled=true;clearButton.disabled=true;return true;
+}
+function endOperation(){
+ busy=false;button.disabled=false;example.disabled=false;clearButton.disabled=false;
+}
 function cell(tr,value){const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);return td;}
 function redraw(){
  records.replaceChildren();
@@ -131,7 +139,7 @@ async function analyze(csvBytes){
  if(!csvBytes.byteLength||csvBytes.byteLength>262144){
   error.textContent='CSV vazio ou maior que 256 KiB.';return;
  }
- button.disabled=true;example.disabled=true;status.textContent='Analisando localmente…';
+ status.textContent='Analisando localmente…';
  try{
   const response=await fetch('/analyze?catalog_id='+encodeURIComponent(document.getElementById('catalog').value),
     {method:'POST',headers:{'Content-Type':'text/csv','X-Poc-Token':TOKEN},body:csvBytes});
@@ -153,9 +161,10 @@ async function analyze(csvBytes){
   filter.value='ALL';search.value='';redraw();result.hidden=false;
   status.textContent='Par relatório/manifesto verificado antes da apresentação.';
  }catch(e){error.textContent='Recusado: '+e.message;status.textContent='Nenhum resultado parcial exibido.';}
- finally{button.disabled=false;example.disabled=false;}
 }
 button.addEventListener('click',async()=>{
+ if(!beginOperation())return;
+ try{
  // A new attempt invalidates the previous view even if preflight rejects it.
  result.hidden=true;rows=[];records.replaceChildren();
  document.getElementById('downloads').replaceChildren();
@@ -167,10 +176,13 @@ button.addEventListener('click',async()=>{
   error.textContent='CSV vazio ou maior que 256 KiB.';return;
  }
  await analyze(await uploaded.arrayBuffer());
+ }catch(e){error.textContent='Recusado: '+e.message;status.textContent='Nenhum resultado parcial exibido.';}
+ finally{endOperation();}
 });
 clearButton.addEventListener('click',async()=>{
- if(!confirm('Descartar todos os resultados locais deste servidor?'))return;
- clearButton.disabled=true;error.textContent='';status.textContent='';
+ if(busy||!confirm('Descartar todos os resultados locais deste servidor?'))return;
+ if(!beginOperation())return;
+ error.textContent='';status.textContent='';
  // A partial physical discard may invalidate any previously displayed artifact.
  result.hidden=true;rows=[];records.replaceChildren();
  document.getElementById('downloads').replaceChildren();
@@ -182,17 +194,17 @@ clearButton.addEventListener('click',async()=>{
   document.getElementById('downloads').replaceChildren();
   status.textContent='Sessões locais descartadas. Você pode executar novo diagnóstico.';
  }catch(e){error.textContent='Recusado: '+e.message;}
- finally{clearButton.disabled=false;}
+ finally{endOperation();}
 });
 example.addEventListener('click',async()=>{
- button.disabled=true;example.disabled=true;
+ if(!beginOperation())return;
  error.textContent='';status.textContent='Carregando exemplo local…';result.hidden=true;rows=[];
  try{
   const sample=await fetch('/sample.csv',{cache:'no-store'});
   if(!sample.ok)throw new Error('Exemplo sintético indisponível');
   await analyze(await sample.arrayBuffer());
  }catch(e){error.textContent='Recusado: '+e.message;status.textContent='Nenhum resultado parcial exibido.';}
- finally{button.disabled=false;example.disabled=false;}
+ finally{endOperation();}
 });
 </script></body></html>'''
 
