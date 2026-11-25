@@ -23,7 +23,7 @@ from agent_lab.poc_local_ui import LocalPocServer
 
 def run(evidence_dir: Path) -> None:
     try:
-        from playwright.sync_api import sync_playwright
+        from playwright.sync_api import expect, sync_playwright
     except ImportError as exc:
         raise SystemExit("Install optional tooling: pip install playwright; playwright install chromium") from exc
 
@@ -156,21 +156,29 @@ def run(evidence_dir: Path) -> None:
                         window.fetch = async (...args) => {
                             if (String(args[0]).split('?')[0] === path) {
                                 window.fetch = original;
-                                await new Promise(resolve => {window.__pocRelease = resolve;});
+                                await new Promise(resolve => {
+                                    window.__pocRelease = resolve;
+                                    document.documentElement.dataset.pocPaused = 'true';
+                                });
                             }
                             return original.apply(window, args);
                         };
                     }""", path)
 
                 def assert_busy_and_release():
-                    page.wait_for_function("typeof window.__pocRelease === 'function'")
+                    page.locator("html[data-poc-paused='true']").wait_for(state="attached", timeout=15000)
                     for selector in ("#analyze", "#example", "#clear"):
                         assert page.locator(selector).is_disabled(), selector
-                    page.evaluate("() => {const release=window.__pocRelease; delete window.__pocRelease; release();}")
+                    page.evaluate("""() => {
+                        const release=window.__pocRelease;
+                        delete window.__pocRelease;
+                        delete document.documentElement.dataset.pocPaused;
+                        release();
+                    }""")
 
                 def assert_idle():
-                    page.wait_for_function("""['analyze','example','clear'].every(
-                        id => !document.getElementById(id).disabled)""")
+                    for selector in ("#analyze", "#example", "#clear"):
+                        expect(page.locator(selector)).to_be_enabled(timeout=15000)
 
                 pause_request("/sample.csv")
                 page.locator("#example").click()
