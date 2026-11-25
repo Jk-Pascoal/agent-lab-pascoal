@@ -4,7 +4,7 @@
 >
 > Leia este documento antes de propor uma nova Issue, SPEC ou alteração de código.
 
-> **REENTRADA MAIS RECENTE — 25/11/2026 (AUD-002):** consultar checkpoint ao final. GO-01 #235/#233 integrados; main `1b2cb46` CI 1265 GREEN. 16 Issues, 3 PRs abertas antes desta PR documental. #214 novo HEAD `e610944`, CI ainda não confirmada; #215 permanece gate humano. #232 v1/v2 aprovado, revisão independente pendente.
+> **REENTRADA MAIS RECENTE — 25/11/2026 (AUD-002):** consultar checkpoint ao final. GO-01 #235/#233 integrados; main `1b2cb46` CI 1265 GREEN. 16 Issues, 3 PRs abertas antes desta PR documental. #214 HEAD `faab0b2`, CI 1291 GREEN, browser/dimensão SUCCESS; #215 permanece gate humano. PR documental #239 DRAFT. #232 v1/v2 aprovado, revisão independente pendente.
 
 > **SNAPSHOT HISTÓRICO — 24/11/2026 (AUD-002):** consultar checkpoint 24/11 e nota de auditoria ao final. PR #214 HEAD b884420: 1.291 testes GREEN; browser/dimension SUCCESS; #215 permanece gate humano. 16 Issues e 5 PRs abertas na inspeção; nenhuma revisão formal registrada.
 
@@ -1653,3 +1653,8 @@ Registro técnico de reentrada detalhado: `docs/operations/SESSION_HANDOFF.json`
 - #214 DRAFT: `4696d08` de 24/11 reconciliou #216/#238 (revogação lógica antes da limpeza física, retry privado), CI [45406021555](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406021555) 1291 GREEN e [browser 45406021424](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406021424) SUCCESS. Revisões formais COMMENTED assistidas, não independentes. Hoje `2d09a0f` serializa ações assíncronas na mesma página; `e610944` acrescenta smoke de requisições reais retardadas. CI nova não confirmada no instante deste checkpoint. Sem afirmar proteção entre abas, cancelamento de downloads já iniciados ou revisão humana.
 - R4/R7, D-03/D-04, GT/T02 FROZEN, SR-001/B2 e prazos históricos preservados. Não fechar Issues só por CI de branch. #215 exige validação manual/adversarial e aceite humano; #219 permanece proposta de produto futura.
 - Commits de 25/11 em branch; autoria Jk-Pascoal confirmada para e610944; quadradinho visual não confirmado. Sem merge por calendário. Próxima sessão: verificar CI do HEAD real, executar teste manual do especialista e avaliar gate #215.
+
+### Fechamento técnico 25/11 — CI e contribuição
+
+- Smoke inicial [45593790248](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593790248) falhou por `wait_for_function` com avaliação de string bloqueada pela CSP. Correção exclusivamente no teste (`faab0b2`), por espera via locator; CSP preservada. No HEAD final `faab0b2713448562b9020ba1a781b0fd8f7d3967`: [unittest 45593960662](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960662), log `Ran 1291 tests in 7.579s` / `OK`; [dimensão 45593960623](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960623) SUCCESS; [browser 45593960626](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626) PASS com [evidência 15011858937](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626/artifacts/15011858937). Não é aceite manual independente.
+- PR [#239](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/239) aberta por `Jk-Pascoal` às 10:19:39 UTC de 25/11 para reconciliar Compass/handoff; 4 PRs abertas após sua criação, 16 Issues. Evento de PR pública elegível à contribuição; cor do calendário ainda não observada. Nenhuma feature integrada à main nesta sessão.
