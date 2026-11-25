@@ -147,6 +147,58 @@ def run(evidence_dir: Path) -> None:
                 assert page.locator("#downloads a").count() == 0
                 assert page.request.get(origin + previous_link).status == 404
                 page.screenshot(path=str(evidence_dir / "sessions-discarded.png"), full_page=True)
+                # #215/#238: pause real browser fetches before sending them,
+                # then prove the three controls are mutually exclusive.
+                # Releasing the gate uses the original fetch, not a mocked response.
+                def pause_request(path):
+                    page.evaluate("""path => {
+                        const original = window.fetch;
+                        window.fetch = async (...args) => {
+                            if (String(args[0]).split('?')[0] === path) {
+                                window.fetch = original;
+                                await new Promise(resolve => {window.__pocRelease = resolve;});
+                            }
+                            return original.apply(window, args);
+                        };
+                    }""", path)
+
+                def assert_busy_and_release():
+                    page.wait_for_function("typeof window.__pocRelease === 'function'")
+                    for selector in ("#analyze", "#example", "#clear"):
+                        assert page.locator(selector).is_disabled(), selector
+                    page.evaluate("() => {const release=window.__pocRelease; delete window.__pocRelease; release();}")
+
+                def assert_idle():
+                    page.wait_for_function("""['analyze','example','clear'].every(
+                        id => !document.getElementById(id).disabled)""")
+
+                pause_request("/sample.csv")
+                page.locator("#example").click()
+                assert_busy_and_release()
+                page.locator("#result").wait_for(state="visible", timeout=15000)
+                assert_idle()
+                current_link = page.locator("#downloads a").first.get_attribute("href")
+                assert current_link
+                pause_request("/sessions")
+                page.once("dialog", lambda dialog: dialog.accept())
+                page.locator("#clear").click()
+                assert_busy_and_release()
+                page.get_by_text("Sessões locais descartadas.", exact=False).wait_for(timeout=15000)
+                assert_idle()
+                assert page.locator("#result").is_hidden()
+                assert page.request.get(origin + current_link).status == 404
+                # File-input path also holds the lock through the real POST.
+                sample_bytes = page.request.get(origin + "/sample.csv").body()
+                page.locator("#csv").set_input_files({
+                    "name": "synthetic.csv", "mimeType": "text/csv", "buffer": sample_bytes,
+                })
+                pause_request("/analyze")
+                page.locator("#analyze").click()
+                assert_busy_and_release()
+                page.locator("#result").wait_for(state="visible", timeout=15000)
+                assert_idle()
+                assert page.locator("#downloads a").count() == 3
+                page.screenshot(path=str(evidence_dir / "serialized-operations-recovered.png"), full_page=True)
                 assert not errors, f"unexpected browser JavaScript errors: {errors}"
                 (evidence_dir / "smoke-result.json").write_text(
                     json.dumps({"result": "PASS", "scope": "automated-headless-only",
@@ -156,6 +208,7 @@ def run(evidence_dir: Path) -> None:
                                 "oversized_browser_preflight_refused": True,
                                 "partial_discard_hidden_and_download_revoked": True,
                                 "partial_discard_retry_succeeded": True,
+                                "same_page_operations_serialized": True,
                                 "javascript_errors": 0}, indent=2) + "\n",
                     encoding="utf-8",
                 )
