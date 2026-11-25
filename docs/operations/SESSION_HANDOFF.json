@@ -45,18 +45,18 @@
     },
     "branch_only_pending_integration": {
       "pr": 214,
-      "head": "e6109440ff366a80534ac50739792f8a94d65b4a",
+      "head": "faab0b2713448562b9020ba1a781b0fd8f7d3967",
       "improvement": "Serialize same-page analysis/example/discard; browser regression with delayed real fetches; previous HEAD 4696d08 reconciles logical revocation and partial discard retry.",
-      "verification": "NEW_HEAD_CI_NOT_YET_CONFIRMED",
+      "verification": "CI_GREEN_ON_PR_BRANCH_NOT_MAIN",
       "unittest_count": 1291,
-      "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406021555",
-      "browser_smoke_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406021424",
-      "dimension_check_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406021528",
+      "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960662",
+      "browser_smoke_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626",
+      "dimension_check_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960623",
       "pending_issue": 215,
       "fix_tracking_issue": 236,
       "cleanup_tracking_issue": 237,
       "ui_discard_tracking_issue": 238,
-      "last_verified_head": "4696d0810666f27251478453f66f9bafc44dba85"
+      "last_verified_head": "faab0b2713448562b9020ba1a781b0fd8f7d3967"
     }
   },
   "next_session": {
@@ -64,10 +64,10 @@
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
     "scope": "VERIFY_NEW_HEAD_CI_AND_MANUAL_SPECIALIST_ACCEPTANCE",
-    "objective": "Check CI at e6109440, resolve any failures, execute manual specialist acceptance #215; preserve independent review for #232 and methodological gate #191.",
+    "objective": "Check final #214 CI remains GREEN (faab0b2); execute manual specialist acceptance #215; review #239 docs, #232 independent review and #191 methodology.",
     "entry_protocol": [
       "Read AGENTS.md, this handoff and Compass, verify live main and PR heads, not snapshots.",
-      "Verify canonical CI and browser smoke at latest #214 head; never infer success from earlier 4696d08.",
+      "Reverify #214 CI on latest HEAD; faab0b2 had 1291 GREEN, browser and dimension SUCCESS on 25 Nov.",
       "Specialist manual test of synthetic catalog, filters, three downloads, invalid CSV, discard/retry, control serialization. Record real observations and approval separately.",
       "Review #232 independent review and external consumer compatibility; #191 methodology GO; no merge if gate missing.",
       "Preserve R4/R7, GT/T02 FROZEN, SR-001/B2 and D-03/D-04. No calendar-driven merge."
@@ -122,16 +122,29 @@
     },
     "delivery": {
       "pr": 214,
-      "head": "e6109440ff366a80534ac50739792f8a94d65b4a",
-      "status": "BRANCH_ONLY_CI_PENDING",
+      "head": "faab0b2713448562b9020ba1a781b0fd8f7d3967",
+      "status": "FEATURE_BRANCH_ONLY_DRAFT_UNMERGED",
       "commits": [
         "2d09a0fd87e62965fb5dc24a2d19c8ebebf049b2",
-        "e6109440ff366a80534ac50739792f8a94d65b4a"
+        "e6109440ff366a80534ac50739792f8a94d65b4a",
+        "faab0b2713448562b9020ba1a781b0fd8f7d3967"
       ],
       "files": [
         "src/agent_lab/poc_local_ui.py",
         "scripts/poc_210_browser_smoke.py"
-      ]
+      ],
+      "ci": {
+        "status": "SUCCESS",
+        "unittest_count": 1291,
+        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960662",
+        "browser_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626",
+        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960623",
+        "browser_artifact": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626/artifacts/15011858937"
+      },
+      "initial_browser_failure": {
+        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593790248",
+        "cause": "Playwright eval-based wait prohibited by strict CSP; test changed to locator waits without weakening CSP"
+      }
     },
     "audit": {
       "open_issues": [
@@ -163,13 +176,23 @@
       ],
       "pr234": "CLOSED_UNMERGED",
       "pr232": "OPEN_NOT_DRAFT_V1_V2_APPROVED_REVIEW_INDEPENDENT_PENDING",
-      "formal_review_submissions": "COMMENTED only on 191/214/232; no independent approval observed"
+      "formal_review_submissions": "COMMENTED only on 191/214/232; no independent approval observed",
+      "open_prs": [
+        191,
+        214,
+        232,
+        239
+      ],
+      "documentary_pr": 239
     },
     "github_contribution": {
       "actor": "Jk-Pascoal",
       "feature_commits_verified": true,
       "in_main": false,
-      "profile_calendar": "NOT_VISUALLY_CONFIRMED"
+      "profile_calendar": "NOT_VISUALLY_CONFIRMED",
+      "pr_created": 239,
+      "pr_created_at": "2026-11-25T10:19:39Z",
+      "eligible_event": "PUBLIC_PR_OPENED_BY_Jk-Pascoal"
     },
     "human_gates": {
       "issue215": "PENDING",
