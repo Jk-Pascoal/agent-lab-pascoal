@@ -4,7 +4,11 @@
 >
 > Leia este documento antes de propor uma nova Issue, SPEC ou alteração de código.
 
-> **REENTRADA MAIS RECENTE — 24/11/2026 (AUD-002):** consultar checkpoint 24/11 e nota de auditoria ao final. PR #214 HEAD b884420: 1.291 testes GREEN; browser/dimension SUCCESS; #215 permanece gate humano. 16 Issues e 5 PRs abertas na inspeção; nenhuma revisão formal registrada.
+> **REENTRADA PRIORITÁRIA — 27/11/2026 (OP-DEC-001):** Decisão do proprietário — 27/11/2026: elevar #241 (OBS-006) a prioridade P0 de qualidade semântica para Professional v0.9 RC, antes da entrega de dezembro. Atividade prioritária 28/11: SPEC-0241 proposta, matriz piloto de válvulas e reprodução OP002-008. Aprovação de prioridade não aprova a matriz nem implementação; exigir revisão especializada, regressões, CI e REVIEW explícito no caso insuficiente. Preservar gate #215/#214, scorer, GT/T02/SR-001 e D-03/D-04. Supply Chain permanece pós-entrega.
+
+> **SNAPSHOT HISTÓRICO — 25/11/2026 (AUD-002):** consultar checkpoint ao final. GO-01 #235/#233 integrados; main `1b2cb46` CI 1265 GREEN. 16 Issues, 3 PRs abertas antes desta PR documental. #214 HEAD `faab0b2`, CI 1291 GREEN, browser/dimensão SUCCESS; #215 permanece gate humano. PR documental #239 DRAFT. #232 v1/v2 aprovado, revisão independente pendente.
+
+> **SNAPSHOT HISTÓRICO — 24/11/2026 (AUD-002):** consultar checkpoint 24/11 e nota de auditoria ao final. PR #214 HEAD b884420: 1.291 testes GREEN; browser/dimension SUCCESS; #215 permanece gate humano. 16 Issues e 5 PRs abertas na inspeção; nenhuma revisão formal registrada.
 
 > **SNAPSHOT HISTÓRICO — 23/11/2026:** ver seção final **CHECKPOINT OPERACIONAL — 23/11/2026**. `main` ainda em `c04dacb` (1.265 testes no último CI), PR #214 DRAFT com HEAD `c52d8b3` e 1.290 testes GREEN, navegador headless e dimensão SUCCESS. Issue #237 rastreia recuperação de diretórios de CSV rejeitado com remoção física falha; gate humano #215 ainda não cumprido. 22/11 sem atividade Agent Lab documentada; não retrodatá-la. A PR documental #235 ainda está DRAFT.
 
@@ -1642,3 +1646,17 @@ Registro técnico de reentrada detalhado: `docs/operations/SESSION_HANDOFF.json`
 - CI canônica 45388445578: log Python 3.11 `Ran 1291 tests in 6.411s` / `OK`; browser 45388445850 e dimensão 45388445530 SUCCESS, HEAD b884420. A contagem esperada no checkpoint anterior foi confirmada; não é baseline integrado.
 - Revisão assistida dos diffs: #233 é snapshot histórico de 17/11; #232 acrescenta campo aninhado mantendo schema v1, compatibilidade estrita externa não comprovada; #191 depende de plano amostral/limiares e GO metodológico; #214 depende de #215. Nenhum review formal observado nas cinco PRs antes da auditoria. Sem aprovação independente fabricada.
 - #216: contrato exige retirada do mapa antes de limpeza, mas implementação retém sessão publicada se remoção falhar; requer decisão e teste específico. #237/#238: CI confirmada, aceite e integração pendentes. Não fechar Issues por CI isolada.
+
+
+## CHECKPOINT OPERACIONAL — 25/11/2026 (AUD-002 / pós-GO)
+
+- GO-01 efetivo: #235 merge `ee8cb98`, #233 merge `1b2cb46`; [CI main](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45405738056) SUCCESS, 1265 testes. Última entrega funcional integrada #230. 16 Issues abertas, #191/#214/#232 abertas antes da PR documental deste checkpoint; #234 CLOSED UNMERGED.
+- GO-02 parcial: #232 não DRAFT, HEAD `4ba64dd`, v1 default/v2 opt-in aprovado e CI [45406212422](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406212422) 1270 GREEN; revisão independente não observada, não integrar. #191 DRAFT sem GO metodológico.
+- #214 DRAFT: `4696d08` de 24/11 reconciliou #216/#238 (revogação lógica antes da limpeza física, retry privado), CI [45406021555](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406021555) 1291 GREEN e [browser 45406021424](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45406021424) SUCCESS. Revisões formais COMMENTED assistidas, não independentes. Hoje `2d09a0f` serializa ações assíncronas na mesma página; `e610944` acrescenta smoke de requisições reais retardadas. CI nova não confirmada no instante deste checkpoint. Sem afirmar proteção entre abas, cancelamento de downloads já iniciados ou revisão humana.
+- R4/R7, D-03/D-04, GT/T02 FROZEN, SR-001/B2 e prazos históricos preservados. Não fechar Issues só por CI de branch. #215 exige validação manual/adversarial e aceite humano; #219 permanece proposta de produto futura.
+- Commits de 25/11 em branch; autoria Jk-Pascoal confirmada para e610944; quadradinho visual não confirmado. Sem merge por calendário. Próxima sessão: verificar CI do HEAD real, executar teste manual do especialista e avaliar gate #215.
+
+### Fechamento técnico 25/11 — CI e contribuição
+
+- Smoke inicial [45593790248](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593790248) falhou por `wait_for_function` com avaliação de string bloqueada pela CSP. Correção exclusivamente no teste (`faab0b2`), por espera via locator; CSP preservada. No HEAD final `faab0b2713448562b9020ba1a781b0fd8f7d3967`: [unittest 45593960662](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960662), log `Ran 1291 tests in 7.579s` / `OK`; [dimensão 45593960623](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960623) SUCCESS; [browser 45593960626](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626) PASS com [evidência 15011858937](https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626/artifacts/15011858937). Não é aceite manual independente.
+- PR [#239](https://github.com/Jk-Pascoal/agent-lab-pascoal/pull/239) aberta por `Jk-Pascoal` às 10:19:39 UTC de 25/11 para reconciliar Compass/handoff; 4 PRs abertas após sua criação, 16 Issues. Evento de PR pública elegível à contribuição; cor do calendário ainda não observada. Nenhuma feature integrada à main nesta sessão.

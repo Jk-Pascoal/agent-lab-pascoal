@@ -1,10 +1,10 @@
 {
   "schema_version": "agent_lab.session_handoff.v1",
   "checkpoint": {
-    "date": "2026-11-24",
+    "date": "2026-11-25",
     "timezone": "America/Bahia",
-    "main_sha_at_checkpoint": "c04dacb600041c715dada7126fa93075d52f8799",
-    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
+    "main_sha_at_checkpoint": "1b2cb460d832c88f3e29f559406fe8a9a23107c3",
+    "main_ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45405738056",
     "main_tests_passed": 1265,
     "canonical_runner": "python -m unittest discover -s tests -v",
     "last_functional_pr": 230,
@@ -45,32 +45,32 @@
     },
     "branch_only_pending_integration": {
       "pr": 214,
-      "head": "b884420cdffcfbf4faee55b14e29d404ff0b3a84",
-      "improvement": "Prior #236/#237 storage/cleanup fixes plus #238 UI invalidation before discard",
+      "head": "faab0b2713448562b9020ba1a781b0fd8f7d3967",
+      "improvement": "Serialize same-page analysis/example/discard; browser regression with delayed real fetches; previous HEAD 4696d08 reconciles logical revocation and partial discard retry.",
       "verification": "CI_GREEN_ON_PR_BRANCH_NOT_MAIN",
       "unittest_count": 1291,
-      "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578",
-      "browser_smoke_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445850",
-      "dimension_check_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445530",
+      "ci_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960662",
+      "browser_smoke_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626",
+      "dimension_check_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960623",
       "pending_issue": 215,
       "fix_tracking_issue": 236,
       "cleanup_tracking_issue": 237,
-      "ui_discard_tracking_issue": 238
+      "ui_discard_tracking_issue": 238,
+      "last_verified_head": "faab0b2713448562b9020ba1a781b0fd8f7d3967"
     }
   },
   "next_session": {
-    "planned_date": "2026-11-25",
+    "planned_date": "2026-11-26",
     "priority": "P1_FUNCTIONAL_VERTICAL",
     "tracking_issue": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/210",
-    "scope": "LOCAL_SYNTHETIC_CSV_FINAL_MANUAL_ACCEPTANCE_AND_PENDING_BRANCH_REVIEW",
-    "objective": "Verify final CI for #214 HEAD b884420, then actual specialist browser acceptance #215 including partial discard/retry #238, cleanup #237 and valid/invalid CSV; review #232 JSON consumers and #233/#235 documentary gates. Do not merge absent required acceptance.",
+    "scope": "VERIFY_NEW_HEAD_CI_AND_MANUAL_SPECIALIST_ACCEPTANCE",
+    "objective": "Check final #214 CI remains GREEN (faab0b2); execute manual specialist acceptance #215; review #239 docs, #232 independent review and #191 methodology.",
     "entry_protocol": [
-      "Read AGENTS.md, latest SESSION_HANDOFF.json and Compass, then compare with live GitHub. Main c04dacb has last 1265/1265 CI GREEN in 43740424332, not changed by branch-only 23 Nov.",
-      "PR #214 DRAFT/UNMERGED, head b884420: 1291/1291 GREEN, browser and dimension SUCCESS; #215 human/manual gate remains. Verify live refs before integration.",
-      "Run local specialist manual acceptance for #215 on synthetic CSV (including 507 and retry, 403, corrupted manifest and UI behavior), document evidence and actual approver; headless tests do not equal independent human GO.",
-      "Recheck #191 scientific B2 methodological GO, #232 JSON consumer compatibility, #233 17 Nov audit, #235 documentary gate, #225 conservative dimensional evidence; all DRAFT/OPEN on 23 Nov.",
-      "Keep experimental SR-001 T02/GT FROZEN, no auto veto, no industrial claims; D-03/D-04 PENDING and 20 Nov milestone expired without approved reforecast.",
-      "Do not retrodate a missed 22 Nov session or conflate GitHub authored commits with visibly colored contribution calendar."
+      "Read AGENTS.md, this handoff and Compass, verify live main and PR heads, not snapshots.",
+      "Reverify #214 CI on latest HEAD; faab0b2 had 1291 GREEN, browser and dimension SUCCESS on 25 Nov.",
+      "Specialist manual test of synthetic catalog, filters, three downloads, invalid CSV, discard/retry, control serialization. Record real observations and approval separately.",
+      "Review #232 independent review and external consumer compatibility; #191 methodology GO; no merge if gate missing.",
+      "Preserve R4/R7, GT/T02 FROZEN, SR-001/B2 and D-03/D-04. No calendar-driven merge."
     ],
     "minimum_functional_deliverable": "Executable local entrypoint or interface with synthetic CSV -> real diagnostics -> verified report/manifest -> readable triage/export; include both success and corrupt-input failure paths.",
     "acceptance": [
@@ -112,53 +112,92 @@
     ]
   },
   "latest_verified_checkpoint": {
-    "date": "2026-11-24",
+    "date": "2026-11-25",
     "timezone": "America/Bahia",
-    "main_sha": "c04dacb600041c715dada7126fa93075d52f8799",
+    "main_sha": "1b2cb460d832c88f3e29f559406fe8a9a23107c3",
     "main_ci": {
       "status": "SUCCESS",
       "unittest_count": 1265,
-      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
-      "note": "Prior CI on main; not a newly triggered 23 Nov build"
+      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45405738056"
     },
     "delivery": {
-      "issue": 238,
       "pr": 214,
+      "head": "faab0b2713448562b9020ba1a781b0fd8f7d3967",
       "status": "FEATURE_BRANCH_ONLY_DRAFT_UNMERGED",
-      "head": "b884420cdffcfbf4faee55b14e29d404ff0b3a84",
+      "commits": [
+        "2d09a0fd87e62965fb5dc24a2d19c8ebebf049b2",
+        "e6109440ff366a80534ac50739792f8a94d65b4a",
+        "faab0b2713448562b9020ba1a781b0fd8f7d3967"
+      ],
       "files": [
         "src/agent_lab/poc_local_ui.py",
-        "tests/test_poc_local_ui.py"
+        "scripts/poc_210_browser_smoke.py"
       ],
-      "implementation": "Invalidate UI results and downloads before confirmed session DELETE, including partial discard errors. Structural HTTP-served HTML regression; manual browser behavior not verified.",
       "ci": {
         "status": "SUCCESS",
-        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578",
-        "browser_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445850",
-        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445530",
-        "unittest_count": 1291
+        "unittest_count": 1291,
+        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960662",
+        "browser_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626",
+        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960623",
+        "browser_artifact": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593960626/artifacts/15011858937"
+      },
+      "initial_browser_failure": {
+        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45593790248",
+        "cause": "Playwright eval-based wait prohibited by strict CSP; test changed to locator waits without weakening CSP"
       }
     },
     "audit": {
-      "open_issues": 16,
+      "open_issues": [
+        158,
+        204,
+        206,
+        210,
+        215,
+        216,
+        217,
+        219,
+        220,
+        221,
+        222,
+        223,
+        225,
+        236,
+        237,
+        238
+      ],
+      "open_prs_before_documentary_pr": [
+        191,
+        214,
+        232
+      ],
+      "merged_prs_24_nov": [
+        233,
+        235
+      ],
+      "pr234": "CLOSED_UNMERGED",
+      "pr232": "OPEN_NOT_DRAFT_V1_V2_APPROVED_REVIEW_INDEPENDENT_PENDING",
+      "formal_review_submissions": "COMMENTED only on 191/214/232; no independent approval observed",
       "open_prs": [
         191,
         214,
         232,
-        233,
-        235
+        239
       ],
-      "formal_reviews_observed": 0,
-      "pr234": "CLOSED_UNMERGED",
-      "last_merged_functional_pr": 230,
-      "note": "Review count not reverified; PR metadata for #214 and #235 reports inconsistent base SHA; default-branch commit listing returns c04dacb."
+      "documentary_pr": 239
+    },
+    "github_contribution": {
+      "actor": "Jk-Pascoal",
+      "feature_commits_verified": true,
+      "in_main": false,
+      "profile_calendar": "NOT_VISUALLY_CONFIRMED",
+      "pr_created": 239,
+      "pr_created_at": "2026-11-25T10:19:39Z",
+      "eligible_event": "PUBLIC_PR_OPENED_BY_Jk-Pascoal"
     },
     "human_gates": {
-      "issue215": "PENDING_HUMAN_MANUAL_INDEPENDENT_ACCEPTANCE",
-      "pr191": "PENDING_SCIENTIFIC_GO",
-      "pr232": "JSON_CONSUMER_REVIEW_PENDING",
-      "pr233": "DOC_REVIEW_PENDING",
-      "pr235": "DOC_REVIEW_PENDING"
+      "issue215": "PENDING",
+      "pr232": "INDEPENDENT_REVIEW_PENDING",
+      "pr191": "SCIENTIFIC_GO_PENDING"
     },
     "research": {
       "t02": "FROZEN",
@@ -166,30 +205,10 @@
       "industrial_100k_sku": "NOT_PROVEN"
     },
     "schedule": {
-      "report_2026_10_25": "OVERDUE",
-      "poc_2026_11_20": "ELAPSED_NOT_REVALIDATED",
       "D03": "PENDING",
       "D04": "PENDING",
-      "missed_2026_11_22": "NO_DOCUMENTED_SESSION_IN_THIS_HANDOFF"
-    },
-    "github_contribution": {
-      "actor": "Jk-Pascoal",
-      "issue_created": 238,
-      "issue_created_at": "2026-11-24T11:54:18Z",
-      "feature_commits": [
-        "fa993ed36660bdcb3438986869e8c7930dff0a7c",
-        "b884420cdffcfbf4faee55b14e29d404ff0b3a84"
-      ],
-      "in_main": false,
-      "profile_calendar": "NOT_VISUALLY_CONFIRMED"
-    },
-    "prohibited": [
-      "No calendar-driven merge",
-      "No fabricated human review",
-      "No T02/GT/SR-001 changes",
-      "No retrodated commits",
-      "No false readiness claims"
-    ]
+      "poc_target": "ELAPSED_NOT_REVALIDATED"
+    }
   },
   "prior_verified_checkpoint": {
     "date": "2026-11-23",
@@ -363,5 +382,102 @@
       "No T02/GT/SR-001 changes",
       "No retrodated commits or false production claims"
     ]
+  },
+  "previous_aud002_checkpoint": {
+    "date": "2026-11-24",
+    "timezone": "America/Bahia",
+    "main_sha": "c04dacb600041c715dada7126fa93075d52f8799",
+    "main_ci": {
+      "status": "SUCCESS",
+      "unittest_count": 1265,
+      "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/43740424332",
+      "note": "Prior CI on main; not a newly triggered 23 Nov build"
+    },
+    "delivery": {
+      "issue": 238,
+      "pr": 214,
+      "status": "FEATURE_BRANCH_ONLY_DRAFT_UNMERGED",
+      "head": "b884420cdffcfbf4faee55b14e29d404ff0b3a84",
+      "files": [
+        "src/agent_lab/poc_local_ui.py",
+        "tests/test_poc_local_ui.py"
+      ],
+      "implementation": "Invalidate UI results and downloads before confirmed session DELETE, including partial discard errors. Structural HTTP-served HTML regression; manual browser behavior not verified.",
+      "ci": {
+        "status": "SUCCESS",
+        "run_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445578",
+        "browser_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445850",
+        "dimension_url": "https://github.com/Jk-Pascoal/agent-lab-pascoal/actions/runs/45388445530",
+        "unittest_count": 1291
+      }
+    },
+    "audit": {
+      "open_issues": 16,
+      "open_prs": [
+        191,
+        214,
+        232,
+        233,
+        235
+      ],
+      "formal_reviews_observed": 0,
+      "pr234": "CLOSED_UNMERGED",
+      "last_merged_functional_pr": 230,
+      "note": "Review count not reverified; PR metadata for #214 and #235 reports inconsistent base SHA; default-branch commit listing returns c04dacb."
+    },
+    "human_gates": {
+      "issue215": "PENDING_HUMAN_MANUAL_INDEPENDENT_ACCEPTANCE",
+      "pr191": "PENDING_SCIENTIFIC_GO",
+      "pr232": "JSON_CONSUMER_REVIEW_PENDING",
+      "pr233": "DOC_REVIEW_PENDING",
+      "pr235": "DOC_REVIEW_PENDING"
+    },
+    "research": {
+      "t02": "FROZEN",
+      "B2": "POST_HOC_NOT_INDEPENDENT",
+      "industrial_100k_sku": "NOT_PROVEN"
+    },
+    "schedule": {
+      "report_2026_10_25": "OVERDUE",
+      "poc_2026_11_20": "ELAPSED_NOT_REVALIDATED",
+      "D03": "PENDING",
+      "D04": "PENDING",
+      "missed_2026_11_22": "NO_DOCUMENTED_SESSION_IN_THIS_HANDOFF"
+    },
+    "github_contribution": {
+      "actor": "Jk-Pascoal",
+      "issue_created": 238,
+      "issue_created_at": "2026-11-24T11:54:18Z",
+      "feature_commits": [
+        "fa993ed36660bdcb3438986869e8c7930dff0a7c",
+        "b884420cdffcfbf4faee55b14e29d404ff0b3a84"
+      ],
+      "in_main": false,
+      "profile_calendar": "NOT_VISUALLY_CONFIRMED"
+    },
+    "prohibited": [
+      "No calendar-driven merge",
+      "No fabricated human review",
+      "No T02/GT/SR-001 changes",
+      "No retrodated commits",
+      "No false readiness claims"
+    ]
+  },
+  "owner_priority_decision_20261127": {
+    "date": "2026-11-27",
+    "planned_session": "2026-11-28",
+    "directive": "OP-DEC-001",
+    "issue": 241,
+    "priority": "P0_SEMANTIC_QUALITY_RELEASE_GATE",
+    "status": "PRIORITY_APPROVED_SPEC_AND_MATRIX_PENDING",
+    "objective": "Draft SPEC-0241 and specialist valve matrix; reproduce OP002-008; require explicit REVIEW after approved implementation.",
+    "preserve": [
+      "#215/#214 acceptance gates",
+      "GT/T02/SR-001 FROZEN",
+      "D-03/D-04",
+      "duplicate scorer"
+    ],
+    "supply_chain": "POST_DELIVERY",
+    "evidence": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/241#issuecomment-7217947765"
   }
 }
