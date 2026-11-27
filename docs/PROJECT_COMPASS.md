@@ -4,7 +4,9 @@
 >
 > Leia este documento antes de propor uma nova Issue, SPEC ou alteração de código.
 
-> **REENTRADA MAIS RECENTE — 25/11/2026 (AUD-002):** consultar checkpoint ao final. GO-01 #235/#233 integrados; main `1b2cb46` CI 1265 GREEN. 16 Issues, 3 PRs abertas antes desta PR documental. #214 HEAD `faab0b2`, CI 1291 GREEN, browser/dimensão SUCCESS; #215 permanece gate humano. PR documental #239 DRAFT. #232 v1/v2 aprovado, revisão independente pendente.
+> **REENTRADA PRIORITÁRIA — 27/11/2026 (OP-DEC-001):** Decisão do proprietário — 27/11/2026: elevar #241 (OBS-006) a prioridade P0 de qualidade semântica para Professional v0.9 RC, antes da entrega de dezembro. Atividade prioritária 28/11: SPEC-0241 proposta, matriz piloto de válvulas e reprodução OP002-008. Aprovação de prioridade não aprova a matriz nem implementação; exigir revisão especializada, regressões, CI e REVIEW explícito no caso insuficiente. Preservar gate #215/#214, scorer, GT/T02/SR-001 e D-03/D-04. Supply Chain permanece pós-entrega.
+
+> **SNAPSHOT HISTÓRICO — 25/11/2026 (AUD-002):** consultar checkpoint ao final. GO-01 #235/#233 integrados; main `1b2cb46` CI 1265 GREEN. 16 Issues, 3 PRs abertas antes desta PR documental. #214 HEAD `faab0b2`, CI 1291 GREEN, browser/dimensão SUCCESS; #215 permanece gate humano. PR documental #239 DRAFT. #232 v1/v2 aprovado, revisão independente pendente.
 
 > **SNAPSHOT HISTÓRICO — 24/11/2026 (AUD-002):** consultar checkpoint 24/11 e nota de auditoria ao final. PR #214 HEAD b884420: 1.291 testes GREEN; browser/dimension SUCCESS; #215 permanece gate humano. 16 Issues e 5 PRs abertas na inspeção; nenhuma revisão formal registrada.
 
