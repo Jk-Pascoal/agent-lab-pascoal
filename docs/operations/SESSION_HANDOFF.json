@@ -462,5 +462,22 @@
       "No retrodated commits",
       "No false readiness claims"
     ]
+  },
+  "owner_priority_decision_20261127": {
+    "date": "2026-11-27",
+    "planned_session": "2026-11-28",
+    "directive": "OP-DEC-001",
+    "issue": 241,
+    "priority": "P0_SEMANTIC_QUALITY_RELEASE_GATE",
+    "status": "PRIORITY_APPROVED_SPEC_AND_MATRIX_PENDING",
+    "objective": "Draft SPEC-0241 and specialist valve matrix; reproduce OP002-008; require explicit REVIEW after approved implementation.",
+    "preserve": [
+      "#215/#214 acceptance gates",
+      "GT/T02/SR-001 FROZEN",
+      "D-03/D-04",
+      "duplicate scorer"
+    ],
+    "supply_chain": "POST_DELIVERY",
+    "evidence": "https://github.com/Jk-Pascoal/agent-lab-pascoal/issues/241#issuecomment-7217947765"
   }
 }
